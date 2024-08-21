@@ -1,0 +1,210 @@
+#include "wifimanagment.h"
+
+//WifiManagment::WifiManagment(unsigned char _nbWifiItems,Laflamme *_laflammePtr){
+	WifiManagment::WifiManagment(unsigned char _nbWifiItems, char *_mapAsCharPtr){
+	mapAsCharPtr = _mapAsCharPtr;
+	nbWifiItems = _nbWifiItems;
+	
+	Serial.printf("Nb wifi network read from eeprom: %d\r\n", nbWifiItems);
+	
+	if (nbWifiItems > 0 &&  nbWifiItems < NB_MAX_WIFI){
+		parseCharsMap();
+	}
+}
+
+unsigned char  WifiManagment::addItem(const char *ssid, const char *pwd){
+	if (nbWifiItems == NB_MAX_WIFI){
+		Serial.println(F("Le nombre réseaux wifi enregistré est déjà au maximum ! "));
+	}
+	WifiItem myItem;
+	strcpy(myItem.SSID, ssid);
+	strcpy(myItem.PWD, pwd);
+	wifiItemsMap[nbWifiItems++] = myItem; // add new network in the map
+	
+	Serial.printf("SSID: %s successfuly added, new nb network: %d\r\n", ssid, nbWifiItems);
+	return nbWifiItems;
+}
+
+char * WifiManagment::wifiMapstoCharPtr(){
+	unsigned int index = 0;
+	char *ptr = mapAsCharPtr;
+	//Serial.println("Convert the map into an chain");
+	 for (std::map<unsigned char,WifiItem>::iterator it = wifiItemsMap.begin(); it != wifiItemsMap.end(); ++it){
+		ptr[index] = it->first;
+		//Serial.printf("id: %d ", it->first);
+		index +=  sizeof(it->first);
+		
+		strcpy(ptr+index, it->second.SSID);
+		//Serial.printf("SSID: %s ", it->second.SSID);
+		index += strlen(it->second.SSID);
+		index++;
+		
+		strcpy(ptr+index, it->second.PWD);
+		//Serial.printf("PWD: %s", it->second.PWD);
+		index += strlen(it->second.PWD);
+		index++;
+		Serial.println();
+	}
+	
+	//Serial.printf("Size of chain: %d\r\n", index);
+	for (unsigned int i = 0; i < index; i++){
+		//Serial.print((int)ptr[i]);
+	}
+	return ptr;
+}
+
+void WifiManagment::parseCharsMap(){
+	unsigned char nbItems = 0;
+	char *ptr = mapAsCharPtr;
+	//Serial.printf("Parsing chain, nb items: %d\r\n", nbWifiItems);
+	
+	unsigned char id, l = 0;
+	unsigned int index = 0;
+	char ssid[SSID_LENGHT];
+	char pwd[PWD_LENGHT];
+	
+	while (nbItems < nbWifiItems){
+		id = ptr[index];
+		//Serial.printf("id: %d\r\n", id);
+		index += sizeof(unsigned char);
+		
+		l = 0;
+		while (ptr[index] != 0  && l < SSID_LENGHT){
+			ssid[l++] = ptr[index++];
+		}
+		ssid[l] = 0;
+		//Serial.printf("SSID: %s\r\n", ssid);
+		index++;
+		
+		l = 0;
+		while (ptr[index] != 0  && l < PWD_LENGHT){
+			pwd[l++] = ptr[index++];
+		}
+		pwd[l] = 0;
+		//Serial.printf("PWD: %s\r\n", pwd);
+		index++;
+		WifiItem myItem;
+		strcpy(myItem.SSID, ssid);
+		strcpy(myItem.PWD, pwd);
+		wifiItemsMap[id] = myItem; // add new network in the map
+
+		nbItems++;
+	}
+}
+
+WifiItem WifiManagment::getNextNetwork(){
+	currentNetworkId += 1;
+	
+	if (currentNetworkId >= nbWifiItems){
+		currentNetworkId = 0;
+	}
+	
+	return wifiItemsMap[currentNetworkId];	
+}
+
+void WifiManagment::displayRegistredNetworks(){
+	for (std::map<unsigned char,WifiItem>::iterator it = wifiItemsMap.begin(); it != wifiItemsMap.end(); ++it){
+		Serial.println(it->second.SSID);
+	}
+}
+
+void WifiManagment::showIpAddress(){
+  if (WiFi.status() == WL_CONNECTED){
+    Serial.printf("Le WIFI est connecté au point d'accès, le nom du réseau wifi est: %s, le niveau de réception: %d dB\r\n", WiFi.SSID().c_str(), WiFi.RSSI()); 
+    Serial.printf("Le nom réseau du module est: %s, l'adresse mDNS est: %s.local\r\n", WiFi.getHostname(), WiFi.getHostname());
+    byte mac[6];
+    WiFi.macAddress(mac);
+    Serial.printf("Addresse ip du module: %s, mac address: %02X:%02X:%02X:%02X:%02X:%02X\r\n", WiFi.localIP().toString().c_str(), mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
+  } else {
+    Serial.println(F("Le WIFI n'est pas connecté au point d'accès !!"));
+  }
+} // showIpAddress
+
+void WifiManagment::printWifiEvent(WiFiEvent_t event) {
+    switch (event) {
+        case ARDUINO_EVENT_WIFI_READY: 
+            Serial.println("WiFi interface ready");
+            break;
+        case ARDUINO_EVENT_WIFI_SCAN_DONE:
+            Serial.println("Completed scan for access points");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_START:
+            Serial.println("WiFi client started");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_STOP:
+            Serial.println("WiFi clients stopped");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+            Serial.println("Connected to access point");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+            Serial.println("Disconnected from WiFi access point");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_AUTHMODE_CHANGE:
+            Serial.println("Authentication mode of access point has changed");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+            Serial.print("Obtained IP address: ");
+            Serial.println(WiFi.localIP());
+            break;
+        case ARDUINO_EVENT_WIFI_STA_LOST_IP:
+            Serial.println("Lost IP address and IP address is reset to 0");
+            break;
+        case ARDUINO_EVENT_WPS_ER_SUCCESS:
+            Serial.println("WiFi Protected Setup (WPS): succeeded in enrollee mode");
+            break;
+        case ARDUINO_EVENT_WPS_ER_FAILED:
+            Serial.println("WiFi Protected Setup (WPS): failed in enrollee mode");
+            break;
+        case ARDUINO_EVENT_WPS_ER_TIMEOUT:
+            Serial.println("WiFi Protected Setup (WPS): timeout in enrollee mode");
+            break;
+        /*case ARDUINO_EVENT_WPS_ER_PIN:
+            Serial.println("WiFi Protected Setup (WPS): pin code in enrollee mode");
+            break;
+		*/
+        case ARDUINO_EVENT_WIFI_AP_START:
+            Serial.println("WiFi access point started");
+            break;
+        case ARDUINO_EVENT_WIFI_AP_STOP:
+            Serial.println("WiFi access point  stopped");
+            break;
+        case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+            Serial.println("Client connected");
+            break;
+        case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+            Serial.println("Client disconnected");
+            break;
+        case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:
+            Serial.println("Assigned IP address to client");
+            break;
+        case ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED:
+            Serial.println("Received probe request");
+            break;
+        case ARDUINO_EVENT_WIFI_AP_GOT_IP6:
+            Serial.println("AP IPv6 is preferred");
+            break;
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
+            Serial.println("STA IPv6 is preferred");
+            break;
+        case ARDUINO_EVENT_ETH_GOT_IP6:
+            Serial.println("Ethernet IPv6 is preferred");
+            break;
+        case ARDUINO_EVENT_ETH_START:
+            Serial.println("Ethernet started");
+            break;
+        case ARDUINO_EVENT_ETH_STOP:
+            Serial.println("Ethernet stopped");
+            break;
+        case ARDUINO_EVENT_ETH_CONNECTED:
+            Serial.println("Ethernet connected");
+            break;
+        case ARDUINO_EVENT_ETH_DISCONNECTED:
+            Serial.println("Ethernet disconnected");
+            break;
+        case ARDUINO_EVENT_ETH_GOT_IP:
+            Serial.println("Obtained IP address");
+            break;
+        default: break;
+    }
+}

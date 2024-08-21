@@ -1,0 +1,139 @@
+{
+    "hardware": "Lichuan",
+    "registersOffset": 0,
+
+    "ModbusReadHoldingRegister": [
+        {
+            // Error code
+            "id": 1,
+            "offset": 2850
+        },
+        {
+            // act speed 
+            "id": 2,
+            "offset": 2816
+        },  
+        {
+            // Bus voltage
+            "id": 4,
+            "offset":2842
+        },
+        {
+            // Temp POB 27
+            "id": 5,
+            "offset": 2843
+        },
+        {
+            // Pr1 speed 
+            "id": 6,
+            //"offset": 286
+            "offset": 4366
+        },
+        {
+            // Torque % 
+            "id": 7,
+            "offset": 2828
+        }
+
+    ],
+
+    "ModbusWriteHoldingRegister": [
+        {
+            // VDI (mettre à 1) active les input virtuel
+            // mais je ne sais pas comment écrire dessus
+            // 3082 pour les valeurs initiales des VDI
+            "id": 1,
+            "offset": 3081
+        },
+        {
+            // Position/speed command no 
+            "id": 2,
+            "offset": 4609
+        },
+        {
+            // Sim Inputs (1 bit un input à tester)
+            //je crois que celui la force les input physique
+            "id": 3,
+            "offset": 3346
+        },
+        {
+            // Speed 1 -6000 +6000
+            "id": 5,
+            "offset": 4628
+        },
+        {
+            // torque cmd -3000 +3000
+            "id": 6,
+            "offset": 1795
+        },
+        {
+            // rst fault (bool)
+            "id": 7,
+            "offset": 3329
+        },
+        {
+            // Pr 1 speed 1-6000
+            "id": 8,
+            //"offset": 286
+            "offset": 4366
+        },
+        {
+            // Pr 1 acc dcl 0-65535
+            "id": 9,
+            "offset": 4367
+        },
+        {
+            // Ctrl Mode (0 Speed, 1 Position, 2 Torque)
+            "id": 10,
+            "offset": 512
+        },
+        {
+            // Ctrl VDI (0 disable, 1 enalbel))
+            "id": 11,
+            "offset": 3081
+        }
+    ],
+
+    "ModbusReadDobbleHoldingRegister": [
+        {
+            // Status Monitoring 
+            "id": 1,
+            "offset": 12288
+        },
+        {
+            // Pr 1 target
+            "id": 2,
+            //"offset": 284
+            "offset": 4364
+        },
+        {
+            // Position
+            "id": 3,
+            "offset": 2823
+        },
+        {
+            // total time
+            "id": 4,
+            "offset": 2835
+        }
+    ],
+
+    "ModbusWriteDobbleHoldingRegister": [
+        {
+            // Pr 1 target
+            "id": 1,
+            //"offset": 284
+            "offset": 4364
+        }
+
+    ]
+}
+
+// notes supplémentaires pour initialisation et autre
+
+
+// set homing method param 1310 (mode 6) pour les test hors mécanique
+
+// 0c-13 (3085) mettre a 1 pour écrire dans l'eeprom donc mettre a 0 pour nous
+
+// 05-00 (1280) mettre a 2 pour position command source

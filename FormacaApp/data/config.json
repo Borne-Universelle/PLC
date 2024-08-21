@@ -1,0 +1,87 @@
+{
+  "name": "formaca",
+  "type": "Project",
+  "component": "hw-module",
+  "config": [
+    {
+      "Wifi": [
+       
+        {
+          "ssid": "Ella",
+          "pwd": "Oceanne1",
+          "name": "EDMG_Thierry",
+          "dhcp": true
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "ota_url": "truc"
+      }
+    }
+  ],
+  "children": [
+    {
+      "name": "Direct outputs",
+      "hardware": "Kincony_KC868_A8S",
+      "component": "no-show",
+      "type": "tx-bool",
+      "children": [
+        {
+          "id": 1,
+          "name": "Buzzer",
+          "component": "tx-bool",
+          "hash": 291612745
+        }
+      ]
+    },
+    {
+      "name": "Inputs",
+      "hardware": "Kincony_KC868_A8S",
+      "component": "hw-section",
+      "type": "PF8574_rx-bool",
+      "children": [
+        {
+          "id": 1,
+          "name": "EStopA",
+          "component": "no-show",
+          "hash": 3037871547
+        }
+      ]
+    },
+    {
+      "name": "Outputs",
+      "hardware": "Kincony_KC868_A8S",
+      "component": "hw-section",
+      "type": "PF8574_tx-bool",
+      "children": [
+        {
+          "id": 1,
+          "name": "servoOn",
+          "component": "tx-bool",
+          "hash": 814574035
+        }
+      ]
+    }, 
+    {
+      "name": "Inputs",
+      "hardware": "virtual",
+      "component": "hw-section",
+      "type": "tx-float",
+      "children": [
+        {
+          "id": 1,
+          "name": "user target",
+          "component": "tx-uint",
+          "hash": 789972827
+        },
+        {
+          "id": 1,
+          "name": "rx",
+          "component": "rx-uint",
+          "hash": 789972827
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+    "hardware": "N4D3E16",
+    "registersOffset": 0,
+
+    
+    "ModbusReadHoldingRegister":
+    [
+        {
+            "id": 1,
+            "offset": 129
+        },
+        {
+            "id": 2,
+            "offset": 130
+        },
+        {
+            "id": 3,
+            "offset": 131
+        },
+        {
+            "id": 4,
+            "offset": 132
+        },
+        {
+            "id": 5,
+            "offset": 133
+        },
+        {
+            "id": 6,
+            "offset": 134
+        },
+        {
+            "id": 7,
+            "offset": 135
+        },
+        {
+            "id": 8,
+            "offset": 136
+        },
+        {
+            "id": 9,
+            "offset": 137
+        },
+        {
+            "id": 10,
+            "offset": 138
+        },
+        {
+            "id": 11,
+            "offset": 139
+        },
+        {
+            "id": 12,
+            "offset": 140
+        }
+    ],
+
+    "ModbusWriteHoldingRegister":
+    [
+        {
+            "id": 1,
+            "offset": 112
+        },
+        {
+            "id": 2,
+            "offset": 113
+        },
+        {
+            "id": 3,
+            "offset": 114
+        },
+        {
+            "id": 4,
+            "offset": 115
+        },
+        {
+            "id": 5,
+            "offset": 116
+        },
+        {
+            "id": 6,
+            "offset": 117
+        },
+        {
+            "id": 7,
+            "offset": 118
+        },
+        {
+            "id": 8,
+            "offset": 119
+        },
+        {
+            "id": 9,
+            "offset": 120
+        },
+        {
+            "id": 10,
+            "offset": 121
+        },
+        {
+            "id": 11,
+            "offset": 122
+        },
+        {
+            "id": 12,
+            "offset": 123
+        }
+    ]
+}
