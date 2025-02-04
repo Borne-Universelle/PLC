@@ -30,8 +30,6 @@ class Render{
         }
 
         void addProperties(JsonDocument doc){
-            JsonArray recettes = doc["recettes"];
-
             //JsonObject items = descriptor.add<JsonArray>();
             JsonArray items = descriptor["items"].to<JsonArray>();
             for (JsonObject recette : doc["recettes"].as<JsonArray>()) {
@@ -47,7 +45,7 @@ class Render{
             serializeJson(doc, chain, size);
             chain[size] = 0; 
             Serial.println("Document to send to the socket:");
-            serializeJsonPretty(doc, Serial);
+            // serializeJsonPretty(doc, Serial);
             Serial.println();
             BorneUniverselle::sendTextToClient(chain);
             free(chain);
@@ -92,7 +90,7 @@ class DropDown: public Render{
 
         void setItems(JsonDocument doc){
             Serial.println("Received document:");
-            serializeJsonPretty(doc, Serial);
+            // serializeJsonPretty(doc, Serial);
             addProperties(doc);
             sendJson();
         }

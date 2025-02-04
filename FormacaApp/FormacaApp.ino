@@ -15,7 +15,7 @@
 
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
-#define MAIN_VERSION "Version 2.1"
+#define MAIN_VERSION "Version 2.2"
 #define OTA_STARTED "HTTP update process started"
 #define OTA_FINISHED "HTTP update process finished"
 
@@ -61,6 +61,8 @@ void showHelp(){
   Serial.println("Tapez sur 'C' pour imprimer le fichier de config");
   Serial.println("Tapez sur 'D' pour envoyer un message de test");
   Serial.println("Tapez sur 'E' pour envoyer tous les états");
+  Serial.println("Tapez sur 'F' pour imprimer le fichier de persistance");
+  Serial.println("Tapez sur 'Y' pour faire un reset"),
   Serial.println("Tapez sur 'Z' pour afficher les heartbeat messages");
 }
 
@@ -82,6 +84,13 @@ void commandInterpretor(char car){
 
     case 'E':     bu->notifyWebClient(true);
       break;
+
+    case 'F':     Formaca::printPersistance();
+      break;
+
+    case 'Y':     Serial.println("ESP32 will reset");
+                  ESP.restart();
+      break;       
 
     case 'Z':     showHeartbeatMessages();
       break;
@@ -116,26 +125,18 @@ void firmwareUpdate(){
   }
 }
 
-void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
-  Serial.printf("%lu:: Connected to AP successfully, SSID: %s, level: %d [dB]\r\n", millis(), WiFi.SSID().c_str(), WiFi.RSSI());
-}
-
-void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
-  bu->setWifiConnected(false);  
-  Serial.println(F("Disconnected from WiFi"));
-  //server.end();
-  if (Serial.available()){
-        commandInterpretor(Serial.read());
-  }
-  connectToNextNetwork();
-}
-
 void turnOffBuzzer(){
    pinMode(BEEP, OUTPUT); 
     digitalWrite(BEEP, false);
 }
 
-void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
+//void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+void WiFiStationConnected(){
+  Serial.printf("%lu:: Connected to AP successfully, SSID: %s, level: %d [dB]\r\n", millis(), WiFi.SSID().c_str(), WiFi.RSSI());
+}
+
+//void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){ // version 1 & 2
+void WiFiGotIP(){
   if (BorneUniverselle::getIsKinconyA8S()){
     turnOffBuzzer();
   }
@@ -155,8 +156,18 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
   server.begin();  // Test Thierry
   Serial.println("Web server started !");
-  
 } // WiFiGotIP
+
+void WiFiStationDisconnected(){
+//void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  bu->setWifiConnected(false);  
+  Serial.println(F("Disconnected from WiFi"));
+  //server.end();
+  if (Serial.available()){
+        commandInterpretor(Serial.read());
+  }
+  connectToNextNetwork();
+}
 
 void update_started() {
   Serial.println(OTA_STARTED);
@@ -193,7 +204,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     break;
    
     case WS_EVT_DISCONNECT: 
-           Serial.printf("%lu:: client %lu is disconnected, will remove it\r\n", millis(), client->id());
+           Serial.printf("%lu:: client %lu is disconnected, will remove it\r\n", millis(), (unsigned long)client->id());
            bu->setClientConnected(false, NULL);         
     break;
     
@@ -230,7 +241,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
         len = 1999;
       }
       strncpy(dataText, (char *)data, len);
-      Serial.printf("%lu:: WebSocket error received from client: %lu, event type: %s, data: %s\r\n", millis(), client->id(), eventTypeText, dataText);
+      Serial.printf("%lu:: WebSocket error received from client: %lu, event type: %s, data: %s\r\n", millis(), (unsigned long)client->id(), eventTypeText, dataText);
       client->close();
       break;
   } // switch
@@ -252,7 +263,7 @@ void setup(){
 
   Serial.println();Serial.println();Serial.println();
 
-  Serial.println("Starting Ressort Formaca....");
+  Serial.println("Starting Formaca....");
   
   // Begin LittleFS
   if (!LittleFS.begin()){
@@ -269,15 +280,24 @@ void setup(){
     formaca = new Formaca();
   }
 
-  //----------------------------------------------------WIFI
-      
-  //Serial.printf("Default ota url: %s\r\n", bu->getOTA_Url());
-  //WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
-  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
-  //WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP); // version 1
-  WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP); // version 2.0x
-  //WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED); // version 1
-  WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED); //version 2.0x
+  
+  //  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
+  //  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
+  WiFi.onEvent([](arduino_event_t *event) {
+    WiFiStationConnected();
+  }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED); // Version 3.x
+
+  //  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP); // version 1
+  // WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP); // version 2.0x
+  WiFi.onEvent([](arduino_event_t *event) {
+    WiFiGotIP();
+  }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+
+  //  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED); // version 1
+  //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED); //version 2.0x
+  WiFi.onEvent([](arduino_event_t *event) {
+    WiFiStationDisconnected();    
+  }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
 // OTA 
 //  httpUpdate.onStart(update_started);
@@ -336,12 +356,15 @@ void loop() {
         } else {
             Serial.println("Not calling logic executor beacause automate is not fully intialised");
         }     
-     } // Queues ok
-    }
-
+     } else {// Queues ok
+        Serial.println("Not calling logic executor because client queue is full or queue is more than half");
+     }
+  }
+    
   bu->sendMessage();
   ws.cleanupClients();
   if (millis() - start > 1500){
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
   }
+  delay(1);
 }

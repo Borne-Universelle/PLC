@@ -1,5 +1,5 @@
 #include "Node.h"
-#include "BorneUniverselle.h"
+#include "borneUniverselle.h"
 
 PCF8574 *PF8574BooleanInputNode:: pcfRx;
 bool PF8574BooleanInputNode:: isPCF8574_Initialised = false;
@@ -9,11 +9,6 @@ PCF8574 *PF8574BooleanOutputNode:: pcfTx;
 bool PF8574BooleanOutputNode:: isPCF8574_Initialised = false;
 bool PF8574BooleanOutputNode:: pcfError = false;
 
-ModbusRTU *MyModbus:: modbus;
-uint32_t MyModbus:: lastTransaction;
-Modbus::ResultCode MyModbus:: lastEvent;
-uint32_t MyModbus::lastProblem;
-
 Node::Node(char *name, char *parentName, uint32_t _hash, uint16_t webRefreshInterval){
     //Serial.println("constructeur Node");
     setName(name, parentName);
@@ -22,13 +17,13 @@ Node::Node(char *name, char *parentName, uint32_t _hash, uint16_t webRefreshInte
     sprintf(text, "%s%s", name, parentName);
     hash = (~crc32_le((uint32_t)~(0xffffffff), (const uint8_t*)text, strlen(text)))^0xffffffFF;
     if (_hash != hash){
-        Serial.printf("CRC32 updated. Text: %s, new hash: %lu, old %lu\r\n", text, hash, _hash);
+        Serial.printf("CRC32 updated. Text: %s, new hash: %lu, old %lu\r\n", text, (unsigned long)hash, (unsigned long)_hash);
     }
     setWebUpdateInterval(webRefreshInterval);
     mode = DEFAULT_MODE;
 }
 
-bool Node::setName(char *_name, char *_parentName){
+bool Node::setName(const char *_name, const char *_parentName){
     if ((strlen(_name) + strlen(_parentName))< NAME_LENGHT){
         sprintf(name, "%s/%s", _parentName, _name);
     } else {
@@ -46,12 +41,26 @@ char * Node::getName(){
     return name;
 }
 
+void Node::setShowMessages(bool _showMessage){
+    Serial.printf("Node:: show messages: %s for node: %s\r\n", _showMessage ? "true" : "false", getName());
+    isShowMessage = _showMessage;
+}
+
 uint32_t Node::getHash(){
+    if(isnan(hash)){
+        Serial.printf("WARNING ! the node: %s is not initialised !!!!!!\r\n", name);
+        BorneUniverselle::setPlcBroken(HASH_NOT_FOUND);
+        return 0;
+    }
     return hash;
 }
 
 uint32_t Node::getLastChange(){
     return lastChange;
+}
+
+uint32_t Node::getLastRefresh() {
+     return lastRefresh; 
 }
 
 void Node::setChangeEvent(){
@@ -90,6 +99,32 @@ void Node::setWebUpdateInterval(uint16_t _interval){
     // Serial.printf("Web refresh interval for node %s is %u\r\n", getName(), webUpdateInterval);
 }
 
+void Node::showMessage(const char *text){
+    if (isShowMessage){
+        Serial.printf("%u:: %s\r\n", text);
+    }
+}  
+
+bool Node::refresh(){
+    uint32_t startTime = millis();
+    char text[256];
+    sprintf(text, "%u:: Node::Refresh node %s with hash: %u", millis(), getName(), getHash());
+    showMessage(text);
+
+    if (specificRefresh()){
+        setLastRefresh(millis());
+        if (millis() - startTime > 100) {
+            Serial.printf("%u:: Node:: Refresh, warning: Long refresh time (%lu ms) for node %s\n", millis(), millis() - startTime, name);
+        }
+        return true;
+    }
+        return false;
+}
+
+void Node::setLastRefresh(uint32_t lastUpdate){
+    lastRefresh = lastUpdate;
+}
+
 void Node::setMode(uint8_t _mode){
     //Serial.printf("Node::setMode for node: %s\r\n", getName());
     mode = _mode;
@@ -121,7 +156,7 @@ bool Node::setDescriptor(JsonDocument _descriptor){
         char buff[256];
         sprintf(buff, "parse descriptor for has node %lu: deserializeJson() failed: ", getHash());
         strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-        Serial.print(buff);
+        Serial.println(buff);
         return false;
     }
 
@@ -143,139 +178,6 @@ JsonDocument Node::getDescriptor(){
     return descriptor;
 }
 
-MyModbus::MyModbus(){
-    lastTransaction = millis();
-    lastEvent = Modbus::EX_SUCCESS;
-}
-
-
-void MyModbus::setModbus(ModbusRTU *_modbus){
-    modbus = _modbus;
-}
-
-bool MyModbus::cbRead(Modbus::ResultCode event, uint16_t transactionId, void* data) { // Callback to monitor errors
-    //Serial.printf("%u:: End cbRead for hash: %u\r\n", millis(), hash);
-    lastTransaction = millis();
-    MyModbus::printResultCode(event, transactionId);
-    
-    return true;
-}
-
-bool MyModbus::cbWrite(Modbus::ResultCode event, uint16_t transactionId, void* data){
-    lastTransaction = millis();
-    MyModbus::printResultCode(event, transactionId);
-    return true;
-}
-
-Modbus::ResultCode MyModbus::getLastEvent(){
-    return lastEvent;
-}
-
-void MyModbus::printResultCode(Modbus::ResultCode event, uint16_t transactionId){
-    lastEvent = event;
-
-    if (event == Modbus::EX_SUCCESS){
-        return;
-    }
-
-    Serial.printf("\r\nTime between last modbus problem: %lu [s]!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\r\n", (millis() - lastProblem)/1000);
-    lastProblem = millis();
-
-    char message[256];
-    sprintf(message, "Modbus error: ");
-
-    switch (event){
-        case Modbus::EX_SUCCESS:  strcat(message, "Custom. No error");
-        break;
-
-        case Modbus::EX_ILLEGAL_FUNCTION: strcat(message, "Function Code not Supported");
-        break;
-
-        case Modbus::EX_ILLEGAL_ADDRESS:  strcat(message, "Output Address not exists");
-        break;
-
-        case Modbus::EX_ILLEGAL_VALUE:  strcat(message, "Output Value not in Range");
-        break;
-
-        case Modbus::EX_SLAVE_FAILURE:  strcat(message, "Slave or Master Device Fails to process request");
-        break;
-
-        case Modbus::EX_ACKNOWLEDGE:  strcat(message, "Not used, EX_ACKNOWLEDGE");
-        break;
-
-        case Modbus::EX_SLAVE_DEVICE_BUSY:strcat(message, "Not used, EX_SLAVE_DEVICE_BUSY");
-        break;
-
-        case Modbus::EX_MEMORY_PARITY_ERROR: strcat(message, "Not used, EX_MEMORY_PARITY_ERROR");
-        break;
-
-        case Modbus::EX_PATH_UNAVAILABLE: strcat(message, "Not used, EX_PATH_UNAVAILABLE");
-        break;
-
-        case Modbus::EX_DEVICE_FAILED_TO_RESPOND: strcat(message, "Not used, EX_DEVICE_FAILED_TO_RESPOND");
-        break;
-
-        case Modbus::EX_GENERAL_FAILURE:  strcat(message, "Custom. Unexpected master error");
-        break;
-
-        case Modbus::EX_DATA_MISMACH: strcat(message, "Custom. Inpud data size mismach");
-        break;
-
-        case Modbus::EX_UNEXPECTED_RESPONSE:  strcat(message, "Custom. Returned result doesn't mach transaction");
-        break;
-
-        case Modbus::EX_TIMEOUT: strcat(message, "Custom. Operation not finished within reasonable time");
-        break;
-
-        case Modbus::EX_CONNECTION_LOST: strcat(message, "Custom. Connection with device lost");
-        break;
-
-        case Modbus::EX_CANCEL: strcat(message, "Custom. Transaction/request canceled");
-        break;
-
-        case Modbus::EX_PASSTHROUGH:  strcat(message, "Custom. Raw callback. Indicate to normal processing on callback exit");
-        break;
-
-        case Modbus::EX_FORCE_PROCESS: strcat(message, "Custom. Raw callback. Indicate to force processing on callback exit");
-        break;
-
-        default:  strcat(message, "Unexpected event !!");
-    }
-
-    Serial.println(message);
-
-    BorneUniverselle::prepareMessage(WARNING, message);
-    // for ever...
-    //Serial.printf("%u:: Planté avec une erreur Modbus !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\r\n", millis());
-    // while(1){}
-}
-
-void MyModbus::waitUntilModbusFree(){
-    //uint32_t start = millis();
-    while (millis() - lastTransaction < DELAY_TRANSACTION){
-       // Serial.println("On attend");
-        vTaskDelay(1);
-    }
-    //Serial.printf("Waiting time for free modbus: %u\r\n", millis() - start);
-}
-
-void MyModbus::waitEndTransaction(){
-    uint32_t start = millis();
-     while (modbus->slave()){
-        modbus->task();
-        vTaskDelay(1);
-    }
-
-    if (millis() - start > 100){
-        Serial.printf("Waiting time for end of transaction: %lu\r\n", millis() - start);
-    }
-}
-
-bool MyModbus::isModbusFree(){
-    return (millis() - lastTransaction > DELAY_TRANSACTION);
-
-}
-
 InputNode:: InputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval): Node(name, parentName, hash, webRefreshInterval){
     //Serial.println("Constructeur de la classe InputNode");
     setMode(INPUT_MODE);
@@ -291,14 +193,6 @@ uint32_t InputNode::getRefreshInterval(){
     return refreshInterval;
 }
 
-uint32_t InputNode::getLastRefresh(){
-    return lastRefresh;
-}
-
-void InputNode::setLastRefresh(uint32_t lastUpdate){
-    lastRefresh = lastUpdate;
-}
-
 OutputNode:: OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval): Node(name, parentName, hash, webRefreshInterval){
     // Serial.printf("Constructeur de la classe OutputNode for node: %s\r\n", getName());
     setMode(OUTPUT_MODE);
@@ -309,7 +203,8 @@ BooleanInputNode:: BooleanInputNode(char *name, char *parentName, uint32_t hash,
     //Serial.println("Constructeur de la classe BooleanInputNode");
 }
 
-bool BooleanInputNode::refresh(){
+bool BooleanInputNode::specificRefresh(){
+    showMessage( "specificRefresh for BooleanInputNode");
     bool val = getNewValue();
     //Serial.printf("Input node: %s is %s, inverted: %s\r\n", name, val ? "true" : "false", inputInverted ? "true" : "false");
     if (val != hideValue){
@@ -362,8 +257,8 @@ BooleanOutputNode::BooleanOutputNode(char *name, char *parentName, uint32_t hash
     // Serial.printf("Constructeur de la classe BooleanOutputNode for node %s\r\n", getName());
 }
 
-bool BooleanOutputNode:: refresh(){
-    //Serial.printf("Refresh node %u\r\n", getHash());
+bool BooleanOutputNode:: specificRefresh(){
+    showMessage("specificRefresh for BooleanOutputNode");
     if (updateNeeded){
         if (!setNewValue(hideValue)){
             return false;
@@ -387,12 +282,12 @@ bool BooleanOutputNode::getValue(){
 }
 
 void BooleanOutputNode::setValue(bool _value){
-    //Serial.println("BooleanOutputNode::setValue");
+    //Serial.printf("BooleanOutputNode::setValue: %s\r\n", getName());
     if (_value != hideValue){
         //Serial.printf("Will set updateNeeded to true for node %s, new value: %s\r\n", getName(), _value ? "true" : "false");
         updateNeeded = true;
         hideValue = _value;
-        //Serial.printf("Node %u: %s updated\r\n", getHash(), getName());
+       // Serial.printf("Node %s updated\r\n", getName());
     } else {
         //Serial.printf("Node %u: %s no change\r\n", getHash(), getName());
     }
@@ -414,8 +309,9 @@ uint16_t Uint16InputNode::getValue(){
     return hideValue;
 }
 
-bool Uint16InputNode::refresh(){
-    //Serial.printf("On refresh, intervale: %d, elapsed time: %u\r\n", refreshInterval, millis() - lastRefresh);
+bool Uint16InputNode::specificRefresh(){
+    showMessage("specificRefresh for Uint16InputNode");
+
     uint16_t val = getNewValue();
     
     if (val != hideValue){
@@ -434,14 +330,15 @@ uint32_t Uint32InputNode::getValue(){
     return hideValue;
 }
 
-bool Uint32InputNode::refresh(){
+bool Uint32InputNode::specificRefresh(){
+    showMessage("specificRefresh for Uint32InputNode");
     uint32_t val = getNewValue();
 
     if (val != hideValue){
         hideValue = val;
         updateNeeded = true;
         lastChange = millis();
-        Serial.printf("%lu:: node: %s, new value: %lu\r\n", millis(),  name, hideValue);   
+        Serial.printf("%lu:: node: %s, new value: %lu\r\n", millis(),  name, (unsigned long)hideValue);   
     }
     return true;
 }
@@ -453,14 +350,15 @@ float FloatInputNode::getValue(){
     return hideValue;
 }
 
-bool FloatInputNode::refresh(){
+bool FloatInputNode::specificRefresh(){
+    showMessage("specificRefresh for FloatInputNode");
     float val = getNewValue();
 
     if (val != hideValue){
         hideValue = val;
         updateNeeded = true;
         lastChange = millis();
-        Serial.printf("%lu:: node: %s, new value: %f\r\n", millis(),  name, hideValue);   
+        Serial.printf("%lu:: refresh FloatInputNode: %s, new value: %f\r\n", millis(),  name, hideValue);   
     }
     return true;
 }
@@ -468,7 +366,8 @@ bool FloatInputNode::refresh(){
 Uint16OutputNode::Uint16OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval): OutputNode(name, parentName, hash, webRefreshInterval){
 }
 
-bool Uint16OutputNode::refresh(){
+bool Uint16OutputNode::specificRefresh(){
+    showMessage("specificRefresh for Uint16OutputNode");
     if (updateNeeded){
         if (!setNewValue(hideValue)){
             return false;
@@ -495,7 +394,8 @@ void Uint16OutputNode::setValue(uint16_t _value){
 Uint32OutputNode::Uint32OutputNode(char *name, char *parentName, uint32_t hash,  uint16_t webRefreshInterval): OutputNode(name, parentName, hash,  webRefreshInterval){
 }
 
-bool Uint32OutputNode::refresh(){
+bool Uint32OutputNode::specificRefresh(){
+    showMessage("specificRefresh for Uint32OutputNode");
     if (updateNeeded){
         if (!setNewValue(hideValue)){
            return false;
@@ -503,13 +403,13 @@ bool Uint32OutputNode::refresh(){
 
         lastChange = millis();
         updateNeeded = false;
-        Serial.printf("%lu:: Uint32OutputNode::node: %s, new value: %lu\r\n", millis(),  name, hideValue);     
+        Serial.printf("%lu:: Uint32OutputNode::node: %s, new value: %lu\r\n", millis(),  name, (unsigned long)hideValue);     
     }
     return true;
 }
 
 void Uint32OutputNode::setValue(uint32_t _value){
-    Serial.printf("Uint32OutputNode:: setValue for node: %s\r\n", getName());
+    Serial.printf("Uint32OutputNode:: setValue for node: %s: %lu\r\n", getName(), (long unsigned int)_value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -523,7 +423,8 @@ uint32_t Uint32OutputNode::getValue(){
 FloatOutputNode::FloatOutputNode(char *name, char *parentName, uint32_t hash,  uint16_t webRefreshInterval): OutputNode(name, parentName, hash,  webRefreshInterval){
 }
 
-bool FloatOutputNode::refresh(){
+bool FloatOutputNode::specificRefresh(){
+    showMessage("specificRefresh for FloatOutputNode");
     if (updateNeeded){
         if (!setNewValue(hideValue)){
            return false;
@@ -531,7 +432,7 @@ bool FloatOutputNode::refresh(){
 
         lastChange = millis();
         updateNeeded = false;
-        Serial.printf("%lu:: FloatOutputNode::node: %s, new value: %f\r\n", millis(),  name, hideValue);     
+        // Serial.printf("%lu:: refresh (clear updateNeeded) FloatOutputNode::node: %s, new value: %f\r\n", millis(),  name, hideValue);     
     }
     return true;
 }
@@ -541,10 +442,64 @@ float FloatOutputNode::getValue(){
 }
 
 void FloatOutputNode::setValue(float _value){
-    //Serial.printf("FloatOutputNode:: setValue for node: %s\r\n", getName());
+    //Serial.printf("FloatOutputNode:: setValue for node: %s: %.2f\r\n", getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
+    }
+}
+
+TextInputNode::TextInputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval): InputNode(name, parentName, hash, refreshInterval, webRefreshInterval){
+    hideValue[0] = 0;
+}
+
+char * TextInputNode::getValue(){
+    Serial.printf("TextInputNode::getValue() hideValue: %s\r\n", hideValue);
+    return hideValue;
+}
+
+bool TextInputNode::specificRefresh(){
+    showMessage("specificRefresh for TextInputNode");
+    char *val = getNewValue();
+    //Serial.printf("Refresh: getNewValue: %s\r\n", val);
+
+    if (strcmp(val, hideValue)){
+        Serial.println("Refresh: value is different");
+        strcpy(hideValue, val);
+        updateNeeded = true;
+        lastChange = millis();
+        Serial.printf("%lu:: node: %s, new value: %s\r\n", millis(),  name, hideValue);   
+    }
+    return true;
+}
+
+TextOutputNode::TextOutputNode(char *name, char *parentName, uint32_t hash,  uint16_t webRefreshInterval): OutputNode(name, parentName, hash,  webRefreshInterval){
+    hideValue[0] = 0;
+}
+
+bool TextOutputNode::specificRefresh(){
+    showMessage("specificRefresh for TextOutputNode");
+    if (updateNeeded){
+        if (!setNewValue(hideValue)){
+           return false;
+        }
+
+        lastChange = millis();
+        updateNeeded = false;
+        //Serial.printf("%lu:: TextOutputNode::node: %s, new value: %s\r\n", millis(),  name, hideValue);     
+    }
+    return true;
+}
+
+char * TextOutputNode::getValue(){
+    return hideValue;
+}
+
+void TextOutputNode::setValue(const char * _value){
+    //Serial.printf("FloatOutputNode:: setValue for node: %s\r\n", getName());
+    if (strcmp(_value, hideValue)){
+        updateNeeded = true;
+        strcpy(hideValue, _value);
     }
 }
 
@@ -558,6 +513,9 @@ HardwareBooleanInputNode::HardwareBooleanInputNode(char *name, char *parentName,
 }
 
 bool HardwareBooleanInputNode::getNewValue(){
+    char text[256];
+    sprintf(text, "HardwareBooleanInputNode::getNewValue() for node: %s, pin: %u, inverted: %s", name, pin, inputInverted ? "true" : "false");
+    showMessage(text);
     return inputInverted ? !digitalRead(pin) : digitalRead(pin);
 }
 
@@ -575,8 +533,8 @@ PF8574BooleanInputNode::PF8574BooleanInputNode(char *name, char *parentName, uin
     }
 
      // add interrupt
-    attachInterrupt(14, PF8574BooleanInputNode::interruptHandler, FALLING);
-    //Serial.printf("PF8574BooleanInputNode::RefreshInterval for node %s is %u\r\n", getName(), refreshInterval);
+    attachInterrupt(14, PF8574BooleanInputNode::interruptHandler, FALLING); // Désactivé le 7 décembre pour test
+    Serial.printf("PF8574BooleanInputNode::RefreshInterval for node %s is %u\r\n", getName(), refreshInterval);
 }
 
 void IRAM_ATTR PF8574BooleanInputNode::interruptHandler(){
@@ -590,58 +548,70 @@ bool PF8574BooleanInputNode::isInterrupt(){
 }
 
 bool PF8574BooleanInputNode::getNewValue(){
-    //Serial.printf("Node %s, pin %u, new state: %s\r\n", name, pin, hideValue? "true" : "false");
+    char text[256];
+    sprintf(text, "PF8574BooleanInputNode::getNewValue() for node: %s, pin: %u", name, pin);
     return !pcfRx->read(pin); // Les entrées sont inversées !
 }
 
-ModbusReadCoilNode::ModbusReadCoilNode(char *name, char *parentName, uint32_t _hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval): BooleanInputNode(name, parentName, _hash, refreshInterval, webRefreshInterval){
-    //Serial.printf("Constructor of ReadCoil, slave addresse: %u, offset: %u\r\n", _address, _offset);
+ModbusReadCoilNode::ModbusReadCoilNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval, uint16_t webRefreshInterval):
+    BooleanInputNode(name, parentName, hash, refreshInterval, webRefreshInterval),  myModbus(MyModbus::getInstance()){  // Initialisation de notre membre myModbus
+
+    // Initialisation des membres de la classe
     address = _address;
-    offset  = _offset;
+    offset = _offset;
+   
+    // Log pour debug
+    Serial.printf("Constructor of ReadCoil, slave address: %u, register: %u\r\n", _address, _offset);
 }
 
 bool ModbusReadCoilNode::getNewValue(){
     bool value;
+    char text[256];
+    sprintf(text, "ModbusReadCoilNode:: getNewValue for node name: %s, address: %d, register %d", name, address, offset);
+    showMessage(text);
    
-    waitUntilModbusFree();
+    myModbus.waitUntilModbusFree();
+    myModbus.getModbus()->readCoil(address, offset, &value, 1, MyModbus::cbRead);
+    myModbus.waitEndTransaction();
 
-    modbus->readCoil(address, offset, &value, 1, cbRead);
-    //Serial.printf("Transaction %u initiée\r\n", transactionId);
-    waitEndTransaction();
-    if (getLastEvent() != Modbus::EX_SUCCESS){
-        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusReadCoilNode", address, offset);
+    if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
+        Serial.printf("%lu::ModbusReadCoilNode::getNewValue for node: name: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n", millis(), name, address, offset);
         return hideValue;
     }
-    //Serial.printf("Node %u, Valeur lue: %s\r\n", getHash(), value ? "true" : "false");
-    return value;
+    return value;    
 }
 
-ModbusReadHoldingRegister::ModbusReadHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval): Uint16InputNode(name, parentName, hash, refreshInterval, webRefreshInterval){
-    Serial.printf("Constructor of ModbusReadHoldingRegister, slave addresse: %u, offset: %u\r\n", _address, _offset);
+ModbusReadHoldingRegister::ModbusReadHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval):
+    Uint16InputNode(name, parentName, hash, refreshInterval, webRefreshInterval), myModbus(MyModbus::getInstance()){
+    //Serial.printf("Constructor of ModbusReadHoldingRegister, slave addresse: %u, offset: %u\r\n", _address, _offset);
     address = _address;
     offset = _offset;
 }
 
 uint16_t ModbusReadHoldingRegister::getNewValue(){
-    // Serial.printf("Node name: %s, type: %s, address: %d, register %d\r\n", name, "ModbusReadHoldingRegister", address, offset);
+    char text[256];
+    sprintf(text, "ModbusReadHoldingRegister::getNewValue for node nameö %s, address: %d, register %d", name, address, offset);
+    showMessage(text);
+
     uint16_t value;
    
-    waitUntilModbusFree();
+    myModbus.waitUntilModbusFree();
     //Serial.printf("Will read Holding register at address: %u for node name: %s, hash %u, register %u\r\n", address, getName(), getHash(), offset);
 
-    //Serial.printf("%u:: Start transaction for hash: %u, name: %s, address: %u, offset: %u\r\n", millis(), getHash(), getName(), address, offset);
-    modbus->readHreg(address, offset, &value, 1, cbRead);
-    waitEndTransaction();
-    //Serial.printf("%u:: End transaction for hash: %u\r\n", millis(), getHash());
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
-        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusReadHoldingRegister", address, offset);
+    sprintf(text, "%u::ModbusReadHoldingRegister::getNewValueS, sart transaction for hash: %u, name: %s, address: %u, offset: %u", millis(), getHash(), getName(), address, offset);
+    showMessage(text);
+    myModbus.getModbus()->readHreg(address, offset, &value, 1, MyModbus::cbRead);
+    myModbus.waitEndTransaction();
+
+    if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
+        Serial.printf("ModbusReadHoldingRegister::getNewValue for node: name: %s, address: %d, register %d. Transaction error, return hideValue\r\n", name, address, offset);
         return hideValue;
     }
-    //Serial.printf("Node %s, Valeur lue: %u\r\n", getName(), value);
     return value;
 }
 
-ModbusReadDoubleHoldingRegisters::ModbusReadDoubleHoldingRegisters(char *name, char *parentName, uint32_t _hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval): Uint32InputNode(name, parentName, _hash, refreshInterval, webRefreshInterval){
+ModbusReadDoubleHoldingRegisters::ModbusReadDoubleHoldingRegisters(char *name, char *parentName, uint32_t _hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval):
+    Uint32InputNode(name, parentName, _hash, refreshInterval, webRefreshInterval), myModbus(MyModbus::getInstance()){
     // Serial.printf("Constructor of ModbusReadDobbleRegisters, slave addresse: %u, offset: %u\r\n", _address, _offset);
     address = _address;
     offset  = _offset;
@@ -650,14 +620,18 @@ ModbusReadDoubleHoldingRegisters::ModbusReadDoubleHoldingRegisters(char *name, c
 uint32_t ModbusReadDoubleHoldingRegisters::getNewValue(){
     uint16_t value[2];
     uint32_t uint32Value;
+    char text[256];
+    sprintf(text, "ModbusReadDoubleHoldingRegisters::getNewValue for ode name: %s, address: %d, register %d", name, address, offset);
+    showMessage(text);
+   
+    myModbus.waitUntilModbusFree();
+    sprintf(text, "%u:: Start transaction for hash: %u, name: %s, address: %u, offset: %u\r\n", millis(), getHash(), getName(), address, offset);
+    showMessage(text);
+    myModbus.getModbus()->readHreg(address, offset, value, 2, MyModbus::cbRead);
+    myModbus.waitEndTransaction();
     
-    waitUntilModbusFree();
- 
-    modbus->readHreg(address, offset, value, 2, cbRead);
-    waitEndTransaction();
-    //Serial.printf("%u:: End transaction for hash: %u\r\n", millis(), getHash());
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
-        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusReadDoubleHoldingRegisters", address, offset);
+    if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
+        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n", name, "ModbusReadDoubleHoldingRegisters", address, offset);
         return hideValue;
     }
 
@@ -668,7 +642,8 @@ uint32_t ModbusReadDoubleHoldingRegisters::getNewValue(){
     return uint32Value;
 }
 
-ModbusReadInputRegister::ModbusReadInputRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval): Uint16InputNode(name, parentName, hash, refreshInterval, webRefreshInterval){
+ModbusReadInputRegister::ModbusReadInputRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t refreshInterval,  uint16_t webRefreshInterval):
+    Uint16InputNode(name, parentName, hash, refreshInterval, webRefreshInterval), myModbus(MyModbus::getInstance()){
     // Serial.printf("Constructor of ModbusReadInputRegister, slave addresse: %u, offset: %u\r\n", _address, _offset);
     address = _address;
     offset = _offset;
@@ -676,19 +651,24 @@ ModbusReadInputRegister::ModbusReadInputRegister(char *name, char *parentName, u
 
 uint16_t ModbusReadInputRegister::getNewValue(){
     uint16_t value;
-   
-    waitUntilModbusFree();
+    char text[256];
+    sprintf(text, "ModbusReadInputRegister::getNewValue for node name: %s, address: %d, register %d", name, address, offset);
+    showMessage(text);
 
-    modbus->readIreg(address, offset, &value, 1, cbWrite);
-    //Serial.printf("Transaction initiée for node %s\r\n", getName());
-    waitEndTransaction();
+    myModbus.waitUntilModbusFree();
+    sprintf(text, "%u:: ModbusReadInputRegister::getNewValue, start transaction for hash: %u, name: %s, address: %u, offset: %u", millis(), getHash(), getName(), address, offset);
+    showMessage(text);
+    myModbus.getModbus()->readIreg(address, offset, &value, 1, myModbus.cbRead);
+    // Serial.printf("Transaction initiée for node %s\r\n", getName());
+    myModbus.waitEndTransaction();
+    // Serial.printf("Transaction terminée for node %s\r\n", getName());
 
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
-        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusReadInputRegister", address, offset);
+    if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
+        Serial.printf("ModbusReadInputRegister::getNewValue for node name: %s, address: %d, register %d. Transaction error, return hideValue\r\n\r\n", name, address, offset);
         return hideValue;
     }
 
-    //Serial.printf("Node name: %s, hash: %lu, addresse: %u, offset: %u, valeur lue: %u\r\n", getName(), getHash(), address, offset, value);
+    // Serial.printf("Node name: %s, hash: %lu, addresse: %u, offset: %u, valeur lue: %u\r\n", getName(), getHash(), address, offset, value);
     return value;
 }
 
@@ -700,7 +680,9 @@ HardwareBooleanOutputNode::HardwareBooleanOutputNode(char *name, char *parentNam
 }
 
 bool HardwareBooleanOutputNode::setNewValue(bool newValue){
-    //Serial.printf("Will set pin %d to new value: %s\r\n", pin, newValue ? "true": "false");
+    char text[256];
+    sprintf(text, "HardwareBooleanOutputNode::setNewValue for node: %s, pin: %u, new value: %s", name, pin, newValue ? "true" : "false");
+    showMessage(text);
     digitalWrite(pin, newValue);
     return true;
 }
@@ -719,32 +701,39 @@ PF8574BooleanOutputNode::PF8574BooleanOutputNode(char *name, char *parentName, u
 }
 
 bool PF8574BooleanOutputNode::setNewValue(bool newValue){
-    //Serial.printf("PF8574BooleanOutputNode::setNewValue, new value: %s\r\n", newValue ? "true": "false");
+    char text[256];
+    sprintf(text, "PF8574BooleanOutputNode::setNewValue for node: %s, pin: %u, new value: %s", name, pin, newValue ? "true" : "false"); 
+    showMessage(text);
     pcfTx->write(pin, !newValue); // sorties inversées !
     return true;
 }
 
-ModbusWriteCoilNode::ModbusWriteCoilNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t webRefreshInterval): BooleanOutputNode(name, parentName, hash, webRefreshInterval){
+ModbusWriteCoilNode::ModbusWriteCoilNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t webRefreshInterval):
+    BooleanOutputNode(name, parentName, hash, webRefreshInterval), myModbus(MyModbus::getInstance()){
     // Serial.printf("Constructor of WriteCoil, slave addresse: %u, offset: %u\r\n", _address, _offset);
     address = _address;
     offset = _offset;
 }
 
 bool ModbusWriteCoilNode::setNewValue(bool newValue){
-    waitUntilModbusFree();
+    char text[256];
+    sprintf(text, "ModbusWriteCoilNode::setNewValue for node: %s, address: %d, register %d, new value: %s", name, address, offset, newValue ? "true" : "false");
+    showMessage(text);
+    myModbus.waitUntilModbusFree();
     
-    modbus->writeCoil(address, offset, newValue, cbWrite);
+    myModbus.getModbus()->writeCoil(address, offset, newValue, MyModbus::cbWrite);
     //Serial.printf("Transaction %u initiée\r\n", transactionId);
-    waitEndTransaction();
+    myModbus.waitEndTransaction();
 
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
+    if (myModbus.getLastEvent() !=  Modbus::EX_SUCCESS){
         Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusWriteCoilNode", address, offset);
         return false;
     }
     return true;
 }                                                                                                                                                                                      
                             
-ModbusWriteMultipleCoilslNode::ModbusWriteMultipleCoilslNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint8_t _nbValues, uint16_t webRefreshInterval): OutputNode(name, parentName, hash, webRefreshInterval){
+ModbusWriteMultipleCoilslNode::ModbusWriteMultipleCoilslNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint8_t _nbValues, uint16_t webRefreshInterval):
+    OutputNode(name, parentName, hash, webRefreshInterval), myModbus(MyModbus::getInstance()){
     address = _address;
     offset = _offset;
     nbValues = _nbValues;
@@ -758,7 +747,8 @@ ModbusWriteMultipleCoilslNode::ModbusWriteMultipleCoilslNode(char *name, char *p
     }
 }
 
-bool ModbusWriteMultipleCoilslNode::refresh(){
+bool ModbusWriteMultipleCoilslNode::specificRefresh(){
+    showMessage("specificRefresh for ModbusWriteMultipleCoilslNode");
     if (updateNeeded){
         if (!setNewValues()){
             return false;
@@ -780,16 +770,20 @@ bool ModbusWriteMultipleCoilslNode::getValue(uint8_t id){
 }
 
 bool ModbusWriteMultipleCoilslNode::setNewValues(){
+    char text[256];
+    sprintf(text, "ModbusWriteMultipleCoilslNode::setNewValues for node: %s, address: %d, register %d", name, address, offset);
+    showMessage(text);
+
     for (uint8_t i = 0; i < nbValues; i++){
         values[i] = hideValues[i];
     }
 
-    waitUntilModbusFree(); 
-    modbus->writeCoil(address, offset, values, nbValues, cbWrite);
-    waitEndTransaction();
+    myModbus.waitUntilModbusFree(); 
+    myModbus.getModbus()->writeCoil(address, offset, values, nbValues, myModbus.cbWrite);
+    myModbus.waitEndTransaction();
     //Serial.printf("%u:: End transaction for hash: %u\r\n", millis(), getHash());
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
-        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusWriteHoldingRegister", address, offset);
+    if (myModbus.getLastEvent() !=  Modbus::EX_SUCCESS){
+        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusWriteMultipleCoilslNode", address, offset);
         return false;
     }
     return true;
@@ -825,28 +819,39 @@ bool ModbusWriteMultipleCoilslNode::setValues(bool *vals, uint8_t _nbValues){
     return true;
 }
 
-ModbusReadMultipleInputsRegistersNode::ModbusReadMultipleInputsRegistersNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint8_t _nbValues, uint16_t refreshInterval,  uint16_t webRefreshInterval): InputNode(name, parentName, hash, refreshInterval, webRefreshInterval) {
+ModbusReadMultipleInputsRegistersNode::ModbusReadMultipleInputsRegistersNode(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint8_t _nbValues, uint16_t refreshInterval,  uint16_t webRefreshInterval):
+    InputNode(name, parentName, hash, refreshInterval, webRefreshInterval), myModbus(MyModbus::getInstance()) {
     address = _address;
     offset = _offset;
     nbValues = _nbValues;
+    Serial.printf("ModbusReadMultipleInputsRegistersNode:: constructor, nbValues: %d\r\n", nbValues);
     
     bits = new Bit[nbValues];
 }
 
-bool ModbusReadMultipleInputsRegistersNode::refresh(){
+bool ModbusReadMultipleInputsRegistersNode::specificRefresh(){
+    char text[256];
+    sprintf(text, "ModbusReadMultipleInputsRegistersNode::specificRefresh for node: name: %s, address: %d, register %d", name, address, offset);
+    showMessage(text);
     getNewValues();
     return true;
 }
 
 ModbusReadMultipleInputsRegistersNode::Bit *ModbusReadMultipleInputsRegistersNode::getNewValues(){
-    waitUntilModbusFree();
+    char text[256];
+    sprintf(text, "%lu:: ModbusReadMultipleInputsRegistersNode::Bit *ModbusReadMultipleInputsRegistersNode::getNewValues for node name: %s, address: %d, register %d", millis(), name, address, offset);
+    showMessage(text);
+    
+    myModbus.waitUntilModbusFree();
     bool *values = new bool[nbValues];
 
-    modbus->readIsts(address, offset, values, nbValues, cbRead);
+    myModbus.getModbus()->readIsts(address, offset, values, nbValues, myModbus.cbRead);
  
-    waitEndTransaction();
-    if (getLastEvent() != Modbus::EX_SUCCESS){
-        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusReadCoilNode", address, offset);
+    myModbus.waitEndTransaction();
+    if (myModbus.getLastEvent() != Modbus::EX_SUCCESS){
+        Serial.printf("ModbusReadMultipleInputsRegistersNode::Bit *ModbusReadMultipleInputsRegistersNode::getNewValues for node name: %s, address: %d, register %d. Transaction error, return hideValue\r\n\r\n", name, address, offset);
+        delete[] values;
+        return bits; // return old values
     }
 
     for (uint8_t i = 0; i < nbValues; i++){
@@ -855,58 +860,63 @@ ModbusReadMultipleInputsRegistersNode::Bit *ModbusReadMultipleInputsRegistersNod
             updateNeeded = true;
             lastChange = millis();
             Serial.printf("Node: %s, bit %d as changed, now %s\r\n", getName(), i, values[i] ? "true" : "false");
+            bits[i].setValue(values[i]); // copy new values
         }
-        bits[i].setValue(values[i]); // copy new values
+       
     }
   
     delete [] values;
     return bits;
 }
 
-ModbusWriteHoldingRegister::ModbusWriteHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t webRefreshInterval): Uint16OutputNode(name, parentName, hash, webRefreshInterval){
+ModbusWriteHoldingRegister::ModbusWriteHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset, uint16_t webRefreshInterval):
+    Uint16OutputNode(name, parentName, hash, webRefreshInterval), myModbus(MyModbus::getInstance()){
     // Serial.printf("Constructor of ModbusWriteHoldingRegister, slave addresse: %u, offset: %u\r\n", _address, _offset);
     address = _address;
     offset = _offset;
 }
 
 bool ModbusWriteHoldingRegister::setNewValue(uint16_t newValue){
-    waitUntilModbusFree();
+    char text[200]; // Adjust size as needed
+    sprintf(text, "ModbusWriteHoldingRegister::setNewValue,  value: %d, address: %d, register: %d", newValue, address, offset); // Adjust fields as needed
+    showMessage(text);
+    myModbus.waitUntilModbusFree();
 
     //Serial.printf("%u:: Start transaction for hash: %u\r\n", millis(), getHash());
-    modbus->writeHreg(address, offset, newValue, cbWrite);
-    waitEndTransaction();
+    myModbus.getModbus()->writeHreg(address, offset, newValue, myModbus.cbWrite);
+    myModbus.waitEndTransaction();
     //Serial.printf("%u:: End transaction for hash: %u\r\n", millis(), getHash());
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
+    if (myModbus.getLastEvent() !=  Modbus::EX_SUCCESS){
         Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusWriteHoldingRegister", address, offset);
         return false;
     }
     return true;
 }
 
-ModbusWriteDoubleHoldingRegister::ModbusWriteDoubleHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset,  uint16_t webRefreshInterval): Uint32OutputNode(name, parentName, hash, webRefreshInterval){
+ModbusWriteDoubleHoldingRegister::ModbusWriteDoubleHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t _address, uint16_t _offset,  uint16_t webRefreshInterval):
+    Uint32OutputNode(name, parentName, hash, webRefreshInterval), myModbus(MyModbus::getInstance()){
     // Serial.printf("Constructor of ModbusWriteDobbleHoldingRegister, slave addresse: %u, offset: %u\r\n", _address, _offset);
     address = _address;
     offset = _offset;
 }
 
 bool ModbusWriteDoubleHoldingRegister::setNewValue(uint32_t newValue){
-    waitUntilModbusFree();
-
-    //Serial.printf("Received value: %u or value 0x%08x\r\n", newValue, newValue);
+    char text[200]; // Adjust size as needed
+    sprintf(text, "ModbusWriteHoldingRegister::setNewValue,  value: %u, address: %d, register: %d", newValue, address, offset); // Adjust fields as needed
+    showMessage(text);
+    
+    myModbus.waitUntilModbusFree();
 
     uint16_t values[2];
     values[1] = newValue >> 16;
     values[0] = newValue & 0x0000FFFF;
 
-    //Serial.printf("Value 1: 0x%08X\r\n", values[1]);
-    //Serial.printf("Value 0:0x%08X\r\n", values[0]);
-
-    //Serial.printf("%u:: Start transaction for hash: %u\r\n", millis(), getHash());
-    modbus->writeHreg(address, offset, values, 2, cbWrite);
-    waitEndTransaction();
-    //Serial.printf("%u:: End transaction for hash: %u\r\n", millis(), getHash());
-    //Serial.printf("Transaction %u initiée\r\n", transactionId);
-    if (getLastEvent() !=  Modbus::EX_SUCCESS){
+    sprintf(text, "Value 1: 0x%08X, value 0: 0x%08x\r\n", values[1], values[0]);
+    showMessage(text);
+    myModbus.getModbus()->writeHreg(address, offset, values, 2, myModbus.cbWrite);
+    myModbus.waitEndTransaction();
+  
+    if (myModbus.getLastEvent() !=  Modbus::EX_SUCCESS){
        Serial.printf("Node name: %s, type: %s, address: %d, register %d. Because of transaction error, return hideValue\r\n\r\n", name, "ModbusWriteDoubleHoldingRegister", address, offset);
         return false;
     }
@@ -920,8 +930,9 @@ VirtualBooleanInputNode::VirtualBooleanInputNode(char *name, char *parentName, u
 void VirtualBooleanInputNode::setValue(bool _value){
     if (hideValue != _value){
         updateNeeded = true;
+        hideValue = _value;
     }
-    newValue = _value;
+ 
 }
 
 VirtualUint32InputNode::VirtualUint32InputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):Uint32InputNode(name, parentName, hash, 0, webRefreshInterval){
@@ -931,8 +942,8 @@ VirtualUint32InputNode::VirtualUint32InputNode(char *name, char *parentName, uin
 void VirtualUint32InputNode::setValue(uint32_t _value){
     if (hideValue != _value){
         updateNeeded = true;
+        hideValue = _value;
     }
-    newValue = _value;
 }
 
 VirtualFloatInputNode::VirtualFloatInputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):FloatInputNode(name, parentName, hash, 0, webRefreshInterval){
@@ -941,14 +952,14 @@ VirtualFloatInputNode::VirtualFloatInputNode(char *name, char *parentName, uint3
 
 void VirtualFloatInputNode::setValue(float _value){
     if (hideValue != _value){
+        hideValue = _value;
         updateNeeded = true;
+        //Serial.printf("VirtualFloatInputNode::setValue:: %.2f\r\n", _value);
     }
-    newValue = _value;
 }
 
 
 VirtualBooleanOutputNode::VirtualBooleanOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):BooleanOutputNode(name, parentName, hash, webRefreshInterval){
-
 }
 
 VirtualUint32OutputNode::VirtualUint32OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):Uint32OutputNode(name, parentName, hash, webRefreshInterval){
@@ -956,3 +967,20 @@ VirtualUint32OutputNode::VirtualUint32OutputNode(char *name, char *parentName, u
 
 VirtualFloatOutputNode::VirtualFloatOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):FloatOutputNode(name, parentName, hash, webRefreshInterval){
 }
+
+VirtualTextInputNode::VirtualTextInputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):TextInputNode(name, parentName, hash, 0, webRefreshInterval){
+    hideValue[0] = 0;
+}
+
+void VirtualTextInputNode::setValue(const char *text){
+    if (strcmp(text, hideValue)){
+        updateNeeded = true;
+        strcpy(hideValue, text);
+        Serial.printf("VirtualTextInputNode::setValue for node %s\r\n", getName());
+    }
+}
+
+VirtualTextOutputNode::VirtualTextOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval):TextOutputNode(name, parentName, hash, webRefreshInterval){
+}
+
+

@@ -13,10 +13,14 @@
         "rx": 32,
         "tx": 33,
         "speed": 57600,
-        "config": "SERIAL_8N1"
+        "config": "SERIAL_8N2"
     },
 
-    "Modbus": true,
+    "Modbus": 
+    {
+        "modbusRTU": true,
+        "timeout": 101
+    },
 
    "tx-bool":
     [

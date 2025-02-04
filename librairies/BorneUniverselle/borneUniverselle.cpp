@@ -14,12 +14,13 @@ bool BorneUniverselle::isI2CInitialised = false;
 bool BorneUniverselle::isRs485Initialised = false;
 bool BorneUniverselle::isModbusInitialised = false;
 HardwareSerial *BorneUniverselle::myRS485;
-ModbusRTU *BorneUniverselle::modbus;
 bool BorneUniverselle::isKinconyA8S = false;
 bool BorneUniverselle::isLastMessageFatal = false;
 bool BorneUniverselle::plcBroken = false;
 bool BorneUniverselle::clientconnected = false;
 bool BorneUniverselle::newClientConnected = false;
+
+SemaphoreHandle_t BorneUniverselle::webSocketMutex = NULL;
 
 //std::list <NOTIF_MESSAGE*>  BorneUniverselle::notifMessagesList;
 LinkedList <NOTIF_MESSAGE*> BorneUniverselle::notifMessagesList({});
@@ -30,14 +31,19 @@ BorneUniverselle::BorneUniverselle()
  : webSocketMessagesList(LinkedList<WEB_SOCKET_MESSAGE *>([](WEB_SOCKET_MESSAGE *c){ delete  c; }))
   // notifMessagesList(LinkedList <NOTIF_MESSAGE*>([](NOTIF_MESSAGE *c){delete c;}))
  {
-     if (psramInit()){
+    Serial.println(BORNE_UNIVERSELLE_VERSION); 
+    webSocketMutex = xSemaphoreCreateMutex();
+    if (webSocketMutex == NULL) {
+        Serial.println("Error creating mutex");
+    }
+
+    if (psramInit()){
         Serial.println(F("PSRAM is available !!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
         psRamAvailable = true;
     } else {
          Serial.println(F("PSRAM is not available !"));
     }
 
-    Serial.println(F("Constructeur de BorneUniverselle"));
     File file = LittleFS.open("/config.json", FILE_READ);
  
     if (!file){
@@ -48,15 +54,17 @@ BorneUniverselle::BorneUniverselle()
     JsonDocument configDoc;
     DeserializationError error = deserializeJson(configDoc, file);
     file.close();
-    char buff[1000];
+    char buff[256];
 
     if (error) {
         sprintf(buff, "%lu:: config file: deserializeJson() failed: ", millis());
         strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
         setPlcBroken(buff);
         return;
-        } else {// json error
-            if (configDoc.containsKey(CONFIG)){
+        } else {// json error¸
+        
+           // if (configDoc.containsKey(CONFIG)){
+            if (configDoc[CONFIG].is<JsonArray>()){
                 if (!parseConfig(configDoc, false)){
                     setPlcBroken("The config file is not good");
                    return;
@@ -70,24 +78,63 @@ BorneUniverselle::BorneUniverselle()
     uint32_t heap_size = ESP.getHeapSize();
     uint32_t free_heap = ESP.getFreeHeap();
    
-    Serial.printf("Heap size: %lu, Free heap. %lu\r\n", heap_size, free_heap);
+    Serial.printf("Heap size: %lu, Free heap. %lu\r\n", (long unsigned)heap_size, (long unsigned)free_heap);
     uint32_t totalPsRam = ESP.getPsramSize();
     uint32_t freePsRam = ESP.getFreePsram();
 
-    Serial.printf("Total Ps-ram: %lu, free Ps-ram: %lu\r\n", totalPsRam,freePsRam);
+    Serial.printf("Total Ps-ram: %lu, free Ps-ram: %lu\r\n", (long unsigned)totalPsRam, (long unsigned)freePsRam);
 
+    if (getConfigVersion() >= 2){
+        PLC_InterfaceMenu* menuInterface = new PLC_InterfaceMenu();
+        Serial.println("Will parse the interface file");
+        if (!menuInterface->parseFile(INTERFACE_PATH_FILE)){
+            sprintf(buff, "Unable to parse the interface file with the path: %s\r\n", INTERFACE_PATH_FILE);
+            delete menuInterface;
+            setPlcBroken(buff);
+        } else {
+            Serial.println("Interface file parsed with success");
+        }
+
+        Serial.println("Loop on nodes to set node name from the interface file");
+        std::map<uint32_t, Node *>::iterator it;
+        for (it = nodesMap.begin(); it != nodesMap.end(); it++){
+            Node *node = it->second;
+            uint32_t hash = node->getHash();
+            MenuNode *menuNode = menuInterface->findNodeByHash(hash);
+            if (menuNode == nullptr){
+                sprintf(buff, "Unable to find node name with hash %u from interface file\r\n", hash);
+                setPlcBroken(buff);
+                delete menuInterface;
+                return;
+            }
+            menuNode->presentInConfigFile = true; 
+
+            if (node->setName(menuNode->name.c_str(), menuNode->sectionName.c_str())){
+                Serial.printf("Node name set: %s\r\n", node->getName());
+            } else {
+                sprintf(buff, "Unable to set node name: %s \r\n", menuNode->sectionName + "/" +menuNode->name);
+                setPlcBroken(buff);
+            }
+        }
+        delete menuInterface;
+    } else {
+        Serial.printf("Config version: %2.2f\r\n", getConfigVersion());
+    }
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
 }
-
+   
 bool BorneUniverselle::isPlcBroken(){
     return plcBroken;
 }
 
 void BorneUniverselle::setPlcBroken(const char *context){
     if (!plcBroken){
-        Serial.printf("PLC is broken, context: %s\r\n", context);
-        prepareMessage(ERROR, FATAL_MESSAGE);
+        char *text = (char *)malloc(strlen(context) + 40);
+        sprintf(text,"Plc is broken, context: %s", context);
+        prepareMessage(ERROR, text);
         isLastMessageFatal = true;
+        Serial.println(text);
+        free(text);
     }
     plcBroken = true;
 }
@@ -99,14 +146,39 @@ void BorneUniverselle::unableToFindKey(char *_context, char *_key){
     setPlcBroken(message);
 }
 
+void BorneUniverselle::setShowModbusMessages(bool status){
+    Serial.printf("Show modbus messages: %s\r\n", status ? "true" : "false");
+    showModbusMessages = status;
+    // flag tous les nodes modbus pour afficher les messages
+    std::map<uint32_t, Node *>::iterator it;
+    for (it = nodesMap.begin(); it != nodesMap.end(); it++){
+        Node *node = it->second;
+        if (node->classType() >= FIRST_MODBUS_CLASS && node->classType() <= LAST_MODBUS_CLASS){
+            node->setShowMessages(status);
+        }
+    }
+}
+
+bool BorneUniverselle::getModbusStatusMessages(){
+    return showModbusMessages;
+}
+
+void BorneUniverselle::showMessage(Node *node, const char *text){
+    if (showHeartbeatMessages && node->getShowMessages()){
+        Serial.println(text);
+    }
+}
+
 void BorneUniverselle::refresh(){
-    if ((isClientConnected() && client->queueIsFull()) || isWebSocketMessagesListMoreThanHalf()){
+    if ((isClientConnected() && client->queueIsFull()) || isWebSocketMessagesListMoreThanHalf() || isPlcBroken()){
             return;
     }
 
+    char mess[1024];
+
     uint32_t start = millis();
     uint32_t lastCheck = millis();
-    //Serial.printf("%u:: start Refresh\r\n", millis());
+    // Serial.printf("%u:: start Refresh\r\n", millis());
     std::map<uint32_t, Node *>::iterator it;
     for (it = nodesMap.begin(); it != nodesMap.end(); it++){
         if (PF8574BooleanInputNode::isInterrupt()){
@@ -117,45 +189,52 @@ void BorneUniverselle::refresh(){
         if (node->getMode() == INPUT_MODE){
             InputNode *inputNode = (InputNode *)node;
             if (millis() - inputNode->getLastRefresh() < inputNode->getRefreshInterval()){
-                //Serial.printf("On saute le node %s\r\n", node->getName());
+                sprintf(mess, "On saute le node %s\r\n", node->getName());
+                showMessage(node, mess);
                 continue;
-            } else {
-                inputNode->setLastRefresh(millis());
-            }
+            } 
         }
 
         uint32_t hash;
-        if (!node->refresh()){
+        if (node->getShowMessages()){
+            if ((node->classType() >= FIRST_MODBUS_CLASS && node->classType() <= LAST_MODBUS_CLASS) ){
+               myModbus.setShowMessages(true);
+            }  
+        }
+
+        bool e = node->refresh();
+        myModbus.setShowMessages(false);
+
+        if (!e){
             char mess[1024];
             hash = node->getHash();
-            sprintf(mess, "refresh:: error on refresh node %lu:", hash);
+            sprintf(mess, "refresh:: error on refresh node: %s with ash: %lu:", node->getName(), (long unsigned)hash);
             prepareMessage(WARNING, mess);
         }
 
-        if (millis() - lastCheck > MAX_MODBUS_TRANSACTION_TIME){   
+        if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
             // on a peut etre reçu un hearbeat
             //if (!heartbeatReceive && !webSocketMessagesList.empty()){
             if (!heartbeatReceive && !webSocketMessagesList.isEmpty()){
-                if (showHeartbeatMessages){
-                    Serial.println(F("Refresh is too long, will check Websocket message"));
-                }
+                Serial.println(F("Refresh is too long, will check Websocket message"));
                 handleWebSocketMessage();
             }
 
             checkHeartbeat();
             lastCheck = millis();
-            yield();
+            vTaskDelay(1);
         }
 
-        if ((isClientConnected() && client->queueIsFull()) || isWebSocketMessagesListMoreThanHalf()){
+        if ((isClientConnected() && client != nullptr && client->queueIsFull()) || isWebSocketMessagesListMoreThanHalf()){
             return;
         }
+
+        vTaskDelay(1);
     } // for 
 
     if ( millis() - start > 1000){
         Serial.printf("%lu::Total refresh time: %lu (wait time included)\r\n", millis(), millis() - start);
     }
-    //Serial.print("A");   
 }
 
 bool BorneUniverselle::isAllInputsReadOnce(){
@@ -241,7 +320,7 @@ bool BorneUniverselle::connectWifi(WifiItem currentWifi){
 	} else {
 		Serial.println(F("Wifi is with DHCP"));
 	}
-
+    WiFi.setHostname(BorneUniverselle::getName());
 	WiFi.begin(currentWifi.SSID, currentWifi.PWD);
     wifiStartupTime = millis();
     return true;
@@ -281,13 +360,13 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
         client = _client;
         clientConnectedAt = millis();
         lastHeartbeatSend = 0; // pour forcer l'envoi d'un hearbeat
-        Serial.printf("%lu:: WebSocket new connection %lu from %s\n", millis(), client->id(), client->remoteIP().toString().c_str()); 
+        Serial.printf("%lu:: WebSocket new connection %lu from %s\n", millis(), (long unsigned)client->id(), client->remoteIP().toString().c_str()); 
          // First connection
         heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
         clientconnected = true; // Pour que la logique metier puisse capter la nouvelle connecxion
         newClientConnected = true;
         if (isLastMessageFatal){
-            prepareMessage(ERROR, FATAL_MESSAGE);
+            setPlcBroken("Last message was fatal");
         }
 
     } else {
@@ -358,8 +437,13 @@ void BorneUniverselle::sendTextToClient(char *text){
             yield();
     }
 
-    if (isClientConnected()){
-        client->text(text);
+    if (isClientConnected() && client != nullptr){
+        if (strlen(text) < SOCKET_MESSAGE_MAX_SIZE){
+            client->text(text);
+        } else {
+            const char *txt = "Try to send more than 20 Kb to the web socket";
+           setPlcBroken(txt);
+        }
     } else {
         Serial.println("WARNING ! Try to send something to web client but no client is connected !");
     }
@@ -369,7 +453,7 @@ void BorneUniverselle::updateEarthbeatTimeout(){
     lastHearbeatReceive = millis();
     heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
     if (showHeartbeatMessages){
-        Serial.printf("%lu:: Just receive a message from ws. New hertbeatTimeout: %lu\r\n", millis(), heartbeatTimeout);
+        Serial.printf("%lu:: Just receive a message from ws. New hertbeatTimeout: %lu\r\n", millis(), (unsigned long)heartbeatTimeout);
      }
 }
 
@@ -379,14 +463,14 @@ void BorneUniverselle::checkHeartbeat(){
             nbTimeouts = 0;
         }
 
-        if (millis() - lastHeartbeatSend > HEARTBEAT_DELAY && millis() - lastHearbeatReceive > HEARTBEAT_DELAY){
+        if (millis() - lastHeartbeatSend > HEARTBEAT_DELAY){
             if (showHeartbeatMessages){
                 Serial.println(F("It's time to send hearbeat"));
             }
             sendHeartbeat(true);
         }
 
-        if (millis() - lastHearbeatReceive > HEARTBEAT_DELAY && millis() - lastHeartbeatSend > 150){
+        if (millis() - lastHearbeatReceive > HEARTBEAT_DELAY && millis() - lastHeartbeatSend > 100){
             if (showHeartbeatMessages){
                 Serial.printf("%lu:: Hearthbeat not received after %lu [ms]\r\n", millis(), millis() - lastHearbeatReceive);
                 sendHeartbeat();
@@ -450,7 +534,7 @@ void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
     doc[TOO_MUCH_CLIENTS] = true;
     char chain[256];
     serializeJson(doc, chain);
-    Serial.printf("%lu:: Too much clients: %lu: will be closed...\r\n", millis(), _client->id());
+    Serial.printf("%lu:: Too much clients: %lu: will be closed...\r\n", millis(), (unsigned long)_client->id());
     _client->text(chain);
     delay(100);
     _client->close();  
@@ -461,16 +545,17 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
     bool error = false;
     // on discard les warning message si il n'y a pas de client connecté..
     if (!isClientConnected() && type == WARNING){
+        Serial.printf("prepareMessage:: No client connected, messaage: %s\r\n", text);
         return;
     }
 
     if (notifMessagesList.length() < MAX_MESSAGES_PENDING){ 
         NOTIF_MESSAGE *notif = new NOTIF_MESSAGE;
         notif->severity = type;
-        notif->message  = (char *)malloc(strlen(text) + 1);
+        notif->message  = (char *)malloc(strlen_P(text) + 1);
 
         if (notif->message){  
-            strcpy(notif->message, text);
+            strcpy_P(notif->message, text);
             notifMessagesList.add(notif);
             Serial.printf("%lu:: prepareMessage: %s pushed on the queue\r\n", millis(), text);
             if (notifMessagesList.length() > 1){
@@ -493,7 +578,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
 bool BorneUniverselle::setName(const char *_name, bool check){
     bool status = false;
     if (strlen(_name) < NAME_LENGHT && strlen(_name) > 0 && !strstr(_name, " ")){
-        Serial.printf("Name: %s\r\n", name);
+        Serial.printf("Project name: %s\r\n", _name);
         if (!check){
             strcpy(name, _name);
         }
@@ -520,66 +605,99 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf(){
     }
 }
 
-void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client){
-    long start = micros();
+// Nouveau code pour la gestion des messages WebSocket
+void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client) {
+    if (isPlcBroken()){
+        Serial.println(F("Because the PLC is broken, we don't read the websocket message"));
+        return;
+    }
 
-    if (!isClientConnected()){
-        Serial.println(F("Discardind messages from client disconnected or timed out"));
+    long start = millis();
+
+    uint16_t webSocketMessageLength = webSocketMessagesList.length();
+   
+    // Vérifier d'abord si la liste n'est pas déjà pleine
+    if (webSocketMessageLength >= WEB_SOCKET_MESSAGE_MAX_ENTRYS) {
+        Serial.printf("Message list full: %u messages\n", webSocketMessageLength);
+        return;
+    }
+   
+    if (!isClientConnected()) {
+        Serial.println(F("Discarding messages from client disconnected or timed out"));
         return; 
     }
 
-    bool error = false;
-
-    // On évite d'ajoouter un message incomplet...
+    // On évite d'ajouter un message incomplet
     AwsFrameInfo *info = (AwsFrameInfo*)_arg;
     if (info->final && info->index == 0 && info->len == _len && info->opcode == WS_TEXT) {
         ;
     } else {
-        Serial.println(F("Malformedweb socket message"));
+        Serial.println(F("Malformed webSocket message"));
         return;
     }
+   
+    if (_len > 10 && _len < WEB_SOCKET_MESSAGE_MAX_SIZE) {
+        // Copie des données
+        unsigned char* dataCopy = (unsigned char*)malloc(_len + 1);
+        if (!dataCopy) {
+            Serial.println(F("Memory allocation error for websocket message copy"));
+            setPlcBroken("Memory allocation error for websocket message copy");
+            return;
+        }
+        memcpy(dataCopy, _data, _len);
+        bool messageAdded = false;
+        dataCopy[_len] = 0;  // Ajouter le zéro terminal
+        webSocketMessageLength = webSocketMessagesList.length();
+        
+        // Tentatives d'acquérir le mutex
+        uint8_t attempts = 0;
+        
+        while (attempts++ < MAX_MUTEX_ATTEMPTS) {
+            if (xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+                if (webSocketMessageLength < MAX_MESSAGES_PENDING) {
+                    WEB_SOCKET_MESSAGE *webSocketMessage = new WEB_SOCKET_MESSAGE;
+                    webSocketMessage->arg = _arg;
+                    webSocketMessage->len = _len;
+                    webSocketMessage->client = _client;
+                    webSocketMessage->data = dataCopy;
+                    webSocketMessage->timeOfOrigine = millis();
 
-    if (webSocketMessagesList.length() < MAX_MESSAGES_PENDING){
-        if (_len > 10 && _len < 1000){
-            WEB_SOCKET_MESSAGE *webSocketMessage = new (WEB_SOCKET_MESSAGE);
-            webSocketMessage->arg        = _arg;
-            webSocketMessage->len        = _len;
-            webSocketMessage->client     = _client;
-            webSocketMessage->data       = (unsigned char *)malloc(_len + 1);
-            if (webSocketMessage->data){
-                memcpy(webSocketMessage->data, _data, _len);
-                uint32_t freeMem = esp_get_minimum_free_heap_size();
-                if (freeMem < 5000){
-                    Serial.printf("Free memory warning: %lu\r\n", esp_get_minimum_free_heap_size());
+                    webSocketMessagesList.add(webSocketMessage);
+                    messageAdded = true;
+
+                    xSemaphoreGive(webSocketMutex);
+                    webSocketMessageLength++;
+                    break;  // On sort de la boucle car succès
                 }
-                webSocketMessagesList.add(webSocketMessage);
-            } else {
-                Serial.println(F("Memory allocation error for the webSocketMessage"));
-                error = true; 
+                
+                xSemaphoreGive(webSocketMutex);
+                Serial.println(F("Message list full"));
+                break;  // Liste pleine, inutile de réessayer
             }
-        } else {
-            Serial.println(F("Discarding strange message from websocket..."));
+            
+            vTaskDelay(1);  // Petit délai avant nouvelle tentative
+            Serial.printf("Attempt %d to take mutex\n", attempts);
+        }
+        
+        // Si le message n'a pas été ajouté, on libère la mémoire
+        if (!messageAdded) {
+            free(dataCopy);
+            Serial.printf("Failed to process message after %d attempts\n", attempts);
         }
     } else {
-        error = true;
+        Serial.println(F("WebSocketMessage size out of bounds - discarding"));
     }
 
-    if (error){
-        char message[256];
-        sprintf(message, "%lu:: Error in adding webSocketMessage to the queue. Queue size: %u, current message size: %u\r\n", millis(), webSocketMessagesList.length(), _len);
-        setPlcBroken(message);
-    }
- 
-    long time = micros() - start;
-    if (time > 250){
-        Serial.printf("Keep done: %lu[us]\r\n", time); 
+    if (millis() - start > 100){
+        Serial.printf("Time to add one element on the webSocketMessageList: %lu[us]\r\n", millis() - start); 
     } 
 
-    if (webSocketMessagesList.length() > 1){
-        Serial.printf("%lu:: There are now %u webMessages on the list\r\n", millis(), webSocketMessagesList.length());
+    if (webSocketMessageLength > 1){
+        Serial.printf("%lu:: There are now %u webMessages on the list (to be processed)\r\n", millis(), webSocketMessageLength);
     }
-    yield();
-}
+
+} //keepWebSocketMessage
+
 
 bool BorneUniverselle::clientQueueIsFull(){
     if (!isClientConnected() || client == nullptr){
@@ -590,102 +708,125 @@ bool BorneUniverselle::clientQueueIsFull(){
 
 void BorneUniverselle::handleWebSocketMessage(){
     // Vient de loop
-
-    uint32_t start = millis();
-    WEB_SOCKET_MESSAGE *webSocketMessage;
-
     while (webSocketMessagesList.length()){
         if (PF8574BooleanInputNode::isInterrupt()){
             return;
         }
 
-        updateEarthbeatTimeout();
-
-        if ((!isClientConnected() || client == nullptr) || (isClientConnected() && client->queueIsFull()) || !isAllInputsReadOnce()){
-            return;
-        }
-
-        webSocketMessage = webSocketMessagesList.front();
         
-        JsonDocument socketDoc;
-        DeserializationError error = deserializeJson(socketDoc, webSocketMessage->data);
-        if (error) {
-            char buff[256];
-            sprintf(buff, "%lu:: handleWebSocketMessage: deserializeJson() failed: ", millis());
-            strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-            Serial.println(buff);
-            Serial.println();
-            prepareMessage(ERROR, JSON_NOT_VALID);
-            if (webSocketMessage->data != nullptr){
-               free(webSocketMessage->data); 
-            }
-            webSocketMessagesList.remove(webSocketMessage);
-            continue;
-        } // json error  
-    
-        if (socketDoc.containsKey(HEARTBEAT)){
-            heartbeatReceive = true;
-            lastHearbeatReceive = millis();     
-            if (showHeartbeatMessages){
-                if (client == nullptr){
-                    Serial.println(F("Client is null !"));
-                } else {
-                    Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), client->id(), socketDoc[HEARTBEAT] ? "true": "false");
-                }
-            }
-        } else  if (socketDoc.containsKey(CONFIG)){
-            if (!BorneUniverselle::parseConfig(socketDoc)){
-                Serial.println(F("Config is not valid !!!"));
-            } else {
-                Serial.println(F("Will update config and restart"));
-                saveParameters(socketDoc);
-                delay(1000);
-                ESP.restart();
-            } 
-        } else if (socketDoc.containsKey(NOTIFY_STATES_CHANGED)){
-                Serial.println(F("Receive a NOTIFY_STATES_CHANGED"));
-                handleNodesChange(socketDoc);
-
-        } else if (socketDoc.containsKey(GET_VALUE)){
-                uint32_t hash = socketDoc[GET_VALUE];
-                Serial.printf("Receive a get value for node: %lu\r\n", hash);
-                handleGetValue(socketDoc[GET_VALUE]);
-        } else if (socketDoc.containsKey(ALL_STATES_REQUEST)){
-                Serial.println(F("Receive get all states request"));
-                handleGetAllValues();
-        } else {
-                char buff[64];
-                sprintf(buff, "Json root key received by web socket is unknow !");
-                Serial.println(F("Json received:"));
-                serializeJsonPretty(socketDoc, Serial);
-                prepareMessage(ERROR, buff);
-                Serial.flush();
-                // for ever...
-        }
-
-        //cleanup:
-        if (webSocketMessage->data != nullptr && isClientConnected()){
-            free(webSocketMessage->data);
-        }
-        //delete webSocketMessage;
-        webSocketMessagesList.remove(webSocketMessage);
-        //Serial.printf("Free heap: %u\r\n", 	ESP.getFreeHeap());  
-        yield();
-        // Il faut envoyer des hearbeats de temps en temps autrement le socket se ferme..,.
-        if (millis() - lastHeartbeatSend > 200 && webSocketMessagesList.length() > 4){
-             sendHeartbeat();
-        }
-       
-        checkHeartbeat();
-        if (isClientConnected() && client->queueIsFull()){
+       if (!isClientConnected() || client == nullptr || client->queueIsFull() || !isAllInputsReadOnce()){
+            Serial.println(F("Client is not connected or queue is full or all inputs are not read once"));
             return;
         }
-    } // while webSocketMessagesList
 
-    if (millis() - start > 100){
-                Serial.printf("handleWebSocketMessage:: duration: %lu\r\n", millis() - start);
-    }
+        if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(100))) {
+            Serial.println(F("Unable to take the webSocketMutex"));
+            return;
+        }
+
+        // on extrait le 1er message de la liste
+        WEB_SOCKET_MESSAGE *webSocketMessageOrig = webSocketMessagesList.front();
+        if (!webSocketMessageOrig) {
+            xSemaphoreGive(webSocketMutex);
+            Serial.println("handleWebSocketMessage:: webSocketMessage Null !!");
+            continue;
+        }
+
+        // Créer une copie complète pendant qu'on est sous mutex
+        WEB_SOCKET_MESSAGE *workingMessage = new WEB_SOCKET_MESSAGE;
+        workingMessage->len = webSocketMessageOrig->len;
+        workingMessage->data = (uint8_t*)malloc(webSocketMessageOrig->len + 1);
+        memcpy(workingMessage->data, webSocketMessageOrig->data, webSocketMessageOrig->len);
+        workingMessage->timeOfOrigine = webSocketMessageOrig->timeOfOrigine;
+        workingMessage->client = webSocketMessageOrig->client;
+
+        // Libérer les données de l'original
+        free(webSocketMessageOrig->data);
+        webSocketMessageOrig->data = nullptr;
+
+        // suppression de la liste
+        webSocketMessagesList.remove(webSocketMessageOrig);
+        xSemaphoreGive(webSocketMutex);
+
+        uint32_t processStart = millis();  // On ne mesure que le temps de traitement du message
+        //Serial.printf("Data pointer avant processMessage: %p\n", workingMessage->data);
+
+        processMessage(workingMessage);
+        //Serial.printf("Data pointer après processMessage: %p\n", workingMessage->data);
+        
+        if (millis() - processStart > 100) {
+            Serial.printf("handleWebSocketMessage:: message processing duration: %lu, message: %s\r\n", millis() - processStart, workingMessage->data);
+        }
+        
+        //Serial.printf("Attempting to free data at %p\n", workingMessage->data);
+        free(workingMessage->data);
+        workingMessage->data = nullptr;
+        delete workingMessage;
+    } // while webSocketMessagesList
 } // handleWebSocketMessage
+
+void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
+    //Serial.printf("Message data start: %.50s\n", (char*)webSocketMessage->data);
+
+    JsonDocument socketDoc;
+    DeserializationError error = deserializeJson(socketDoc, (const char*)webSocketMessage->data);
+
+    if (error) {
+        char buff[256];
+        sprintf(buff, "%lu:: handleWebSocketMessage: deserializeJson() failed: ", millis());
+        strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
+        Serial.println(buff);
+        prepareMessage(ERROR, JSON_NOT_VALID);
+        return;
+    }
+
+    //Serial.printf("Data pointer après deserialisation: %p\n", webSocketMessage->data);
+     
+    updateEarthbeatTimeout(); // n'importe que message compte comme un heartbeat reçu
+    
+    //if (socketDoc.containsKey(HEARTBEAT)){
+    if (!socketDoc[HEARTBEAT].isNull()){
+        heartbeatReceive = true;
+        lastHearbeatReceive = millis();     
+        if (showHeartbeatMessages){
+            if (client == nullptr){
+                Serial.println(F("Client is null !"));
+            } else {
+                Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), (unsigned long)client->id(), socketDoc[HEARTBEAT] ? "true": "false");
+            }
+        }
+    } else if (!socketDoc[CONFIG].isNull()){
+        if (!BorneUniverselle::parseConfig(socketDoc)){
+            Serial.println(F("Config is not valid !!!"));
+        } else {
+            Serial.println(F("Will update config and restart"));
+            saveParameters(socketDoc);
+            delay(1000);
+            ESP.restart();
+        } 
+    } else if (!socketDoc[NOTIFY_STATES_CHANGED].isNull()){
+            Serial.println(F("Receive a NOTIFY_STATES_CHANGED"));
+            handleNodesChange(socketDoc);
+
+    } else if (!socketDoc[GET_VALUE].isNull()){
+            uint32_t hash = socketDoc[GET_VALUE];
+            Serial.printf("Receive a get value for node: %lu\r\n", (unsigned long)hash);
+            handleGetValue(socketDoc[GET_VALUE]);
+    //} else if (socketDoc.containsKey(ALL_STATES_REQUEST)){
+    } else if (!socketDoc[ALL_STATES_REQUEST].isNull()){
+            Serial.println(F("Receive get all states request"));
+            handleGetAllValues();
+    } else {
+            char buff[64];
+            sprintf(buff, "Json root key received by web socket is unknow !");
+            Serial.println(F("Json received:"));
+            serializeJsonPretty(socketDoc, Serial);
+            prepareMessage(ERROR, buff);
+            Serial.flush();
+            // for ever...
+    }
+} // processMeSSAGE
+
 
 void BorneUniverselle::handleGetAllValues(){
     notifyWebClient(true);
@@ -693,6 +834,11 @@ void BorneUniverselle::handleGetAllValues(){
 
 void BorneUniverselle::handleGetValue(uint32_t hash){
     Node *node = findNode("handleGetValue", hash);
+    if (node == nullptr){
+        return;// node not found
+    }
+
+
     JsonDocument notifyDoc;
     JsonArray array = notifyDoc[NOTIFY_STATES_CHANGED].to<JsonArray>();
     JsonObject nodeObject = array.add<JsonObject>();
@@ -705,7 +851,7 @@ void BorneUniverselle::handleGetValue(uint32_t hash){
             chain[size] = 0;  // 0 chain terminated is missing !!!!
             //Serial.println(chain);
             if (isClientConnected() && client != nullptr){
-                serializeJsonPretty(notifyDoc, Serial);
+                //serializeJsonPretty(notifyDoc, Serial);
                 sendTextToClient(chain);  
             }
         } else {
@@ -722,7 +868,7 @@ bool BorneUniverselle::handleNodesChange(JsonDocument socketDoc){
     // On accepte tous les nodes virtuelles et les nodes output
     // Rappel on ne peux pas modifier une entrée, c'est le monde physique qui modifie une entrée !!!!
     uint32_t start = millis();
-    //JsonObject root = socketDoc[NOTIFY_STATES_CHANGED];
+  
     Serial.printf("%lu:: Web socket nodes change received\r\n", millis());
     serializeJsonPretty(socketDoc, Serial);
     
@@ -764,11 +910,11 @@ bool BorneUniverselle::handleNodesChange(JsonDocument socketDoc){
            VirtualUint32InputNode *v = (VirtualUint32InputNode *)node;
            //Serial.printf("Received value: %d\r\n", state[VALUE].as<unsigned int>());
            v->setValue(state[VALUE].as<unsigned int>());
-           Serial.printf("Node: %s new value: %lu\r\n", node->getName(), v->getValue());  
+           Serial.printf("Node: %s new value: %lu\r\n", node->getName(), (unsigned long)v->getValue());  
         } else if (node->classType() == CLASS_VIRTUAL_UINT32_OUTPUT_NODE){
            VirtualUint32OutputNode *v = (VirtualUint32OutputNode *)node;
            v->setValue(state[VALUE]);
-           Serial.printf("Node: %s new value: %lu\r\n", node->getName(), v->getValue()); 
+           Serial.printf("Node: %s new value: %lu\r\n", node->getName(), (unsigned long)v->getValue()); 
         } else if (node->classType() == CLASS_MODBUS_WRITEHOLDINGREGISTER){
             ModbusWriteHoldingRegister *w = (ModbusWriteHoldingRegister *)node;
             w->setValue(state[VALUE]);
@@ -778,15 +924,25 @@ bool BorneUniverselle::handleNodesChange(JsonDocument socketDoc){
             w->setValue(state[VALUE]);
             Serial.printf("Node: %s new value: %s\r\n", node->getName(), w->getValue() ? "true" : "false"); 
         } else if (node->classType() == CLASS_VIRTUAL_FLOAT_INPUT_NODE){
-            VirtualFloatInputNode *w = (VirtualFloatInputNode *)node;
-            w->setValue(state[VALUE]);
-            Serial.printf("Node: %s new value: %3.3f\r\n", node->getName(), w->getValue()); 
+            VirtualFloatInputNode *k = (VirtualFloatInputNode *)node;
+            k->setValue(state[VALUE]);
+            Serial.printf("Node: %s new value: %3.3f\r\n", node->getName(), k->getValue()); 
         } else if (node->classType() == CLASS_VIRTUAL_FLOAT_OUTPUT_NODE){
             VirtualFloatOutputNode *w = (VirtualFloatOutputNode *)node;
             w->setValue(state[VALUE]);
             Serial.printf("Node: %s new value: %3.3f\r\n", node->getName(), w->getValue()); 
+        } else if (node->classType() == CLASS_VIRTUAL_TEXT_INPUT_NODE){
+            VirtualTextInputNode *t = (VirtualTextInputNode *)node;
+            const char *text = state[VALUE];
+            t->setValue(text);
+            Serial.printf("Node: %s new value: %s\r\n", node->getName(), t->getValue()); 
+        } else if (node->classType() == CLASS_VIRTUAL_TEXT_OUTPUT_NODE){
+            VirtualTextOutputNode *w = (VirtualTextOutputNode *)node;
+            const char *text = state[VALUE];
+            w->setValue(text);
+            Serial.printf("Node: %s new value: %s\r\n", node->getName(), w->getValue());
         } else {
-            sprintf(mess, "handleNodesChange:: Unable to find class of node with hash: %lu, classType %d", hash, node->classType());
+            sprintf(mess, "handleNodesChange:: Unable to find class of node with hash: %lu, classType %d", (unsigned long)hash, node->classType());
             setPlcBroken(mess);
         }
         yield();
@@ -803,9 +959,11 @@ bool BorneUniverselle::handleNodesChange(JsonDocument socketDoc){
 
 bool BorneUniverselle::parseConfig( JsonDocument doc,bool check){
     bool status = true;
-    //Serial.println("Will parse config");
+    projectVersion = 0;
+    Serial.println("Will parse config");
 
-    if (doc.containsKey(NAME)){
+    //if (doc.containsKey(NAME)){
+    if (!doc[NAME].isNull()){
         String name = doc[NAME]; // project name
         if (!setName(name.c_str(), check)){
            status = false; 
@@ -815,7 +973,26 @@ bool BorneUniverselle::parseConfig( JsonDocument doc,bool check){
        status = false;
     }
 
+    if (!doc[TYPE].isNull()){
+        if (doc[TYPE].is<const char*>() || doc[TYPE].is<String>()) {
+            if (!strcmp(doc[TYPE], PROJECT_TYPE_V0)){
+                prepareMessage(ERROR, "The project type is not BorneUniverselle");
+                status = false;
+            } else {
+                projectVersion = 0;
+            }
+        }
+
+        if (doc[TYPE].is<int>() || doc[TYPE].is<float>()) {
+               projectVersion = doc[TYPE];
+        }   
+    } else {
+        prepareMessage(ERROR, "The key type is not found");
+        status = false;
+    }
+
     if (status){
+        Serial.printf("Project version: %2.2f\r\n", projectVersion);
         status = parseWifis(doc, check);
         if (!status && !check){
             wifiParsedOk = false;
@@ -824,7 +1001,7 @@ bool BorneUniverselle::parseConfig( JsonDocument doc,bool check){
 
     if (status){
         //Serial.println ("Wifi's parsed");
-        status = parseHardwares(doc, check);
+        status = parseHardwares(doc, check, projectVersion);
     }
 
     return status;
@@ -836,11 +1013,13 @@ bool BorneUniverselle::getIsWifiParsedOk(){
 
 bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
     for (JsonObject item : doc[CONFIG].as<JsonArray>()) {
-        if (item.containsKey(WIFI)){
+        //if (item.containsKey(WIFI)){
+        if (!item[WIFI].isNull()){
             for (JsonObject wifiItem : item[WIFI].as<JsonArray>()) {
                 const char *ssid, *pwd, *name;
                 char message[800];
-                if (wifiItem.containsKey(NAME)){
+               // if (wifiItem.containsKey(NAME)){
+                if (!wifiItem[NAME].isNull()){
                     name = wifiItem[NAME];
                     sprintf(message, "Wifi name: %s\r\n", name);
                 } else {
@@ -849,7 +1028,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                     return false;
                 }
 
-                if (wifiItem.containsKey(SSID_)){
+                //if (wifiItem.containsKey(SSID_)){
+                if (!wifiItem[SSID_].isNull()){
                     ssid = wifiItem[SSID_];
                 } else {
                     sprintf(message, "parseWifis:: Wifi: %s doesn't contains ssid key", name);
@@ -857,7 +1037,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                     return false;
                 }
 
-                if (wifiItem.containsKey(PWD_)){
+                //if (wifiItem.containsKey(PWD_)){
+                if (!wifiItem[PWD_].isNull()){
                     pwd = wifiItem[PWD_];
                 } else {
                     sprintf(message, "parseWifis:: Wifi: %s doesn't contains pwd key", name);
@@ -866,7 +1047,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                 }
 
                 bool dhcp = true;
-                if (wifiItem.containsKey(DHCP)){
+                //if (wifiItem.containsKey(DHCP)){
+                 if (!wifiItem[DHCP].isNull()){
                     if (wifiItem[DHCP] == true){
                         Serial.println(F("Item with dhcp"));
                         dhcp = true;
@@ -877,7 +1059,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                         dhcp = false;
                         IPAddress ipAddress, dns, gateway, mask;
                         Serial.println(F("Fixed address"));
-                        if (wifiItem.containsKey(IP)){
+                        // if (wifiItem.containsKey(IP)){
+                        if (!wifiItem[IP].isNull()){
                             const char *ipChar = wifiItem[IP];
                             String ipString = String(ipChar);
                             ipAddress.fromString(ipString);
@@ -887,7 +1070,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                             return false;
                         }
 
-                        if (wifiItem.containsKey(DNS_)){
+                        //if (wifiItem.containsKey(DNS_)){
+                        if (!wifiItem[DNS_].isNull()){
                             const char *dnsChar = wifiItem[DNS_];
                             String dnsString = String(dnsChar);
                             dns.fromString(dnsString);
@@ -897,7 +1081,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                             return false;
                         }
 
-                        if (wifiItem.containsKey(GATEWAY_)){
+                        //if (wifiItem.containsKey(GATEWAY_)){
+                        if (!wifiItem[GATEWAY_].isNull()){
                             const char *gatewayChar = wifiItem[GATEWAY_];
                             String gatewayString = String(gatewayChar);
                             gateway.fromString(gatewayString);
@@ -907,7 +1092,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                             return false;
                         }
 
-                        if (wifiItem.containsKey(MASK_)){
+                        //if (wifiItem.containsKey(MASK_)){
+                         if (!wifiItem[MASK_].isNull()){
                             const char *maskChar = wifiItem[MASK_];
                             String maskString = String(maskChar);
                             mask.fromString(maskString);
@@ -928,9 +1114,11 @@ bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
                 }
             }
         } else {
-            if (item.containsKey(PARAMETERS)){
-                JsonObject params = item[PARAMETERS];
-                if (params.containsKey(OTA_URL)){
+            //if (item.containsKey(PARAMETERS)){
+            if (!item[PARAMETERS].isNull()){
+                JsonObject params = item[PARAMETERS];    
+                //if (params.containsKey(OTA_URL)){
+                if (!params[OTA_URL].isNull()){
                     strcpy(ota_url, params[OTA_URL]);
                     Serial.printf("ota_url: %s\r\n", ota_url);
                 }
@@ -981,13 +1169,14 @@ void  BorneUniverselle::eraseWifis(){
     wifiItemsMapBu.clear();
 }
 
-bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
+bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projectVersion){
     bool needToSaveConfig = false;
     char buff[1000];
     //Serial.println("parseHardwares");
 
     // Est-ce que l'on a un hardware ?
-    if (!doc.containsKey(CHILDREN)){
+    //if (!doc.containsKey(CHILDREN)){
+    if (doc[CHILDREN].isNull()){
         prepareMessage(ERROR, NO_CHILDREN_KEY_CONFIG);
         return false;
     }
@@ -996,7 +1185,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
 
     for (JsonObject children : doc[CHILDREN].as<JsonArray>()) {
         char sectionName[128], hardware[80], type[80], text[200];
-        if (!children.containsKey(NAME)){
+        //if (!children.containsKey(NAME)){
+        if (children[NAME].isNull()){
             sprintf(buff, "parseHardwares:: Section ? doesn't contains key %s", NAME);
             prepareMessage(ERROR, buff);
             return false;
@@ -1005,7 +1195,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
         strcpy(sectionName, children[NAME]);
         Serial.printf("Section name: %s\r\n", sectionName);
            
-        if (!children.containsKey(HARDWARE)){
+        //if (!children.containsKey(HARDWARE)){
+        if (children[HARDWARE].isNull()){
             sprintf(text, "parseHardwares:: Section %s doesnt contains key hardware", name);
             prepareMessage(ERROR, text);
             return false;
@@ -1014,7 +1205,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
         Serial.printf("hardware: %s\r\n", hardware);
         char fileName[250];
 
-        if (!children.containsKey(TYPE)){
+        //if (!children.containsKey(TYPE)){
+        if (children[TYPE].isNull()){
             sprintf(buff, "parseHardwares:: Section %s doesnt contains key type", name);
             Serial.println(buff);
             prepareMessage(ERROR, buff);
@@ -1026,25 +1218,42 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
         // no descriptor file for virtual nodes!
         if (!strcmp(hardware, VIRTUAL)){
             for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
-                if (!c.containsKey(NAME)){
-                    sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
-                    prepareMessage(ERROR, buff);
-                    return false;  
-                }
-
                 char nodeName[128];
-                strcpy(nodeName, c[NAME]);
+                if (projectVersion < 2){
+                    if (c[NAME].isNull()){
+                        sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
+                        prepareMessage(ERROR, buff);
+                        return false;  
+                    }
+                    strcpy(nodeName, c[NAME]);
+                } 
                 //Serial.printf("node name: %s\r\n", nodeName);
                 uint32_t hash, hashLocal;
 
-                if (!c.containsKey(HASH)){
+                //if (!c.containsKey(HASH)){
+                if (c[HASH].isNull()){
                     Serial.printf("Hash key note found for node name: %s\r\n", nodeName);
                     return false;
                 } else {
                     hash = c[HASH].as<unsigned int>();
                     hashLocal = hash;
-                    //Serial.printf("Node name: %s, hash found: %lu \r\n", nodeName, hash);
+
+                    if (projectVersion >=2){
+                        sprintf(nodeName, "%u", hash); // Pour les versions 2 et plus, le nom du node est son hash car le nom est défini dans le fichier interface.json
+                    }   
                 }
+
+                if (c[ID].isNull()){
+                    sprintf(buff, "parseHardwares:: node %s has no key %s", nodeName, ID);
+                    prepareMessage(ERROR, buff);
+                return false;  
+                }
+                uint8_t addr = c[ID].as<int>();
+                if (projectVersion >=2){
+                    sprintf(nodeName, "%u", addr); // Pour les versions 2 et plus, le nom du node est son hash car le nom est défini dans le fichier interface.json
+                }
+
+                //Serial.printf("Node name: %s, hash found: %lu \r\n", nodeName, hash);
 
                 JsonDocument descriptor;
                 descriptor.set(c);
@@ -1057,7 +1266,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
                 }
 
                 if (hash != hashLocal){
-                    if (!c.containsKey(HASH)){
+                    //if (!c.containsKey(HASH)){
+                    if (c[HASH].isNull()){
                         //Serial.println("Will add hash...");
                         // Add object
                         //JsonObject hashObject = c.createNestedObject(HASH);
@@ -1108,7 +1318,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
             return false;
         }
 
-        if (!nodesDoc.containsKey(HARDWARE)){
+
+        if (nodesDoc[HARDWARE].isNull()){
             sprintf(buff,"parseHardwares:: Key: %s not found", HARDWARE);
             prepareMessage(ERROR, buff);
             return false;
@@ -1120,38 +1331,50 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
             return false;
         }
 
-        // Serial.println("Hardware match");
-        if (!i2cInit(nodesDoc) || ! modbusInit(nodesDoc)){
-            return false;
+        // Serial.println("Hardware match")
+
+        if (i2cInit(nodesDoc)){
+            Serial.println(F("Bus I2C initialized"));
+        } 
+
+
+        if (modbusInit(nodesDoc)){
+            Serial.println(F("Modbus initialized"));
         }
     
         //Serial.println("Lectures des sections du hardware");
 
-        if (!nodesDoc.containsKey(type)){
+        //if (!nodesDoc.containsKey(type)){
+        if (nodesDoc[type].isNull()){
             sprintf(buff, "Hardware file doesnt contains key %s", type);
             prepareMessage(ERROR, buff);
             return false;
         }
 
-        if (!children.containsKey(CHILDREN)){
+        //if (!children.containsKey(CHILDREN)){
+        if (children[CHILDREN].isNull()){
             sprintf(buff, "parseHardwares:: section %s doesnt contains key %s from config file", name, CHILDREN);
             prepareMessage(ERROR, buff);
             return false; 
         }
 
         for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
-            if (!c.containsKey(NAME)){
-                sprintf(buff, "parseHardwares:: sub section doesnt contains key %s from config file", NAME);
-                prepareMessage(ERROR, buff);
-                return false;  
-            }
-
             char nodeName[128];
+
+            if (projectVersion < 2){
+                if (c[NAME].isNull()){
+                    sprintf(buff, "parseHardwares:: sub section doesnt contains key %s from config file", NAME);
+                    prepareMessage(ERROR, buff);
+                    return false;  
+                }
+                strcpy(nodeName, c[NAME]);
+            }
+        
             uint32_t hash = 0, hashLocal;
-            strcpy(nodeName, c[NAME]);
             //Serial.printf("node name: %s\r\n", nodeName);
 
-            if (!c.containsKey(HASH)){
+            //if (!c.containsKey(HASH)){
+            if (c[HASH].isNull()){
                //Serial.printf("Hash key not found for node name: %s\r\n", nodeName);
             } else {
                 hash = c[HASH].as<unsigned int>();
@@ -1159,18 +1382,23 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
                 //Serial.printf("Node name: %s, hash found: %lu\r\n", nodeName, hash);
             }
 
-            if (!c.containsKey(ID)){
+            //if (!c.containsKey(ID)){
+            if (c[ID].isNull()){
                 sprintf(buff, "parseHardwares:: node %s has no key %s", nodeName, ID);
                 prepareMessage(ERROR, buff);
                 return false;  
             }
 
             uint8_t addr = c[ID].as<int>();
+            if (projectVersion >=2){
+                    sprintf(nodeName, "%u", addr); // Pour les versions 2 et plus, le nom du node est son hash car le nom est défini dans le fichier interface.json
+            }
             //Serial.printf("Will search for id %d from config, type: %s\r\n", addr, type);
 
             bool found = false;
             for (JsonObject hardSection : nodesDoc[type].as<JsonArray>()) {
-                if (!hardSection.containsKey(ID)){
+                //if (!hardSection.containsKey(ID)){
+                if (hardSection[ID].isNull()){
                     sprintf(buff, "parseHardwares:: Hardware file key %s has no key id", fileName);
                     prepareMessage(ERROR, buff);
                     return false; 
@@ -1183,15 +1411,17 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
 
                 if (addr == id){ 
                     //Serial.println("Find correspondig id <-> addr");
-                    // on doit créer le node mais avec le bon type. On cherche le node creator !
+                    // on doit créer le node avec le bon type. On cherche le node creator !
 
                     uint16_t webRefreshInterval = 0;
-                    if (c.containsKey(WEB_UPDATE_INTERVAL)){
+                    //if (c.containsKey(WEB_UPDATE_INTERVAL)){
+                    if (!c[WEB_UPDATE_INTERVAL].isNull()){
                         webRefreshInterval = c[WEB_UPDATE_INTERVAL];  
                     } 
 
                      uint16_t refreshInterval = 0;
-                    if (c.containsKey(REFRESH_INTERVAL)){
+                    //if (c.containsKey(REFRESH_INTERVAL)){
+                    if (!c[REFRESH_INTERVAL].isNull()){
                         refreshInterval = c[REFRESH_INTERVAL];
                         //Serial.printf("Refreh interval: %u\r\n", refreshInterval);
                     } 
@@ -1216,24 +1446,26 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
                     } else if (!strcmp(type, MODBUS_READ_COIL) || !strcmp(type, MODBUS_WRITE_COIL) || !strcmp(type, MODBUS_READ_HOLDING_REGISTER) ||
                                !strcmp(type, MODBUS_WRITE_HOLDING_REGISTER) || !strcmp(type, MODBUS_READ_DOUBLE_HOLDING_REGISTER) || !strcmp(type, MODBUS_WRITE_DOUBLE_HOLDING_REGISTER) ||
                                !strcmp(type, MODBUS_READ_INPUT_REGISTER) || !strcmp(type, MODBUS_WRITE_MULTIPLE_COILS) || !strcmp(type, MODBUS_READ_MULTIPLE_INPUTS_STATUS)){
-                        //Serial.println("Modbus");
-                        if (children.containsKey(ADDRESS)){
-                            uint16_t slaveAddress = children[ADDRESS];
+                                //Serial.println("Modbus");
+                                //if (children.containsKey(ADDRESS)){
+                                if (!children[ADDRESS].isNull()){
+                                    uint16_t slaveAddress = children[ADDRESS];
                             
-                            //Serial.printf("Modbus slave address: %u\r\n", slaveAddress);
-                            if (!createModbusNode(nodeName, sectionName, &hashLocal, slaveAddress, nodesDoc, hardSection, type, refreshInterval, webRefreshInterval, descriptor, check)){
-                                sprintf(buff, "parseHardwares:: Error on creating Modbus node with file %s\r\n", fileName);
-                                prepareMessage(ERROR, buff);
-                            }
-                            found = true; 
-                        } else {
-                            sprintf(buff, "parseHardwares:: Section doesn't contains key %s\r\n", ADDRESS);
-                            prepareMessage(ERROR, buff);
-                        }
+                                    //Serial.printf("Modbus slave address: %u\r\n", slaveAddress);
+                                    if (!createModbusNode(nodeName, sectionName, &hashLocal, slaveAddress, nodesDoc, hardSection, type, refreshInterval, webRefreshInterval, descriptor, check)){
+                                        sprintf(buff, "parseHardwares:: Error on creating Modbus node with file %s\r\n", fileName);
+                                        prepareMessage(ERROR, buff);
+                                    }
+                                    found = true; 
+                                } else {
+                                    sprintf(buff, "parseHardwares:: Section doesn't contains key %s\r\n", ADDRESS);
+                                    prepareMessage(ERROR, buff);
+                                    return false;
+                                }
                     } else {
                             sprintf(buff, "parseHardwares:: Unable to match type %s\r\n", type);
                             prepareMessage(ERROR, buff);
-                        }  
+                    }  
                     break;
                 } 
             } // loop on hardware
@@ -1243,7 +1475,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
                 //Serial.printf("Found !! hash lu: %u, hash produced: %u\r\n", hash, hashLocal);
                 if (hash != hashLocal){
                     Serial.println(F("Must save the file with new hash"));
-                    if (!c.containsKey(HASH)){
+                    //if (!c.containsKey(HASH)){
+                    if (c[HASH].isNull()){
                         // Add object
                         JsonObject hashObject;
                         c.set(hashObject);
@@ -1273,17 +1506,25 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check){
 
 bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
                                      JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument descriptor, bool check){
+    
+    if (!isModbusInitialised){
+        prepareMessage(ERROR, MODBUS_NOT_INITIALISED);
+        return false;
+    }
+
     Node *node;
     uint16_t offset;
     char message[256];
     int8_t registersOffset = 0;
 
-    if (contextDoc.containsKey(REGISTERS_OFFSET)){
+    //if (contextDoc.containsKey(REGISTERS_OFFSET)){
+    if (!contextDoc[REGISTERS_OFFSET].isNull()){
         registersOffset = contextDoc[REGISTERS_OFFSET];
         // Serial.printf("Registers offset: %d\r\n", registersOffset);
     }
 
-    if (hardSection.containsKey(OFFSET)){
+    //if (hardSection.containsKey(OFFSET)){
+    if (!hardSection[OFFSET].isNull()){
         offset = hardSection[OFFSET];
         //Serial.printf("Offset: %u\r\n", offset);
     } else {
@@ -1301,7 +1542,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusReadCoilNode(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
         }
-        Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+        Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_COIL)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteCoilNode));
@@ -1309,10 +1550,11 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusWriteCoilNode(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
         }
-        Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d\r\n", nodeName, *hash, slaveAddress, offset);
+        Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_WRITE_MULTIPLE_COILS)){
         uint8_t nbValues = 1;
-        if (hardSection.containsKey(NB_VALUES)){
+        //if (hardSection.containsKey(NB_VALUES)){
+        if (!hardSection[NB_VALUES].isNull()){
             nbValues = hardSection[NB_VALUES];
             Serial.printf("createModbusNode:: nbValues: %d\r\n", nbValues);
         } else {
@@ -1328,7 +1570,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
              node = new ModbusWriteMultipleCoilslNode(nodeName, sectionName, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
         }
 
-        Serial.printf("Node %s created with succes with type ModbusWriteMultipleCoilslNode, hash: %lu, address: %d, offset: %d\r\n", nodeName, *hash, slaveAddress, offset); 
+        Serial.printf("Node %s created with succes with type ModbusWriteMultipleCoilslNode, hash: %lu, address: %d, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset); 
     } else if (!strcmp(type, MODBUS_READ_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadHoldingRegister));
@@ -1336,7 +1578,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusReadHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
         }
-        Serial.printf("Node %s created with succes with type ModbusReadHoldingRegister, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+        Serial.printf("Node %s created with succes with type ModbusReadHoldingRegister, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteHoldingRegister));
@@ -1344,7 +1586,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusWriteHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
         }
-        Serial.printf("Node %s created with succes with type ModbusWriteHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", nodeName, *hash, slaveAddress, offset);
+        Serial.printf("Node %s created with succes with type ModbusWriteHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_READ_DOUBLE_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadDoubleHoldingRegisters));
@@ -1352,7 +1594,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusReadDoubleHoldingRegisters(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
         }
-        Serial.printf("Node %s created with succes with type ModbusReadDoubleHoldingRegisters, hash: %lu, address: %u, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+        Serial.printf("Node %s created with succes with type ModbusReadDoubleHoldingRegisters, hash: %lu, address: %u, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_DOUBLE_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteDoubleHoldingRegister));
@@ -1360,7 +1602,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusWriteDoubleHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
         }
-        Serial.printf("Node %s created with succes with type ModbusWriteDoubleHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", nodeName, *hash, slaveAddress, offset);
+        Serial.printf("Node %s created with succes with type ModbusWriteDoubleHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_READ_INPUT_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadInputRegister));
@@ -1368,10 +1610,11 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } else {
             node = new ModbusReadInputRegister(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
         } 
-        Serial.printf("Node %s created with succes with type ModbusReadInputRegister, hash: %lu, address: %u, offset: %u, refresh interval: %u, web refresh interval %u\r\n", nodeName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+        Serial.printf("Node %s created with succes with type ModbusReadInputRegister, hash: %lu, address: %u, offset: %u, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_READ_MULTIPLE_INPUTS_STATUS)){
         uint8_t nbValues = 1;
-        if (hardSection.containsKey(NB_VALUES)){
+        //if (hardSection.containsKey(NB_VALUES)){
+        if (!hardSection[NB_VALUES].isNull()){
             nbValues = hardSection[NB_VALUES];
             Serial.printf("createModbusNode:: nbValues: %d\r\n", nbValues);
         } else {
@@ -1381,9 +1624,9 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } 
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadMultipleInputsRegistersNode));
-            node = new (a) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, *hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+            node = new (a) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
         } else {         
-            node = new ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, *hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+            node = new ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
         }
     } else {
         sprintf(message, "createModbusNode:: Unable to identifiy node type with class %s\r\n", type);
@@ -1403,13 +1646,16 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
 
 bool BorneUniverselle::i2cInit(JsonDocument contextDoc){
     char buff[128];
-    if (contextDoc.containsKey(I2C)){
+    // if (contextDoc.containsKey(I2C)){
+    if (!contextDoc[I2C].isNull()){
         if (!isI2CInitialised){
             uint8_t sda, scl;
-            if (contextDoc[I2C].containsKey(SDA)){
+            //if (contextDoc[I2C].containsKey(SDA)){
+            if (!contextDoc[I2C][SDA].isNull()){
                 sda =  contextDoc[I2C][SDA];
                 //Serial.printf("SDA: %d\r\n", sda);
-                if (contextDoc[I2C].containsKey(SCL)){
+                //if (contextDoc[I2C].containsKey(SCL)){
+                if (!contextDoc[I2C][SCL].isNull()){
                     scl = contextDoc[I2C][SCL];
                     Wire.begin(sda, scl);
                     //Serial.println("I2c bus initialised");
@@ -1426,8 +1672,10 @@ bool BorneUniverselle::i2cInit(JsonDocument contextDoc){
             Wire.begin(sda, scl);
             isI2CInitialised = true;
         }
+        Serial.println("I2C bus is initialised");
+        return true;
     }
-    return true;
+    return false;
 }
 
 bool BorneUniverselle::RS485Init(JsonDocument contextDoc){
@@ -1435,17 +1683,22 @@ bool BorneUniverselle::RS485Init(JsonDocument contextDoc){
         return true;
     }
 
-    if (contextDoc.containsKey(RS485)){
+    //if (contextDoc.containsKey(RS485)){
+    if (!contextDoc[RS485].isNull()){
         uint8_t rxPin, txPin;
         uint16_t speed;
         uint32_t config;
-        if (contextDoc[RS485].containsKey(RX)){
+        //if (contextDoc[RS485].containsKey(RX)){
+        if (!contextDoc[RS485][RX].isNull()){
             rxPin = contextDoc[RS485][RX];
-            if (contextDoc[RS485].containsKey(TX)){
+            //if (contextDoc[RS485].containsKey(TX)){
+            if (!contextDoc[RS485][TX].isNull()){
                 txPin = contextDoc[RS485][TX];
-                if (contextDoc[RS485].containsKey(SPEED)){
+                //if (contextDoc[RS485].containsKey(SPEED)){
+                if (!contextDoc[RS485][SPEED].isNull()){
                     speed = contextDoc[RS485][SPEED];
-                    if (contextDoc[RS485].containsKey(CONFIG)){
+                    //if (contextDoc[RS485].containsKey(CONFIG)){
+                    if (!contextDoc[RS485][CONFIG].isNull()){
                         if (!strcmp(contextDoc[RS485][CONFIG], "SERIAL_8N1")){
                             config = SERIAL_8N1;
                         } else if (!strcmp(contextDoc[RS485][CONFIG], "SERIAL_8N2")){
@@ -1459,7 +1712,7 @@ bool BorneUniverselle::RS485Init(JsonDocument contextDoc){
                             return false;
                         }
 
-                        Serial.printf("RS485 speed: %d, rx pin: %d, tx pin: %d config: %lu\r\n", speed, rxPin, txPin, config);
+                        Serial.printf("RS485 speed: %d, rx pin: %d, tx pin: %d config: %lu\r\n", speed, rxPin, txPin, (unsigned long)config);
                         myRS485 = new HardwareSerial(1);
                         myRS485->setRxBufferSize(128);
                         myRS485->begin(speed, config, rxPin, txPin);
@@ -1485,6 +1738,8 @@ bool BorneUniverselle::modbusInit(JsonDocument contextDoc){
     if (isModbusInitialised){
         return true;
     }
+
+    Serial.println("Try to initialise Modbus");
     
     if (!isRs485Initialised){
         if (!RS485Init(contextDoc)){
@@ -1493,16 +1748,32 @@ bool BorneUniverselle::modbusInit(JsonDocument contextDoc){
         }
     } 
     
-    modbus = new ModbusRTU();
+    if (contextDoc[MODBUS].isNull()){
+        char buff[128];
+        sprintf(buff, "Unable to find key %s in context file", MODBUS);
+        prepareMessage(ERROR, buff);
+        return false;
+    }
+
+    if (!contextDoc[MODBUS][TIMEOUT].isNull()){
+        uint16_t timeout = contextDoc[MODBUS][TIMEOUT];
+        Serial.printf("Modbus RTU timeout: %u\r\n", timeout);
+        myModbus.setTimeout(timeout);
+    } else {
+        prepareMessage(ERROR, "modbusInit:: unable to find key modbus/timeout in context file");
+        return false;
+    }
+
+    ModbusRTU *modbus = new ModbusRTU();
     if (!modbus->begin(myRS485)){
         prepareMessage(ERROR, "modbusInit:: unable to initalise Modbus");
         return false;
     }
     modbus->master();
 
-    MyModbus::setModbus(modbus);
+    myModbus.setModbus(modbus);
     isModbusInitialised = true;
-    //Serial.println("Modbus initialised");   
+    //Serial.println("Modbus initialised");  
     return true;
 }
 
@@ -1513,7 +1784,8 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
 
     //Serial.println("createRxBoolNode");
     uint8_t pin;
-    if (hardSection.containsKey(PIN)){
+    //if (hardSection.containsKey(PIN)){
+    if (!hardSection[PIN].isNull()){
         pin = hardSection[PIN].as<int>();
     } else {
         sprintf(buff, "createRxBoolNode:: Unable to find key %s in hardware file for section %s", PIN, parentName);
@@ -1526,7 +1798,8 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
     if (!strcmp(type, RX_BOOL)){
         //Serial.println("type RX_BOOL");
         bool inputsInverted = false;
-        if (contextDoc.containsKey(INPUTS_INVERTED)){
+        //if (contextDoc.containsKey(INPUTS_INVERTED)){
+        if (!contextDoc[INPUTS_INVERTED].isNull()){
             inputsInverted = contextDoc[INPUTS_INVERTED];
         }
 
@@ -1537,11 +1810,12 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
             node = new HardwareBooleanInputNode(name, parentName, *hash, pin, inputsInverted, refreshInterval, webRefreshInterval);
         }
         
-        Serial.printf("Node %s created with succes (ESP32 pin %d), with type HardwareBooleanInputNode and hash: %lu, refresh interval: %u, web refresh interval: %u\r\n", name, pin, *hash, refreshInterval, webRefreshInterval);
+        Serial.printf("Node %s created with succes (ESP32 pin %d), with type HardwareBooleanInputNode and hash: %lu, refresh interval: %u, web refresh interval: %u\r\n", node->getName(), pin, (unsigned long)*hash, refreshInterval, webRefreshInterval);
     } else  if (!strcmp(type, PF8574_RX_BOOL)){
         //Serial.println("type PF8574");
         if (isI2CInitialised){
-            if (contextDoc[I2C].containsKey(RX_ADDR)){
+            //if (contextDoc[I2C].containsKey(RX_ADDR)){
+            if (!contextDoc[I2C][RX_ADDR].isNull()){
                 uint8_t i2cAddr = contextDoc[I2C][RX_ADDR];
                 if (psRamAvailable){
                     void * a = ps_malloc(sizeof(PF8574BooleanInputNode));
@@ -1549,7 +1823,7 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
                 } else {
                     node = new PF8574BooleanInputNode(name, parentName, *hash, i2cAddr, pin, refreshInterval, webRefreshInterval);
                 }
-                Serial.printf("Node %s created with succes with type PF8574BooleanInputNode and hash: %lu, refresh interval: %u, web refresh interval: %u\r\n", name, *hash, refreshInterval, webRefreshInterval);
+                Serial.printf("Node %s created with succes with type PF8574BooleanInputNode and hash: %lu, refresh interval: %u, web refresh interval: %u\r\n", node->getName(), (unsigned long)*hash, refreshInterval, webRefreshInterval);
             } else {
                 sprintf(buff, "createRxBoolNode:: Unable to find key %s in hardware file for section %s", RX_ADDR, parentName);
                 prepareMessage(ERROR, buff);
@@ -1580,7 +1854,8 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *
     // Cree un input node boolean hardware
     uint8_t pin;
     char buff[128];
-    if (hardSection.containsKey(PIN)){
+    //if (hardSection.containsKey(PIN)){
+    if (!hardSection[PIN].isNull()){
         pin = hardSection[PIN].as<int>();
     } else {
         sprintf(buff, "createTxBoolNode:: Unable to find key %s in hardware file for section %s, web refresh interval: %u", PIN, parentName, webRefreshInterval);
@@ -1598,11 +1873,12 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *
             node = new HardwareBooleanOutputNode(name, parentName, *hash, pin, webRefreshInterval);
         }
 
-        Serial.printf("Node %s created with succes (ESP32 pin %d) with type HardwareBooleanOutputNode and hash: %lu\r\n", name, pin, *hash); 
+        Serial.printf("Node %s created with succes (ESP32 pin %d) with type HardwareBooleanOutputNode and hash: %lu\r\n", node->getName(), pin, (unsigned long)*hash); 
     } else if (!strcmp(type, PF8574_TX_BOOL)){
         //Serial.println("type PF8574");
         if (isI2CInitialised){
-            if (contextDoc[I2C].containsKey(TX_ADDR)){
+            //if (contextDoc[I2C].containsKey(TX_ADDR)){
+            if (!contextDoc[I2C][TX_ADDR].isNull()){
                 uint8_t i2cAddr = contextDoc[I2C][TX_ADDR];
 
                 if (psRamAvailable){
@@ -1612,7 +1888,7 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *
                     node = new PF8574BooleanOutputNode(name, parentName, *hash, i2cAddr, pin, webRefreshInterval);
                 }
 
-                Serial.printf("Node %s created with succes with type PF8574BooleanOutputNode and hash: %lu\r\n", name, *hash); 
+                Serial.printf("Node %s created with succes with type PF8574BooleanOutputNode and hash: %lu\r\n", node->getName(), (unsigned long)*hash); 
             } else {
                 sprintf(buff, "createTxBoolNode:: Unable to find key %s in hardware file for section %s, web refresh interval: %u", TX_ADDR, parentName, webRefreshInterval);
                 prepareMessage(ERROR, buff);
@@ -1653,7 +1929,7 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
         } else {
             node = new VirtualBooleanInputNode(name, sectionName, *hash, 0);
         }
-        Serial.printf("Node %s created (VirtualBooleanInputNode) with succes, hash: %lu\r\n", node->getName(), node->getHash());
+        Serial.printf("Node %s created (VirtualBooleanInputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
         found = true;
     } else if (!strcmp(type, TX_BOOL)) {
         if (psRamAvailable){
@@ -1663,7 +1939,7 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
             node = new VirtualBooleanOutputNode(name, sectionName, *hash, 0);
         }
         
-        Serial.printf("Node %s created (VirtualBooleanOutputNode) with succes, hash: %lu\r\n", node->getName(), node->getHash());
+        Serial.printf("Node %s created (VirtualBooleanOutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
         found = true;
     } else if (!strcmp(type, RX_UINT32)){
         if (psRamAvailable){
@@ -1673,7 +1949,7 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
             node = new VirtualUint32InputNode(name, sectionName, *hash, 0);
         }
         
-        Serial.printf("Node %s created (VirtualUint32InputNode) with succes, hash: %lu\r\n", node->getName(), node->getHash());
+        Serial.printf("Node %s created (VirtualUint32InputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
         found = true;
     } else if (!strcmp(type, TX_UINT32)){
         if (psRamAvailable){
@@ -1683,7 +1959,7 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
             node = new VirtualUint32OutputNode(name, sectionName, *hash, 0);
         }
         
-        Serial.printf("Node %s created (VirtualUint32OutputNode) with succes, hash: %lu\r\n", node->getName(), node->getHash());
+        Serial.printf("Node %s created (VirtualUint32OutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
         found = true;
     } else if (!strcmp(type, TX_FLOAT)){
         if (psRamAvailable){
@@ -1693,12 +1969,33 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
             node = new VirtualFloatOutputNode(name, sectionName, *hash, 0);
         }
         
-        Serial.printf("Node %s created (VirtualFloatOutputNode) with succes, hash: %lu\r\n", node->getName(), node->getHash());
+        Serial.printf("Node %s created (VirtualFloatOutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
+        found = true;
+    } else if (!strcmp(type, RX_FLOAT)){
+        if (psRamAvailable){
+            void * a = ps_malloc(sizeof(VirtualFloatInputNode));
+            node = new (a) VirtualFloatInputNode(name, sectionName, *hash, 0); 
+        } else {
+            node = new VirtualFloatInputNode(name, sectionName, *hash, 0);
+        }
+        
+        Serial.printf("Node %s created (VirtualFloatInputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
+        found = true;
+    } else if (!strcmp(type, TX_TEXT)){
+        if (psRamAvailable){
+            void * a = ps_malloc(sizeof(VirtualTextOutputNode));
+            node = new (a) VirtualTextOutputNode(name, sectionName, *hash, 0); 
+        } else {
+            node = new VirtualTextOutputNode(name, sectionName, *hash, 0);
+        }
+        
+        Serial.printf("Node %s created (VirtualTextOutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
         found = true;
     } else {
         sprintf(buff, "createVirtualNode:: Unable to create virtual node %s/%s with type %s", sectionName, name, type);
         prepareMessage(ERROR, buff);
         setPlcBroken(buff);
+        return false;
     }
 
     *hash = node->getHash();
@@ -1767,8 +2064,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
                 if (node->getIsChanged()){
                     //Serial.printf("Node %s change will be cleared\r\n", node->getName());
                     node->clearIsChanged();
-                }
-               
+                } 
             } 
 
             //Serial.printf("Will notify for node: %s\r\n", node->getName());
@@ -1782,7 +2078,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         //Serial.println();
         if (getWifiStatus() && isClientConnected()){
             uint16_t size = measureJson(notifyDoc);
-            if (size > 20000){
+            if (size > SOCKET_MESSAGE_MAX_SIZE){
                 char message[64];
                 strcpy(message,  "Json notify states is too long !!");
                 prepareMessage(ERROR, message);
@@ -1797,7 +2093,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
                 serializeJson(notifyDoc, chain, size);
                 chain[size] = 0;  // 0 chain terminated is missing !!!!
                 // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
-                serializeJsonPretty(notifyDoc, Serial);
+                //serializeJsonPretty(notifyDoc, Serial);
                 Serial.println();
                 if (isClientConnected() && client != nullptr){
                     sendTextToClient(chain);
@@ -1820,11 +2116,8 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
 bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
     uint32_t hash = node->getHash();
 
+    //Serial.printf("%u:: addNodeToNodeObject\r\n", millis());
     JsonDocument descriptorDoc = node->getDescriptor();
-
-#ifdef DESCRIPTOR_INCLUDED
-    (*nodeObject)[DESCRIPTOR] = descriptorDoc;
-#endif
 
     (*nodeObject)[HASH] = hash;
 
@@ -1832,53 +2125,43 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
         node->classType() == CLASS_VIRTUAL_BOOLEAN_INPUT_NODE || node->classType() == CLASS_MODBUS_READ_COIL){
         BooleanInputNode *b = (BooleanInputNode*) node;
         (*nodeObject)[VALUE] = b->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = b->getValue(); 
-#endif  
+ 
         Serial.printf("%lu:: Node notify: %s new value: %s\r\n", millis(), node->getName(), b->getValue() ? "true" : "false");    
     } else  if (node->classType() == CLASS_HW_BOOLEAN_OUTPUT_NODE || node->classType() == CLASS_PFC8574_BOOLEAN_OUTPUT_NODE || node->classType() == CLASS_VIRTUAL_BOOLEAN_OUTPUT_NODE ||
         node->classType() == CLASS_MODBUS_WRITE_COIL_NODE){
         BooleanOutputNode *b = (BooleanOutputNode*) node;
         (*nodeObject)[VALUE] = b->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = b->getValue(); 
-#endif 
+
         Serial.printf("%lu:: Node notify: %s new value: %s\r\n", millis(), node->getName(), b->getValue() ? "true" : "false");
     } else if (node->classType() == CLASS_MODBUS_READHOLDINGREGISTER || node->classType() == CLASS_MODBUS_READINPUTREGISTER){
         Uint16InputNode *u = (Uint16InputNode*) node;
         (*nodeObject)[VALUE] = u->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = u->getValue(); 
-#endif 
-        Serial.printf("%lu:: Node notify: %s new value: %u\r\n", millis(), node->getName(), u->getValue());
+ 
+        Serial.printf("%lu:: Node notify (Uint16InputNode): %s new value: %u\r\n", millis(), node->getName(), u->getValue());
     } else if (node ->classType() == CLASS_MODBUS_WRITEHOLDINGREGISTER){
         Uint16OutputNode *w = (Uint16OutputNode*) node;
         (*nodeObject)[VALUE] = w->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = w->getValue();
-#endif  
-        Serial.printf("%lu:: Node notify: %s new value: %u\r\n", millis(), node->getName(), w->getValue());
+ 
+        Serial.printf("%lu:: Node notify (Uint16OutputNode): %s new value: %u\r\n", millis(), node->getName(), w->getValue());
     } else if (node->classType() == CLASS_VIRTUAL_UINT32_INPUT_NODE || node->classType() == CLASS_MODBUS_READ_DOUBLE_INPUTREGISTER || node->classType() == CLASS_MODBUS_READ_DOUBLE_HOLDING_REGISTER){
         Uint32InputNode *v = (Uint32InputNode*) node;
         (*nodeObject)[VALUE] = v->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = v->getValue(); 
-#endif 
-        Serial.printf("%lu:: Node notify: %s new value: %lu\r\n", millis(), node->getName(), v->getValue());
+        Serial.printf("%lu:: Node notify: %s (Uint32InputNode) new value: %lu\r\n", millis(), node->getName(), (unsigned long)v->getValue());
     } else if (node->classType() == CLASS_VIRTUAL_UINT32_OUTPUT_NODE || node->classType() == CLASS_MODBUS_WRITE_DOUBLE_INPUTREGISTER || node->classType() == CLASS_MODBUS_WRITE_DOUBLE_HOLDING_REGISTER) {
         Uint32OutputNode *u = (Uint32OutputNode *) node;
         (*nodeObject)[VALUE] = u->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = u->getValue();  
-#endif
-        Serial.printf("%lu:: Node notify: %s new value: %3.3f\r\n", millis(), node->getName(), (double)u->getValue());
+
+        Serial.printf("%lu:: Node notify (uint32 output): %s new value: %lu\r\n", millis(), node->getName(), (unsigned long)u->getValue());
     } else if (node->classType() == CLASS_VIRTUAL_FLOAT_OUTPUT_NODE) {
         FloatOutputNode *u = (FloatOutputNode *) node;
         (*nodeObject)[VALUE] = u->getValue();
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = u->getValue();  
-#endif
-        Serial.printf("%lu:: Node notify: %s new value: %3.3f\r\n", millis(), node->getName(), u->getValue());
+
+        Serial.printf("%lu:: Node notify (float output): %s new value: %.3f\r\n", millis(), node->getName(), u->getValue());
+    } else if (node->classType() == CLASS_VIRTUAL_FLOAT_INPUT_NODE) {
+        FloatInputNode *i = (FloatInputNode *) node;
+        (*nodeObject)[VALUE] = i->getValue();
+
+        Serial.printf("%lu:: Node notify (float input): %s new value: %.3f\r\n", millis(), node->getName(), i->getValue());
     } else if (node->classType() == CLASS_MODBUS_WRITE_MULTIPLE_COILS){
         ModbusWriteMultipleCoilslNode *m = (ModbusWriteMultipleCoilslNode *) node;
         char text[32];
@@ -1894,9 +2177,6 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
         text[m->getNbValues()] = 0;
         (*nodeObject)[VALUE] = text;
         Serial.printf("node: %s is a ModbusWriteMultipleCoilslNode, it can be represented as a unique number. The 'value': %s is all binary bits converted to an texte\r\n", node->getName(), text);
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = text;  
-#endif
     } else if (node->classType() == CLASS_MODBUS_READ_MULTIPLE_INPUTS_STATUS){  
         ModbusReadMultipleInputsRegistersNode *t = (ModbusReadMultipleInputsRegistersNode *) node;
         char text[32];
@@ -1910,10 +2190,15 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
         }
         text[t->getNbValues()] = 0;
         (*nodeObject)[VALUE] = text;
-        Serial.printf("node: %s is a ModbusReadMultipleInputsRegistersNode, it can be represented as a unique number. The 'value': %s is all binary bits converted to an texte\r\n", node->getName(), text);  
-#ifdef DESCRIPTOR_INCLUDED
-        (*nodeObject)[DESCRIPTOR][VALUE] = text;  
-#endif             
+        Serial.printf("node: %s is a ModbusReadMultipleInputsRegistersNode, it can be represented as a unique number. The 'value': %s is all binary bits converted to an texte\r\n", node->getName(), text);              
+    } else if (node->classType() == CLASS_VIRTUAL_TEXT_INPUT_NODE){
+        VirtualTextInputNode *t = (VirtualTextInputNode *) node;
+        (*nodeObject)[VALUE] = t->getValue(); 
+        Serial.printf("%lu:: Node notify: %s new value: %s\r\n", millis(), node->getName(), t->getValue());
+    } else if (node->classType() == CLASS_VIRTUAL_TEXT_OUTPUT_NODE) {
+        VirtualTextOutputNode *v = (VirtualTextOutputNode *) node;
+       // (*nodeObject)[VALUE] = v->getValue();  // Pour l'instant on ne notifie pas l'interface car cela reset le composant
+        Serial.printf("%lu:: Node notify: %s new value: %s\r\n", millis(), node->getName(), v->getValue());
     } else {
         char buff[256];
         sprintf(buff, "notifyWebClient:: Unable to find node class from node: %s with class type: %u\r\n", node->getName(), node->classType());
@@ -1956,7 +2241,7 @@ Node *BorneUniverselle::findNode(const char *context, uint32_t hash){
         return nodesMap.at(hash);
     } else {
         char text[128];
-        sprintf(text, "findNode:: Searching for node with hash: %lu, with context: %s but not found !\r\n", hash, context);
+        sprintf(text, "findNode:: Searching for node with hash: %lu, with context: %s but not found !\r\n", (unsigned long)hash, context);
         prepareMessage(ERROR, text);
         setPlcBroken(text);
         return nullptr;
@@ -1985,3 +2270,55 @@ void BorneUniverselle::printConfigFile(){
 
     serializeJsonPretty(configDoc, Serial);
 }
+
+std::map<uint32_t, Node *> BorneUniverselle::getNodesMap(){
+    return nodesMap;
+}
+
+/*
+
+void printIndent(int level) {
+    for (int i = 0; i < level; i++) {
+        Serial.print("  ");
+    }
+}
+
+// Fonction principale pour afficher les clés d'un JsonDocument
+void printJsonObject(JsonObjectConst obj, int level = 0) {
+    for (JsonPairConst pair : obj) {
+        printIndent(level);
+        Serial.print(pair.key().c_str());
+        
+        if (pair.value().is<JsonObject>()) {
+            Serial.println(" : {");
+            printJsonObject(pair.value().as<JsonObject>(), level + 1);
+            printIndent(level);
+            Serial.println("}");
+        }
+        else if (pair.value().is<JsonArray>()) {
+            Serial.println(" : [");
+            JsonArrayConst arr = pair.value().as<JsonArray>();
+            for (JsonVariantConst v : arr) {
+                if (v.is<JsonObject>()) {
+                    printJsonObject(v.as<JsonObject>(), level + 1);
+                } else {
+                    printIndent(level + 1);
+                    Serial.println(v.as<String>());
+                }
+            }
+            printIndent(level);
+            Serial.println("]");
+        }
+        else {
+            Serial.print(" : ");
+            Serial.println(pair.value().as<String>());
+        }
+    }
+}
+
+// Fonction wrapper pour démarrer avec un JsonDocument
+void printJsonDocument(const JsonDocument& doc) {
+    printJsonKeys(doc.as<JsonVariant>());
+}
+
+*/
