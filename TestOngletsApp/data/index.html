@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borne Universelle</title>
+    <!-- STYLES -->
+    <link rel="stylesheet" href="assets/hw-module-DTrZo8le.css">
+    <!-- SHOELACE STYLE-->
+    <link rel="stylesheet" href="assets/shoelace.bundle-C2_oNezl.css">
+    <!-- SCRIPT -->
+    
+</head>
+<body class="sl-theme-dark">
+        <div style="position: absolute; top: 1px; left: 25px; z-index: 1000;">
+          <sl-badge variant="primary">
+            <strong id="version-display">Version: 1.0.0</strong>
+          </sl-badge>
+        </div>
+<hw-notification></hw-notification>
+
+<!-- HTML PAGE -->
+  <div class="container-fluid" id="root">
+      <div class="col h-100">
+          <!--<hw-module socket="localhost:5050" url="config.json"></hw-module> -->
+          <!--<hw-notification></hw-notification>-->
+          <hw-dynamic socket="" url="config.json"></hw-dynamic>
+      </div>
+  </div>
+
+
+<script type="module" src="./index.js" async=""></script></body></html>
