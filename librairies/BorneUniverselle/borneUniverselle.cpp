@@ -615,7 +615,6 @@ void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
 
 
 void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
-    bool error = false;
     // on discard les warning messages si il n'y a pas de client connecté..
     if (!isClientConnected()){
         switch (type) {
@@ -734,8 +733,6 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
     long start = millis();
     // Add yield to prevent watchdog timeout
     vTaskDelay(1);
-
-    uint16_t webSocketMessageLength = webSocketMessagesList.length();
    
     // Vérifier d'abord si la liste n'est pas déjà pleine
     if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(20))) {
