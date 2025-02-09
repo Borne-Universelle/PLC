@@ -672,13 +672,11 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
                 Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
             }
         } else {
-            error = true;
             delete notif;
             Serial.printf("prepareMessage:: Unable to alloc memory for the message, message size: %d\r\n", 
                 strlen(text));
         }
     } else {
-        error = true;
         Serial.println(F("prepareMessage:: the queue notifMessagesList is full !"));
     }
 
