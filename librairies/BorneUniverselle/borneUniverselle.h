@@ -15,10 +15,11 @@
 #include <iostream>
 #include "PLC_CommonTypes.h"
 #include "PLC_InterfaceMenu.h"
+#include "PLC_Tools.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.1.0";
+const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
 #define OTA_URL_SIZE	            80
 //#define HEARTBEAT_DELAY           1500L
@@ -34,6 +35,7 @@ const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.1.0";
 #define TOSTRING(x) STRINGIFY(x)
 
 #define NAME_LENGHT                 80
+#define MAX_MESSAGE_LENGTH          100
 
 // errors messages send to js
 
@@ -45,6 +47,7 @@ const char NO_CONFIG_KEY[] PROGMEM = "No config key";
 const char WIFI_NAME_KEY_MISSING[] PROGMEM = "Wifi name ky missing";
 const char NO_CHILDREN_KEY_CONFIG[] PROGMEM = "The key children is not found in config file";
 const char MODBUS_NOT_INITIALISED[] PROGMEM = "PLC want to create modbus node but Modbus not initialised";
+
 
 
 #define NB_DIGITAL_INPUTS           5
@@ -131,6 +134,11 @@ const char MODBUS_NOT_INITIALISED[] PROGMEM = "PLC want to create modbus node bu
 #define GET_VALUE       "get"
 #define DESCRIPTOR      "descriptor"
 #define GET_DESCRIPTOR  "get_descriptor"
+#define SAVE_FILE       "saveFile"
+#define DIRECTORY       "directory"
+#define FILTER          "filter"
+#define PATH            "path"
+#define DATA            "data"
 
 struct HARDWARE_ITEM{
     uint8_t id;
@@ -196,6 +204,8 @@ class BorneUniverselle{
         void tooMuchClients(AsyncWebSocketClient *client);
         void closeActualConnection(AsyncWebSocketClient *newClient);
         bool handleNodesChange(JsonDocument socketDoc);
+        void handleDirectoryRequest(JsonDocument socketDoc);
+        void handleSaveFile(JsonDocument socketDoc);
         bool getIsWifiParsedOk();
         void keepWebSocketMessage(void *arg, uint8_t *data, size_t len,  AsyncWebSocketClient *client);
         void clearInputschanged(); // if no client connected
@@ -212,6 +222,7 @@ class BorneUniverselle{
         void setShowModbusMessages(bool status);
         bool getModbusStatusMessages();
         void showMessage(Node *node, const char *text);
+        static void modbusMessageHandler(uint8_t severity, const char* message);
 
     private:
         static char name[NAME_LENGHT];
@@ -272,8 +283,7 @@ class BorneUniverselle{
         static bool isLastMessageFatal;
         static SemaphoreHandle_t webSocketMutex;
         LinkedList <WEB_SOCKET_MESSAGE *> webSocketMessagesList;
-
-        //static std::list <NOTIF_MESSAGE*> notifMessagesList;
+        static SemaphoreHandle_t notifMutex;
         static LinkedList <NOTIF_MESSAGE *> notifMessagesList;
         bool allInputsReadOnce = false;
         bool psRamAvailable = false;

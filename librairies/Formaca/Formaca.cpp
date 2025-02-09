@@ -135,6 +135,7 @@ Formaca::Formaca() {
 
         drompDownIndicator = new DropDown(recette);
         visu = new VisualIndicator(nbCyclesMade);
+        flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
     }	
 }
 
@@ -394,17 +395,6 @@ void Formaca::interfaceTreatment(){
     }
 
     if (rightStop->getIsChanged()){
-        // PAS ASSEZ DE COURSE POUR FAIRE UNE EJECTION
-        /*
-        if (convToPUU(rightStop->getValue()) < parameters.reference){
-            Serial.printf("Butée droite: %.2f, référence: %.2f\r\n", rightStop->getValue(), convToInch(parameters.reference));
-            BorneUniverselle::prepareMessage(WARNING, "La butée droite doit être plus grande que la référence. il faut d'abord calibrer la machine en plaçant le poussoir au centre des lames et appuyer sur le bouton 'Calibrate!!!");
-        } else {
-            BorneUniverselle::prepareMessage(SUCCESS, "La butée droite a été mis a jour");
-            parameters.rightStop = rightStop->getValue();
-            saveMachineParameters();
-        }
-        */
         BorneUniverselle::prepareMessage(SUCCESS, "La butée droite a été mis a jour");
         parameters.rightStop = rightStop->getValue();
         saveMachineParameters();

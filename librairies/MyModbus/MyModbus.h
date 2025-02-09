@@ -60,6 +60,10 @@ public:
     typedef void (*MessageCallback)(uint8_t severity, const char* message);
     void setShowMessages(bool status);
 
+    void setMessageCallback(MessageCallback callback) {
+        messageCallback = callback;
+    }
+
 protected:
 
 
@@ -79,7 +83,7 @@ private:
     void getModbusErrorMessage(Modbus::ResultCode event, char* message);
 
     bool isShowMessages;
-    void showMessages(char *text);
+    void showMessages(const char *text);
 
     MessageCallback messageCallback;
 

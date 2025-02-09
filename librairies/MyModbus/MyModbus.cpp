@@ -1,16 +1,5 @@
 #include "MyModbus.h"
 
-// Initialisation des variables statiques
-/*
-uint32_t MyModbus::lastTransaction = 0;
-uint32_t MyModbus::lastProblem = 0;
-Modbus::ResultCode MyModbus::lastEvent = Modbus::EX_SUCCESS;
-MyModbus::ModbusStats MyModbus::stats;
-MyModbus::MessageCallback MyModbus::messageCallback = nullptr;
-bool MyModbus::isShowMessages = false;
-uint32_t MyModbus::transactionTimeout = DEFAULT_TIMEOUT;
-*/
-
 MyModbus::MyModbus() {
     lastTransaction = millis();
     lastEvent = Modbus::EX_SUCCESS;
@@ -19,7 +8,7 @@ MyModbus::MyModbus() {
     resetStats();
 }
 
-void MyModbus::showMessages(char* message) {
+void MyModbus::showMessages(const char* message) {
     if (isShowMessages) {
         Serial.printf("%lu:: %s\r\n", millis(), message);
     }
@@ -53,9 +42,7 @@ void MyModbus::resetTimeout() {
 }
 
 void MyModbus::waitUntilModbusFree() {
-    char message[256];
     showMessages("waitUntilModbusFree");
-    uint32_t start = millis();
     while (millis() - lastTransaction < DELAY_TRANSACTION) {
         vTaskDelay(1);
     }
@@ -67,8 +54,8 @@ bool MyModbus::waitEndTransaction() {
     uint32_t start = millis();
     uint32_t deadline = millis() + transactionTimeout;
     char message[256];
-    sprintf(message, "MyModbus waitEndTransaction, allowed time: %u [ms]", transactionTimeout);
-    showMessages(message);
+    sprintf(message, "MyModbus waitEndTransaction, allowed time: %lu [ms]", transactionTimeout);
+    showMessages((const char *)message);
     // On attend au maximum le temps du timeout
     while (millis() < deadline) {
         modbus->task();
@@ -81,7 +68,7 @@ bool MyModbus::waitEndTransaction() {
                 stats.maxTransactionTime = stats.lastTransactionTime;
             }
             if (stats.lastTransactionTime > transactionTimeout/2) {
-                Serial.printf("%lu:: MyModbus::waitEndTransaction: warning: long transaction: %lu ms\n", millis(), stats.lastTransactionTime);
+                Serial.printf("%lu:: MyModbus::waitEndTransaction: warning: long transaction: %lu ms\r\n", millis(), stats.lastTransactionTime);
             }
             //Serial.println("Transaction done");
             stats.lastTransactionTime = millis() - start;
@@ -89,14 +76,14 @@ bool MyModbus::waitEndTransaction() {
                 stats.maxTransactionTime = stats.lastTransactionTime;
             }
             lastEvent = Modbus::EX_SUCCESS;
-            sprintf(message, "MyModbus waitEndTransaction done SUCCES, in: %u [ms]", millis() - start);
-            showMessages(message);
+            sprintf(message, "MyModbus waitEndTransaction done SUCCES, in: %lu [ms]", millis() - start);
+            showMessages((const char *)message);
             return true;
         }  
         vTaskDelay(1);
     }
 
-    sprintf(message, "MyModbus waitEndTransaction out of transacion allowed time (%u ms)", transactionTimeout);
+    sprintf(message, "MyModbus waitEndTransaction out of transacion allowed time (%lu ms)", transactionTimeout);
     showMessages(message);
     // Si on est sorti par timeout
     if (modbus->slave()) {
@@ -212,12 +199,13 @@ void MyModbus::handleError(Modbus::ResultCode event) {
     // On calcule le temps depuis la dernière erreur
     uint32_t timeSinceLastError = millis() - stats.lastErrorTime;
     
-    char message[256];
+    char message[80];
+    char text[256];
     getModbusErrorMessage(event, message);
-    Serial.printf("%lu:: MyModbus::handleError: Modbus Error (%lu ms since last error): %s\n", millis(), timeSinceLastError, message);
-    
+    sprintf(text, "MyModbus::handleError: (%lu ms since last error): %s\n", timeSinceLastError, message);
+
     if (messageCallback) {
-        messageCallback(WARNING, "Erreur Modbus");
+        messageCallback(ERROR, text);
     }
 
     stats.lastErrorTime = millis(); // pour l'erreur suivante.....
