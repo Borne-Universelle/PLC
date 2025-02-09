@@ -1,0 +1,17 @@
+{
+  "machine": "Formaca scie",
+  "home": 700,
+  "reference": 3101409,
+  "overall length": 96,
+  "park offset": 0.5,
+  "wast length": 6,
+  "right stop": 97,
+  "recettes": [
+    {
+      "longLength": 11.875,
+      "angle": 45,
+      "name": "11 7/8",
+      "width": 3.5
+    }
+  ]
+}
