@@ -12,8 +12,12 @@
 #include "borneUniverselle.h"
 #include "wifimanagment.h"
 #include "Formaca.h"
+#include "MemoryMonitor.h"
 
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
+
+uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
+uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
 
 #define MAIN_VERSION "Version 2.2"
 #define OTA_STARTED "HTTP update process started"
@@ -24,6 +28,8 @@ Formaca *formaca;
 MyToolBox toolbox;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+bool memoryMonitorBool = false;
+MemoryMonitor memoryMonitor;
 
 #define BEEP 2
 
@@ -44,6 +50,47 @@ void connectToNextNetwork(){
   bu->connectWifi(currentWifi);
 }
 
+void modifyLogs(){
+  while (Serial.available()){
+     Serial.read();
+  }
+
+  Serial.println("Logs");
+  Serial.println("----");
+  Serial.println("A: Activer les logs hearbeat");
+  Serial.println("B: Désactiver les logs hearbeat");
+  Serial.println("C: Activer les logs modbus");
+  Serial.println("D: Désactiver les logs modbus");
+  Serial.println("E: Moniteur de la mémoire");
+  Serial.println("-----------------------------");
+  Serial.println("Tapez sur une lettre...");
+
+  while (!Serial.available()){
+    delay(100);
+  }
+        
+  char car = Serial.read();
+  switch (car){
+    case 'A':     bu->setShowHeartbeatMessages(true);
+      break;
+
+    case 'B':     bu->setShowHeartbeatMessages(false);
+      break;
+
+    case 'C':     bu->setShowModbusMessages(true);
+      break;
+
+    case 'D':     bu->setShowModbusMessages(false);
+      break;
+
+    case 'E':     MemoryMonitor memoryMonitor;
+                  memoryMonitor.printStats("MemoryMonitor");
+      break;
+
+    default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
+  }  
+}
+
 void showHelp(){
   toolbox.clearScreen();
   Serial.println("Help");
@@ -60,15 +107,12 @@ void showHelp(){
   Serial.println("Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config");
   Serial.println("Tapez sur 'C' pour imprimer le fichier de config");
   Serial.println("Tapez sur 'D' pour envoyer un message de test");
-  Serial.println("Tapez sur 'E' pour envoyer tous les états");
+  Serial.println("Tapez sur 'E' pour notifier le client web");
   Serial.println("Tapez sur 'F' pour imprimer le fichier de persistance");
+  Serial.println("Tapez sur 'G' pour afficher la mémoire de manière cyclique");
   Serial.println("Tapez sur 'Y' pour faire un reset"),
-  Serial.println("Tapez sur 'Z' pour afficher les heartbeat messages");
-}
-
-void showHeartbeatMessages(){
-  Serial.println("Voullez vous montrez les messages heartbeat [Y/N] ?");
-  bu->setShowHeartbeatMessages(toolbox.yes_or_no() ? true : false);
+  Serial.println("Tapez sur 'Z' pour afficher modifier les logs");
+  Serial.println("Tapez sur '?' pour afficher l'aide");
 }
 
 void commandInterpretor(char car){
@@ -88,11 +132,13 @@ void commandInterpretor(char car){
     case 'F':     Formaca::printPersistance();
       break;
 
+    case 'G':     memoryMonitorBool = true;;
+
     case 'Y':     Serial.println("ESP32 will reset");
                   ESP.restart();
       break;       
 
-    case 'Z':     showHeartbeatMessages();
+    case 'Z':     modifyLogs();
       break;
 
     case '?':     showHelp();
@@ -192,6 +238,8 @@ void tooMuchClients(AsyncWebSocketClient *client){
 }
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  char eventTypeText[100];
+ 
   switch (type) {
     case WS_EVT_CONNECT:
       // nouvelle connexion.. 
@@ -217,33 +265,22 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     break;
       
     case WS_EVT_ERROR:
-   // AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len 
-      char eventTypeText[100];
-      char dataText[2000];
-     
-      switch (type){
-        case WS_EVT_CONNECT:  strcpy(eventTypeText, "WS_EVT_CONNECT");
-          break; 
-
-        case WS_EVT_DISCONNECT: strcpy(eventTypeText, "WS_EVT_DISCONNECT");
-          break;
-
-        case WS_EVT_PONG: strcpy(eventTypeText, "WS_EVT_PONG");strcpy(eventTypeText, "WS_EVT_PONG");
-          break;
-
-        case WS_EVT_ERROR: strcpy(eventTypeText, "WS_EVT_ERROR");
-          break;
-
-        case WS_EVT_DATA: strcpy(eventTypeText, "WS_EVT_DATA");
-          break;
-      }
-      if (len > 1999){
+       if (len > 1999){
         len = 1999;
+        Serial.println("Data too long, will be truncated");
       }
+
+      char *dataText = (char *)malloc(len + 1);
+      if (!dataText) {
+        bu->setPlcBroken("Memory allocation error for websocket message copy");
+        return;
+      }
+
       strncpy(dataText, (char *)data, len);
       Serial.printf("%lu:: WebSocket error received from client: %lu, event type: %s, data: %s\r\n", millis(), (unsigned long)client->id(), eventTypeText, dataText);
       client->close();
-      break;
+      free(dataText);
+    break;
   } // switch
 }
 
@@ -339,32 +376,29 @@ void loop() {
   bu->checkHeartbeat();
 
   if (!bu->isPlcBroken()){
-    if (!bu->clientQueueIsFull()){
-      bu->refresh();
-    } else {
-      Serial.println("Queue is full !!!!");
-    }
-    
+    bu->refresh(); 
     bu->handleWebSocketMessage();
 
-    if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
-        if (bu->isAllInputsReadOnce()){
-             if (!formaca->logiqueExecutor()){
-                bu->setPlcBroken("LogicalExecutor");
-             }
-             bu->notifyWebClient(); // notify only changed nodes
-        } else {
-            Serial.println("Not calling logic executor beacause automate is not fully intialised");
-        }     
-     } else {// Queues ok
-        Serial.println("Not calling logic executor because client queue is full or queue is more than half");
-     }
-  }
+    if (bu->isAllInputsReadOnce()){
+      if (!formaca->logiqueExecutor()){
+        bu->setPlcBroken("LogicalExecutor");
+      }
+    } else {
+      Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
+    }
+
+    bu->notifyWebClient(); // notify only changed nodes         
+  }  
     
   bu->sendMessage();
   ws.cleanupClients();
   if (millis() - start > 1500){
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
   }
-  delay(1);
+  
+  memoryMonitor.trackStats();
+
+  if (memoryMonitorBool){
+    memoryMonitor.printStats("MemoryMonitor");
+  }
 }

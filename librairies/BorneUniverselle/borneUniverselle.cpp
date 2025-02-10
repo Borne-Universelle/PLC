@@ -25,7 +25,7 @@ SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
 
 // Definition of static member with custom destructor
 LinkedList<NOTIF_MESSAGE*> BorneUniverselle::notifMessagesList([](NOTIF_MESSAGE *m) {
-    Serial.printf("Lambda destructor called for message: %p\n", (void*)m);
+    //Serial.printf("Lambda destructor called for message: %p\n", (void*)m);
     if (m) {
         if (m->message) {
             free(m->message);         // Libération de la mémoire allouée dynamiquement
@@ -531,7 +531,6 @@ void BorneUniverselle::sendMessage() {
     }
 
     NOTIF_MESSAGE *notifMessage = notifMessagesList.front();
-    static uint32_t lastMessageTime = 0;
 
     if (!notifMessage) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid notification message"));
@@ -600,10 +599,6 @@ void BorneUniverselle::sendMessage() {
     notifMessagesList.remove(notifMessage);
     sendTextToClient(chain);
     
-    Serial.printf("Queue length after remove: %u\n", notifMessagesList.length());
-    Serial.printf("--- END Send Message Debug ---\n\n");
-    
-    lastMessageTime = millis();
     xSemaphoreGive(notifMutex);
     sendTextToClient(chain);
     
