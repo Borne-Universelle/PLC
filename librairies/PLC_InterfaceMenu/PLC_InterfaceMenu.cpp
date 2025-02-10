@@ -10,16 +10,24 @@ PLC_InterfaceMenu::~PLC_InterfaceMenu() {
 
 bool PLC_InterfaceMenu::parseFile(const char* filePath) {
     nodes.clear();
+
+    if (!LittleFS.begin()) {
+        Serial.println(F("Erreur de montage LittleFS"));
+        return false;
+    }
+    Serial.println(F("LittleFS monté avec succès"));
     
     File file = LittleFS.open(filePath, "r");
     if (!file) {
         Serial.printf("Failed to open %s\n", filePath);
+        LittleFS.end();
         return false;
     }
 
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, file);
     file.close();
+    LittleFS.end();
     
     if (error) {
         char buff[512];
@@ -104,7 +112,7 @@ bool PLC_InterfaceMenu::parseSection(JsonObject section) {
         if (!node[NODE_NAME].isNull()){
             menuNode.name = node["name"].as<const char*>();
         } else {
-            Serial.printf("For section %s, hash %u, the key %s doesn't exist\r\n", sectionName, menuNode.hash, NODE_NAME);
+            Serial.printf("For section %s, hash %lu, the key %s doesn't exist\r\n", sectionName, menuNode.hash, NODE_NAME);
             return false;
         }
            

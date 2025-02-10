@@ -29,6 +29,13 @@ public:
     bool parseFile(const char* jsonContent);
     MenuNode* findNodeByHash(uint32_t hash);
 
+    // Méthodes pour l'itération
+    std::vector<MenuNode>::iterator begin() { return nodes.begin(); }
+    std::vector<MenuNode>::iterator end() { return nodes.end(); }
+    const std::vector<MenuNode>::const_iterator begin() const { return nodes.begin(); }
+    const std::vector<MenuNode>::const_iterator end() const { return nodes.end(); }
+
+
 private:
     std::vector<MenuNode> nodes;
     bool parseSection(JsonObject section);
