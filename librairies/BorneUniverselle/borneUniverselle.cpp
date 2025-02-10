@@ -25,6 +25,7 @@ SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
 
 // Definition of static member with custom destructor
 LinkedList<NOTIF_MESSAGE*> BorneUniverselle::notifMessagesList([](NOTIF_MESSAGE *m) {
+    Serial.printf("Lambda destructor called for message: %p\n", (void*)m);
     if (m) {
         if (m->message) {
             free(m->message);         // Libération de la mémoire allouée dynamiquement
@@ -399,14 +400,23 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
         client = nullptr;
         
         // Vide la liste des messages du websocket
+        Serial.println("On vide les listes....");
+        webSocketMessagesList.free();
+
+        notifMessagesList.free();
+
+        /*
         while (!webSocketMessagesList.isEmpty()) {
             webSocketMessagesList.remove(0);
+            
         }
+      
 
         // Vide la liste des messages de notification
         while (!notifMessagesList.isEmpty()) {
                 notifMessagesList.remove(0);
         }
+          */
     }
     xSemaphoreGive(webSocketMutex);
 }
@@ -521,10 +531,11 @@ void BorneUniverselle::sendMessage() {
     }
 
     NOTIF_MESSAGE *notifMessage = notifMessagesList.front();
+    static uint32_t lastMessageTime = 0;
 
     if (!notifMessage) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid notification message"));
-        notifMessagesList.remove(0);
+        notifMessagesList.remove(notifMessage);
         xSemaphoreGive(notifMutex);
         return;
     }
@@ -532,7 +543,7 @@ void BorneUniverselle::sendMessage() {
         // Vérification supplémentaire du message
     if (!notifMessage->message) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid message content"));
-        notifMessagesList.remove(0);
+        notifMessagesList.remove(notifMessage);
         xSemaphoreGive(notifMutex);
         return;
     }
@@ -556,7 +567,7 @@ void BorneUniverselle::sendMessage() {
          // Allouer la taille exacte dont on a besoin
         tempMessage = (char*)malloc(MAX_MESSAGE_LENGTH + 1);
         if (!tempMessage) {
-            notifMessagesList.remove(0);
+            notifMessagesList.remove(notifMessage);
             xSemaphoreGive(notifMutex);
             setPlcBroken("Failed to allocate memory for truncated message");
             return;
@@ -579,17 +590,23 @@ void BorneUniverselle::sendMessage() {
             free(tempMessage);
         }
 
-        notifMessagesList.remove(0);
+        notifMessagesList.remove(notifMessage);
         xSemaphoreGive(notifMutex);
         setPlcBroken("BorneUniverselle::sendMessage, failed to allocate memory for Json message");
         return;
     }
 
     serializeJson(doc, chain, len);
-    notifMessagesList.remove(0);
+    notifMessagesList.remove(notifMessage);
+    sendTextToClient(chain);
+    
+    Serial.printf("Queue length after remove: %u\n", notifMessagesList.length());
+    Serial.printf("--- END Send Message Debug ---\n\n");
+    
+    lastMessageTime = millis();
     xSemaphoreGive(notifMutex);
     sendTextToClient(chain);
-    Serial.printf("Message sent: %s\r\n", chain);
+    
     free(chain);
     if (tempMessage) {
         free(tempMessage);
@@ -660,11 +677,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
             }
 
             notifMessagesList.add(notif);
-            Serial.printf("%lu:: prepareMessage: %s pushed on the queue\r\n", millis(), text);
-            
-            if (notifMessagesList.length() > 1) {
-                Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
-            }
+            Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
         } else {
             delete notif;
             Serial.printf("prepareMessage:: Unable to alloc memory for the message, message size: %d\r\n", 
@@ -833,6 +846,7 @@ bool BorneUniverselle::clientQueueIsFull() {
         isFull = client->queueIsFull();
         if (isFull) {
             Serial.println("Client queue is full !!!");
+            vTaskDelay(1);
         }
     }
 
@@ -978,16 +992,15 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
     } else if (!socketDoc[SAVE_FILE].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: receive a set save file request"));
             handleSaveFile(socketDoc); 
-    } else if (!socketDoc[INITIAL_STATE_LOADED].isNull()){
+    /*} else if (!socketDoc[INITIAL_STATE_LOADED].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: initial state loaded"));
+            */
     } else {
-            char buff[64];
-            sprintf(buff, "Json root key received by web socket is unknow !");
-            Serial.println(F("Json received:"));
-            serializeJsonPretty(socketDoc, Serial);
-            prepareMessage(ERROR, buff);
-            Serial.flush();
-            // for ever...
+            String out1, out2;
+            out1 = "Json root key received by web socket is unknow !, json received: ";
+            serializeJsonPretty(socketDoc, out2);
+            out1 = out1 + out2;
+            prepareMessage(ERROR, out1.c_str());
     }
 } // processMeSSAGE
 
