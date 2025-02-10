@@ -978,6 +978,8 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
     } else if (!socketDoc[SAVE_FILE].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: receive a set save file request"));
             handleSaveFile(socketDoc); 
+    } else if (!socketDoc[INITIAL_STATE_LOADED].isNull()){
+            Serial.println(F("BorneUniverselle::processMessage: initial state loaded"));
     } else {
             char buff[64];
             sprintf(buff, "Json root key received by web socket is unknow !");

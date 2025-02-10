@@ -139,6 +139,7 @@ const char MODBUS_NOT_INITIALISED[] PROGMEM = "PLC want to create modbus node bu
 #define FILTER          "filter"
 #define PATH            "path"
 #define DATA            "data"
+#define INITIAL_STATE_LOADED    "initialStatesLoaded"
 
 struct HARDWARE_ITEM{
     uint8_t id;
