@@ -173,6 +173,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   switch (type) {
     case WS_EVT_CONNECT:
       // nouvelle connexion.. 
+      Serial.println("Connect !!!");
           if (bu->isClientConnected()){
             // tooMuchClients(client);
             bu->closeActualConnection(client);
@@ -241,7 +242,7 @@ void setup(){
 
   Serial.println();Serial.println();Serial.println();
 
-  Serial.println("Starting Phytimpact....");
+  Serial.println("Starting TestOnglets....");
   
   // Begin LittleFS
   if (!LittleFS.begin()){
@@ -317,8 +318,6 @@ void loop() {
   if (!bu->isPlcBroken()){
     if (!bu->clientQueueIsFull()){
       bu->refresh();
-    } else {
-      Serial.println("Queue is full !!!!");
     }
     
     bu->handleWebSocketMessage();
@@ -330,7 +329,7 @@ void loop() {
              }
              bu->notifyWebClient(); // notify only changed nodes
         } else {
-            Serial.println("Not calling logic executor beacause automate is not fully intialised");
+            Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
         }     
      } // Queues ok
     }

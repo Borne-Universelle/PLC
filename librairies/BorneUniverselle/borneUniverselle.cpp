@@ -1,5 +1,6 @@
 #include "BorneUniverselle.h"
 
+
 bool BorneUniverselle::otaPending;
 char  BorneUniverselle::ota_url[OTA_URL_SIZE];
 std::map<unsigned char, WifiItem> BorneUniverselle::wifiItemsMapBu;
@@ -23,6 +24,10 @@ bool BorneUniverselle::newClientConnected = false;
 SemaphoreHandle_t BorneUniverselle::webSocketMutex = NULL;
 SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
 
+// Initialisation de la callback à nullptr
+std::function<void()> BorneUniverselle::initialStateLoadedCallback = nullptr;
+
+
 // Definition of static member with custom destructor
 LinkedList<NOTIF_MESSAGE*> BorneUniverselle::notifMessagesList([](NOTIF_MESSAGE *m) {
     //Serial.printf("Lambda destructor called for message: %p\n", (void*)m);
@@ -37,11 +42,22 @@ LinkedList<NOTIF_MESSAGE*> BorneUniverselle::notifMessagesList([](NOTIF_MESSAGE 
 
 std::map<uint32_t, Node *> BorneUniverselle::nodesMap;
 
-BorneUniverselle::BorneUniverselle(): webSocketMessagesList(LinkedList<WEB_SOCKET_MESSAGE *>([](WEB_SOCKET_MESSAGE *c){ delete  c; }))
+BorneUniverselle::BorneUniverselle() : 
+    webSocketMessagesList(LinkedList<WEB_SOCKET_MESSAGE *>([](WEB_SOCKET_MESSAGE *c){ 
+        if (c) {
+            if (c->data) {
+                free(c->data);
+                c->data = nullptr;
+            }
+            delete c;
+        }
+    }))
+// : webSocketMessagesList(LinkedList<WEB_SOCKET_MESSAGE *>([](WEB_SOCKET_MESSAGE *c){ delete  c; }))
  {
     Serial.println(BORNE_UNIVERSELLE_VERSION); 
     webSocketMutex = xSemaphoreCreateMutex();
     notifMutex = xSemaphoreCreateMutex();
+   
 
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
 
@@ -227,6 +243,7 @@ void BorneUniverselle::refresh(){
         }
 
         bool e = node->refresh();
+        
         myModbus.setShowMessages(false);
 
         if (!e){
@@ -404,19 +421,6 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
         webSocketMessagesList.free();
 
         notifMessagesList.free();
-
-        /*
-        while (!webSocketMessagesList.isEmpty()) {
-            webSocketMessagesList.remove(0);
-            
-        }
-      
-
-        // Vide la liste des messages de notification
-        while (!notifMessagesList.isEmpty()) {
-                notifMessagesList.remove(0);
-        }
-          */
     }
     xSemaphoreGive(webSocketMutex);
 }
@@ -815,7 +819,7 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
             Serial.printf("Failed to process message after %d attempts\n", attempts);
         }
     } else {
-        Serial.println(F("WebSocketMessage size out of bounds - discarding"));
+        Serial.printf("WebSocketMessage size out of bounds: %u [bytes]\r\n", _len);
     }
 
     if (millis() - start > 100){
@@ -987,9 +991,12 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
     } else if (!socketDoc[SAVE_FILE].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: receive a set save file request"));
             handleSaveFile(socketDoc); 
-    /*} else if (!socketDoc[INITIAL_STATE_LOADED].isNull()){
+    } else if (!socketDoc[INITIAL_STATE_LOADED].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: initial state loaded"));
-            */
+            if (initialStateLoadedCallback) {
+                // Appel de la callback
+                initialStateLoadedCallback();
+            }
     } else {
             String out1, out2;
             out1 = "Json root key received by web socket is unknow !, json received: ";
@@ -999,6 +1006,10 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
     }
 } // processMeSSAGE
 
+// Implémentation de la méthode pour enregistrer la callback
+void BorneUniverselle::setInitialStateLoadedCallback(std::function<void()> callback) {
+    initialStateLoadedCallback = callback;
+}
 
 void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
     if (socketDoc[PATH].isNull()) {
@@ -2430,14 +2441,6 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
 
     checkHeartbeat();
     return true;
-}
-
-bool BorneUniverselle::isNewClientConnected(){
-    return newClientConnected;
-}
-
-void BorneUniverselle::clearNewClientConnected(){
-   newClientConnected = false;
 }
 
 void BorneUniverselle::clearInputschanged(){

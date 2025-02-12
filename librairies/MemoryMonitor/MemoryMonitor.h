@@ -27,6 +27,11 @@ public:
         Serial.printf("Heap Fragmentation: %.1f%%\n", fragmentation);
     }
 
+    static bool getChange(){
+         uint32_t currentFreeHeap = ESP.getFreeHeap();
+        return currentFreeHeap < lowestFreeHeap;
+    }
+
     // Pour garder un historique des valeurs minimales atteintes
     static void trackStats() {
         uint32_t currentFreeHeap = ESP.getFreeHeap();

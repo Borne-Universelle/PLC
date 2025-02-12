@@ -18,6 +18,7 @@
 #include "PLC_Tools.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "MemoryMonitor.h"  // pour du debug
 
 const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
@@ -214,8 +215,6 @@ class BorneUniverselle{
         bool isWebSocketMessagesListMoreThanHalf();
         bool isAllInputsReadOnce();
         static void sendTextToClient(char *text);
-        static bool isNewClientConnected();
-        static void clearNewClientConnected();
         static std::map<uint32_t, Node *> getNodesMap();
         float getConfigVersion(){
             return projectVersion;
@@ -224,6 +223,8 @@ class BorneUniverselle{
         bool getModbusStatusMessages();
         void showMessage(Node *node, const char *text);
         static void modbusMessageHandler(uint8_t severity, const char* message);
+        static void setInitialStateLoadedCallback(std::function<void()> callback);
+
 
     private:
         static char name[NAME_LENGHT];
@@ -292,5 +293,8 @@ class BorneUniverselle{
         float projectVersion;
 
         static const uint8_t MAX_MUTEX_ATTEMPTS = 10;  // Nb max de tentatives pour acquérir le mutex
+
+           // Callback enregistrée
+        static std::function<void()> initialStateLoadedCallback;
 };
 #endif
