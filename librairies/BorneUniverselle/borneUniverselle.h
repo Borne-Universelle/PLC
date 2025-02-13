@@ -291,6 +291,7 @@ class BorneUniverselle{
         bool psRamAvailable = false;
         static bool newClientConnected;
         float projectVersion;
+        bool noPLC_BrokenMessage = false;
 
         static const uint8_t MAX_MUTEX_ATTEMPTS = 10;  // Nb max de tentatives pour acquérir le mutex
 

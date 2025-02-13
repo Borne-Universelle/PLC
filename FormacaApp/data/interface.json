@@ -1,20 +1,51 @@
+
 {
     "pages": [
-      {
-        "PageName": "Page principale",
-        "sections": [
-          {
-            "SectionName": "Section principale",
-            "orientation": "horizontal",
-            "NodesList": [
-              {
-                "name": "Buzzer",
-                "hash": 1711197005,
-                "component": "tx-bool"
-              }
+        {
+            "PageName": "Page principale",
+            "sections": [
+                {
+                    "SectionName": "Section principale",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "Choix Recette",
+                            "component": "tx-dropdown",
+                            "items": [],
+                            "hash": 2565368844
+                        },
+                        {
+                            "name": "StartCycle",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 3822078925
+                        }
+                    ]
+                }
             ]
-          }
-        ]
-      }
+        },
+        {
+            "PageName": "Monitoring",
+            "sections": [
+                {
+                    "SectionName": "Section principale",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "capteur pression air",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 396324830
+                        },
+                        {
+                            "name": "capteur cylindres",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 1168588921
+                        }
+                    ]
+                }
+            ]
+        }
     ]
 }

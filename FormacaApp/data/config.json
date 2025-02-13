@@ -299,49 +299,49 @@
       ]
     },
     {
-      "name": "Inputs",
+      "name": "Floats Inputs",
       "hardware": "virtual",
       "type": "tx-float",
       "children": [
         {
           "id": 1,
           "name": "Longueur brute",
-          "hash": 645363011
+          "hash": 3749283751
         },
         {
           "id": 2,
           "name": "Longueur",
-          "hash": 396324830
+          "hash": 2736300668
         },
         {
           "id": 2,
           "name": "Largeur",
-          "hash": 396324830
+          "hash": 2736300668
         },
         {
           "id": 3,
           "name": "Offset chargement",
-          "hash": 2984797290
+          "hash": 1041711882
         },
         {
           "id": 4,
           "name": "Longueur du rebut",
-          "hash": 1951357668
+          "hash": 1541073354
         },
         {
           "id": 5,
           "name": "butée droite",
-          "hash": 3526906192
+          "hash": 3335850172
         },
         {
           "id": 6,
           "name": "Position actuelle en inch",
-          "hash": 3822078925
+          "hash": 3132370279
         }
       ]
     },
     {
-      "name": "Inputs",
+      "name": "DropDown Inputs",
       "hardware": "virtual",
       "type": "tx-text",
       "children": [
@@ -353,7 +353,7 @@
             "Chocolat",
             "Reine Elizabeth"
           ],
-          "hash": 645363011
+          "hash": 2565368844
         }
       ]
     },

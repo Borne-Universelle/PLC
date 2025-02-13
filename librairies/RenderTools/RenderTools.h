@@ -6,6 +6,7 @@
 #include "borneUniverselle.h"
 #define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "ArduinoJson.h"
+#include <list>
 
 // Visual Indicator keys
 #define MAX                         "max"
@@ -44,10 +45,11 @@ class Render{
 
             serializeJson(doc, chain, size);
             chain[size] = 0; 
-            Serial.println("Document to send to the socket:");
+            //Serial.println("Document to send to the socket:");
             // serializeJsonPretty(doc, Serial);
             Serial.println();
             BorneUniverselle::sendTextToClient(chain);
+            Serial.println("Render::sendJson, json send to the client");
             free(chain);
         }
 
@@ -55,6 +57,10 @@ class Render{
         Node *node;
         JsonDocument doc;
         JsonObject descriptor, states;
+};
+
+class EnableComponent{
+
 };
 
 class VisualIndicator: public Render{
@@ -89,7 +95,7 @@ class DropDown: public Render{
         */
 
         void setItems(JsonDocument doc){
-            Serial.println("Received document:");
+            Serial.println("DropDown::setItems, received document");
             // serializeJsonPretty(doc, Serial);
             addProperties(doc);
             sendJson();
@@ -97,4 +103,19 @@ class DropDown: public Render{
         
 
 };
+/*
+class MultiEnableDisable{
+    public:
+        MultiEnableDisable(){
+        }
+
+        void addNodeToEnableList(Node *node){
+            enableList.insert(node);
+        }
+
+    private:
+         std::list<*Node> enableList;
+
+};
+*/
 #endif

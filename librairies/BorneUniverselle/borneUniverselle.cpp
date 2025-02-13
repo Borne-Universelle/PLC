@@ -462,26 +462,36 @@ void BorneUniverselle::sendHeartbeat(bool reset){
             Serial.printf("%lu:: Heartbeat sent\r\n", millis());
         } 
 
-        if  (heartbeatTimeout - millis() < 500 || millis() > heartbeatTimeout){
+        if  (millis() > heartbeatTimeout){
             Serial.printf("%lu:: Timeout update due to late hearbeat send\r\n", millis());
-            heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
+            
         }
+        heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
     } else {
         Serial.println(F("Client is null !!!"));
     }
 }
 
 void BorneUniverselle::sendTextToClient(char *text){
-    while (isClientConnected() && client != nullptr && client->queueIsFull()){
-            yield();
-    }
+    const uint32_t QUEUE_TIMEOUT_MS = 1000; // 1 seconde
+    uint32_t startTime = millis();
 
+    // Attendre que la queue se libère avec un timeout
+    while (isClientConnected() && client != nullptr && client->queueIsFull()) {
+        if (millis() - startTime > QUEUE_TIMEOUT_MS) {
+            Serial.println(F("WebSocket queue full timeout - message dropped"));
+            return;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
+    } return;
+    
     if (isClientConnected() && client != nullptr){
         if (strlen(text) < SOCKET_MESSAGE_MAX_SIZE){
             client->text(text);
         } else {
-            const char *txt = "Try to send more than 20 Kb to the web socket";
-           setPlcBroken(txt);
+            text[128];
+            sprintf(text, "Try to send more than 20 Kb to the web socket");
+           setPlcBroken(text);
         }
     } else {
         Serial.println("WARNING ! Try to send something to web client but no client is connected !");
@@ -530,8 +540,20 @@ void BorneUniverselle::setShowHeartbeatMessages(bool status){
     showHeartbeatMessages = status;
 }
 
-void BorneUniverselle::sendMessage() {  
+void BorneUniverselle::sendMessage() { 
+    if (ESP.getFreeHeap() < 4096) {
+       setPlcBroken(" BorneUniverselle::sendMessage, low memory...");
+        return;
+    }
+
+    if (xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+        Serial.println(F("BorneUniverselle::sendMessage, failed to acquire notifMutex"));
+        return;
+    }
+    
+
     if (!isClientConnected() || millis() - clientConnectedAt <= 1000 || notifMessagesList.isEmpty()) {
+        xSemaphoreGive(notifMutex);
         return;
     }
    
@@ -682,7 +704,9 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
             }
 
             notifMessagesList.add(notif);
-            Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
+            if (notifMessagesList.length() > MAX_MESSAGES_PENDING / 2) {
+                Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
+            }
         } else {
             delete notif;
             Serial.printf("prepareMessage:: Unable to alloc memory for the message, message size: %d\r\n", 
@@ -736,7 +760,10 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
 // Nouveau code pour la gestion des messages WebSocket
 void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client) {
     if (isPlcBroken()){
-        Serial.println(F("Because the PLC is broken, we don't read the websocket message"));
+        if (!noPLC_BrokenMessage){
+            Serial.println(F("Because the PLC is broken, we don't read the websocket message"));
+            noPLC_BrokenMessage = true;
+        }
         return;
     }
 
