@@ -134,13 +134,19 @@ BorneUniverselle::BorneUniverselle() :
         Serial.println("Loop on nodes to set node name from the interface file");
         for (const MenuNode& menuNode : *menuInterface) {  
            // Serial.printf("MenuNode: %s in section %s, hash: %lu\r\n", menuNode.name.c_str(), menuNode.sectionName.c_str(), (long unsigned)menuNode.hash);
-            Node *node = findNode("handleGetValue", menuNode.hash);
-            if (node->setName(menuNode.name.c_str(), menuNode.sectionName.c_str())){
-                Serial.printf("Node name set: %s\r\n", node->getName());
-            } else {
-                String fullName = String(menuNode.sectionName.c_str()) + "/" + String(menuNode.name.c_str());
-                sprintf(buff, "Unable to set node name: %s \r\n", fullName.c_str());
-                setPlcBroken(buff);
+            Node *node = findNode("Loop on nodes to set node name from the interface file", menuNode.hash);
+            if (node != nullptr) {
+                if (node->setName(menuNode.name.c_str(), menuNode.sectionName.c_str())){
+                    Serial.printf("Node name set: %s\r\n", node->getName());
+                } else {
+                    String fullName = String(menuNode.sectionName.c_str()) + "/" + String(menuNode.name.c_str());
+                    sprintf(buff, "Unable to set node name: %s \r\n", fullName.c_str());
+                    setPlcBroken(buff);
+                }
+            }
+
+            if (isPlcBroken()){
+                break;
             }
         }
 
@@ -975,7 +981,7 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
             ESP.restart();
         } 
     } else if (!socketDoc[NOTIFY_STATES_CHANGED].isNull()){
-            Serial.println(F("BorneUniverselle::processMessage: receive a NOTIFY_STATES_CHANGED"));
+            //Serial.println(F("BorneUniverselle::processMessage: receive a NOTIFY_STATES_CHANGED"));
             handleNodesChange(socketDoc);
     } else if (!socketDoc[GET_VALUE].isNull()){
             uint32_t hash = socketDoc[GET_VALUE];
@@ -2464,8 +2470,8 @@ Node *BorneUniverselle::findNode(const char *context, uint32_t hash){
     if (iter != nodesMap.end()){
         return nodesMap.at(hash);
     } else {
-        char text[128];
-        sprintf(text, "findNode:: Searching for node with hash: %lu, with context: %s but not found !\r\n", (unsigned long)hash, context);
+        char text[256];
+        snprintf(text, sizeof(text), "findNode:: Searching for node with hash: %lu, with context: %s but not found !\r\n", (unsigned long)hash, context);
         prepareMessage(ERROR, text);
         setPlcBroken(text);
         return nullptr;
@@ -2473,6 +2479,16 @@ Node *BorneUniverselle::findNode(const char *context, uint32_t hash){
 }
 
 void BorneUniverselle::printConfigFile(){
+    // Cela ce peut que le PLC n'a pas démarré et n'a pas monté le system de fichier..
+
+    // Begin LittleFS
+  if (!LittleFS.begin()){
+    Serial.println("An Error has occurred while mounting LittleFS");
+    while (1){
+    }
+  } // for ever...
+
+
     File file = LittleFS.open("/config.json", FILE_READ);
  
     if (!file){
@@ -2498,51 +2514,3 @@ void BorneUniverselle::printConfigFile(){
 std::map<uint32_t, Node *> BorneUniverselle::getNodesMap(){
     return nodesMap;
 }
-
-/*
-
-void printIndent(int level) {
-    for (int i = 0; i < level; i++) {
-        Serial.print("  ");
-    }
-}
-
-// Fonction principale pour afficher les clés d'un JsonDocument
-void printJsonObject(JsonObjectConst obj, int level = 0) {
-    for (JsonPairConst pair : obj) {
-        printIndent(level);
-        Serial.print(pair.key().c_str());
-        
-        if (pair.value().is<JsonObject>()) {
-            Serial.println(" : {");
-            printJsonObject(pair.value().as<JsonObject>(), level + 1);
-            printIndent(level);
-            Serial.println("}");
-        }
-        else if (pair.value().is<JsonArray>()) {
-            Serial.println(" : [");
-            JsonArrayConst arr = pair.value().as<JsonArray>();
-            for (JsonVariantConst v : arr) {
-                if (v.is<JsonObject>()) {
-                    printJsonObject(v.as<JsonObject>(), level + 1);
-                } else {
-                    printIndent(level + 1);
-                    Serial.println(v.as<String>());
-                }
-            }
-            printIndent(level);
-            Serial.println("]");
-        }
-        else {
-            Serial.print(" : ");
-            Serial.println(pair.value().as<String>());
-        }
-    }
-}
-
-// Fonction wrapper pour démarrer avec un JsonDocument
-void printJsonDocument(const JsonDocument& doc) {
-    printJsonKeys(doc.as<JsonVariant>());
-}
-
-*/

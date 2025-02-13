@@ -1,6 +1,6 @@
 {
   "name": "Formaca",
-  "type": 2,
+  "type": "Project",
   "component": "hw-module",
   "config": [
     {
@@ -16,7 +16,7 @@
           "ssid": "TELUSAFF7",
           "pwd": "h6vJ96UKmUr7",
           "dhcp": true
-        },
+        }
         {
           "ssid": "Ella",
           "pwd": "Oceanne1",
@@ -45,130 +45,158 @@
     {
       "name": "Direct outputs",
       "hardware": "Kincony_KC868_A8S",
+      "component": "no-show",
       "type": "tx-bool",
       "children": [
         {
           "id": 1,
           "name": "Buzzer",
-          "hash": 1711197005
+          "component": "tx-bool",
+          "hash": 291612745
         }
       ]
     },
     {
       "name": "Inputs",
       "hardware": "Kincony_KC868_A8S",
+      "component": "hw-section",
       "type": "PF8574_rx-bool",
       "children": [
         {
           "id": 1,
           "name": "EStopA",
+          "component": "rx-indicator",
+          "color": "red",
           "inverse": true,
-          "hash": 645363011
+          "hash": 3037871547
         },
         {
           "id": 2,
           "name": "capteur pression air",
-          "hash": 396324830
+          "component": "rx-indicator",
+          "color": "green",
+          "hash": 4188971739
         },
         {
           "id": 7,
           "name": "capteur cylindres",
-          "hash": 1168588921
+          "component": "rx-indicator",
+          "color": "red",
+          "hash": 0
         },
         {
           "id": 6,
           "name": "StartCycle",
-          "hash": 3822078925
+          "component": "rx-indicator",
+          "hash": 2799774631,
+          "color": "green"
         }
       ]
     },
     {
       "name": "Outputs",
       "hardware": "Kincony_KC868_A8S",
+      "component": "hw-section",
       "type": "PF8574_tx-bool",
       "children": [
         {
           "id": 1,
           "name": "servoOn",
-          "hash": 1927398708
+          "component": "tx-bool",
+          "hash": 814574035
         },
         {
           "A supprimer": true,
           "id": 2,
           "name": "Do home",
-          "hash": 4235117271
+          "component": "no-show",
+          "hash": 426015916
         },
         {
           "id": 3,
           "name": "Flip flop scie",
-          "hash": 818201161
+          "component": "tx-button-hold",
+          "hash": 2466655937
         },
         {
           "id": 4,
           "name": "immediatStop",
-          "hash": 973196112
+          "component": "tx-bool",
+          "hash": 685018269
         },
         {
           "id": 5,
           "name": "alarmsReset",
-          "hash": 4138453966
+          "component": "tx-button-hold",
+          "hash": 6472957
         }
       ]
     },
     {
       "name": "Jog",
       "hardware": "virtual",
+      "component": "hw-section",
       "type": "tx-bool",
       "children": [
         {
           "id": 1,
           "name": "jog",
-          "hash": 627952477
+          "component": "tx-bool",
+          "hash": 3917490492
         },
         {
           "id": 2,
           "name": "fwd",
-          "hash": 936928435
+          "component": "tx-button-hold",
+          "hash": 3697777386
         },
         {
           "id": 3,
           "name": "rwd",
-          "hash": 2405696470
+          "component": "tx-button-hold",
+          "hash": 1143003751
         },
         {
           "id": 4,
           "name": "Full torque",
-          "hash": 313736047
+          "component": "tx-bool",
+          "hash": 2578051090
         },
         {
           "id": 5,
           "name": "Scier",
-          "hash": 2853133322
+          "component": "tx-button-hold",
+          "hash": 4151588873
         },
         {
           "id": 6,
           "name": "Go home",
-          "hash": 3099259876
+          "component": "no-show",
+          "hash": 2237651145
         },
         {
           "id": 7,
           "name": "Go Pos Park",
-          "hash": 431233
+          "component": "tx-button-hold",
+          "hash": 1870762650
         },
         {
           "id": 8,
           "name": "Go to reference",
-          "hash": 1483048151
+          "component": "tx-button-hold",
+          "hash": 3285838443
         },
         {
           "id": 9,
           "name": "Ejecter",
-          "hash": 3772375986
+          "component": "tx-button-hold",
+          "hash": 1021838199
         },
         {
           "id": 10,
           "name": "Calibrate !!!",
-          "hash": 3874886927
+          "component": "tx-button-hold",
+          "hash": 4246518124
         }
       ]
     },
@@ -182,314 +210,364 @@
           "id": 1,
           "name": "servoReady",
           "component": "rx-indicator",
-          "hash": 1578545169
+          "hash": 2621527064
         },
         {
           "id": 2,
           "name": "servoActivated",
-          "hash": 1878960780
+          "component": "no-show",
+          "hash": 1631903391
         },
         {
           "id": 3,
           "name": "zeroSpeed",
-          "hash": 3381240120
+          "component": "no-show",
+          "hash": 367886937
         },
         {
           "id": 4,
           "name": "targetSpeedRated",
-          "hash": 204382134
+          "component": "no-show",
+          "hash": 2641471820
         },
         {
           "id": 5,
           "name": "AtTarget",
-          "hash": 2857997314
+          "component": "no-show",
+          "hash": 1587245951
         },
         {
           "id": 7,
           "name": "servoAlarm",
-          "hash": 1036420395
+          "component": "rx-indicator",
+          "hash": 2114280809
         },
         {
           "id": 9,
           "name": "absolutPositionLost",
-          "hash": 1845100150
+          "component": "no-show",
+          "hash": 3102308124
         },
         {
           "id": 10,
           "name": "batteryAlarm",
-          "hash": 1229514833
+          "component": "no-show",
+          "hash": 3279613467
         },
         {
           "id": 11,
           "name": "multipleTurnsOverflow",
-          "hash": 4013941733
+          "component": "no-show",
+          "hash": 1686859766
         },
         {
           "id": 12,
           "name": "puuOverflow",
-          "hash": 3738696056
+          "component": "no-show",
+          "hash": 2918759982
         },
         {
           "id": 13,
           "name": "absoluteCoordonateNotSet",
-          "hash": 2023813836
+          "component": "no-show",
+          "hash": 3208586081
         },
         {
           "id": 14,
           "name": "homeDone",
-          "hash": 3171404866
+          "component": "rx-indicator",
+          "hash": 365447618
         },
         {
           "id": 15,
           "name": "modbusError",
-          "hash": 460376054
+          "component": "rx-indicator",
+          "hash": 2051383628
         },
         {
           "id": 16,
           "name": "driveInitialised",
-          "hash": 714661227
+          "component": "rx-indicator",
+          "hash": 124264916
         }
       ]
     },
     {
       "name": "Inputs",
       "hardware": "virtual",
+      "component": "hw-section",
       "type": "tx-uint32",
       "children": [
         {
           "id": 3,
           "name": "vjog speed",
-          "hash": 2984797290
+          "component":  "no-show",
+          "hash": 553984527
         },
         {
           "id": 4,
           "name": "vcycle speed",
-          "hash": 1951357668
+          "component":  "no-show",
+          "hash": 2842387093
         },
         {
           "id": 5,
           "name": "Torque Ctrl",
-          "hash": 3526906192
+          "component":"no-show",
+          "hash": 3237558477
         },
         {
-          "id": 7,
+           "id": 7,
           "name": "Nb cycles voulus",
-          "hash": 1168588921
+          "component": "no-show",
+          "hash": 166926353
         },
         {
           "id": 8,
           "name": "Nb cycles effectués",
-          "hash": 3018797200
+          "component": "rx-numeric",
+          "hash": 4113844772
         },
         {
           "id": 9,
           "name": "Nb Cycles clear",
-          "hash": 362298148
+          "component": "tx-button-hold",
+          "hash": 922671543
         },
         {
           "id": 9,
           "name": "v_start",
-          "hash": 362298148
+          "component": "tx-button-hold",
+          "color": "success",
+          "hash": 3417162335
         },
         {
           "id": 10,
           "name": "Cancel cycle",
-          "hash": 824782083
+          "component": "tx-button-hold",
+          "color": "danger",
+          "hash": 1083491018
         }
       ]
     },
     {
       "name": "Inputs",
       "hardware": "virtual",
+      "component": "hw-section",
       "type": "tx-float",
       "children": [
         {
           "id": 1,
           "name": "Longueur brute",
-          "hash": 645363011
+          "component": "tx-numeric",
+          "hash": 283223379
         },
         {
           "id": 2,
           "name": "Longueur",
-          "hash": 396324830
+          "component": "rx-numeric",
+          "hash": 119864519
         },
         {
           "id": 2,
           "name": "Largeur",
-          "hash": 396324830
+          "component": "rx-numeric",
+          "hash": 847062088
         },
         {
           "id": 3,
           "name": "Offset chargement",
-          "hash": 2984797290
+          "component": "tx-numeric",
+          "hash": 217690474
         },
         {
           "id": 4,
           "name": "Longueur du rebut",
-          "hash": 1951357668
+          "component": "tx-numeric",
+          "hash": 303611356
         },
         {
           "id": 5,
           "name": "butée droite",
-          "hash": 3526906192
+          "component": "tx-numeric",
+          "hash": 3066607874
         },
         {
           "id": 6,
           "name": "Position actuelle en inch",
-          "hash": 3822078925
+          "component": "rx-numeric",
+          "hash": 1379913110
         }
       ]
     },
     {
       "name": "Inputs",
       "hardware": "virtual",
+      "component": "hw-section",
       "type": "tx-text",
       "children": [
         {
           "id": 1,
           "name": "Choix Recette",
+          "component": "tx-dropdown",
           "items": [
             "Crème glacée",
             "Chocolat",
             "Reine Elizabeth"
           ],
-          "hash": 645363011
+          "hash": 1596686534
         }
       ]
     },
     {
       "name": "Servo read holding register",
       "hardware": "SureServo",
+      "component": "no-show",
       "type": "ModbusReadHoldingRegister",
       "address": 127,
       "children": [
         {
           "id": 1,
           "name": "status",
-          "hash": 4137233651
+          "component": "rx-numeric",
+          "hash": 377854433
         },
         {
           "id": 2,
           "name": "absolute coordonate system status",
           "component": "no-show",
-          "refreshInterval": 0,
-          "hash": 4098304980
+          "hash": 3997433423,
+          "refreshInterval": 0
         },
         {
           "id": 3,
           "name": "alarms",
-          "hash": 4126332617
+          "component": "rx-numeric",
+          "hash": 4256228255
         },
         {
           "id": 4,
           "name": "trigger read",
-          "hash": 4059768218
+          "component": "no-show",
+          "hash": 398410701
         },
         {
           "id": 5,
           "name": "jog speed read",
-          "hash": 4031699079
+          "component": "no-show",
+          "hash": 3519725700
         }
       ]
     },
     {
       "name": "Servo write holding register",
       "hardware": "SureServo",
-      "component": "no-show",
+      "component":  "no-show",
       "type": "ModbusWriteHoldingRegister",
       "address": 127,
       "children": [
         {
           "id": 1,
           "name": "aux_function",
-          "hash": 2308213873
+          "component": "no-show",
+          "hash": 2007447512
         },
         {
           "id": 2,
           "name": "trigger",
-          "hash": 748480285
+          "component": "no-show",
+          "hash": 1429083291
         },
         {
           "id": 4,
           "name": "jog speed",
-          "hash": 3187488644
+          "component": "rx-numeric",
+          "hash": 2800637332
         },
         {
           "id": 5,
           "name": "Max torque",
-          "hash": 3740987040
+          "component": "no-show",
+          "hash": 2909542849
         }
       ]
     },
     {
       "name": "Num Status",
       "hardware": "SureServo",
+      "component":  "no-show",
       "type": "ModbusReadDobbleHoldingRegister",
       "address": 127,
       "children": [
         {
           "id": 1,
           "name": "Position",
-          "hash": 4045003206,
+          "component": "rx-numeric",
+          "hash": 3574303952,
           "refreshInterval": 1000
         },
         {
           "id": 3,
           "name": "target A Read",
-          "hash": 2843041799
+          "component": "no-show",
+          "hash": 1738444368
         },
         {
           "id": 4,
           "name": "target B Read",
-          "hash": 2152625540
+          "component": "no-show",
+          "hash": 1314273954
         },
         {
           "id": 5,
           "name": "PR speed read",
-          "hash": 1103145540
-        },
-        {
-          "id": 6,
-          "name": "Target C read",
-          "hash": 3626159173
+          "component": "no-show",
+          "hash": 1829651207
         }
       ]
     },
     {
       "name": "Servo write dobble holding registers",
       "hardware": "SureServo",
+      "component": "no-show",
       "type": "ModbusWriteDobbleHoldingRegister",
       "address": 127,
       "children": [
         {
           "id": 1,
           "name": "target A",
-          "hash": 2532989225
+          "component": "no-show",
+          "hash": 2454344301
         },
         {
           "id": 2,
           "name": "target B",
-          "hash": 3432736329
+          "component": "rx-numeric",
+          "hash": 3358289165
         },
         {
           "id": 3,
           "name": "PR1 speed",
-          "hash": 1282109782
+          "component": "no-show",
+          "hash": 3831064525
         },
         {
           "id": 4,
           "name": "PR2 speed",
-          "hash": 2019104905
+          "component": "no-show",
+          "hash": 762150080
         },
         {
           "id": 5,
           "name": "PR3 speed",
-          "hash": 4171829142
+          "component": "no-show",
+          "hash": 1786677819
         },
         {
           "id": 6,
           "name": "PR3 data",
-          "hash": 2731028726
+          "component": "no-show",
+          "hash": 2574806929
         }
       ]
     }

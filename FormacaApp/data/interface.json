@@ -1,0 +1,20 @@
+{
+    "pages": [
+      {
+        "PageName": "Page principale",
+        "sections": [
+          {
+            "SectionName": "Section principale",
+            "orientation": "horizontal",
+            "NodesList": [
+              {
+                "name": "Buzzer",
+                "hash": 1711197005,
+                "component": "tx-bool"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+}
