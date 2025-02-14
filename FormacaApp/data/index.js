@@ -6574,7 +6574,7 @@ class HwDynamic extends HTMLElement {
         currentPage.sections.forEach(section => {
             pageContent.appendChild(this.createSection(section));
         });
-    }
+    } 
 
     render() {
         if (!this._interface || !this._config) return;

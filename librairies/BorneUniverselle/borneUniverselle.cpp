@@ -401,37 +401,37 @@ void BorneUniverselle::saveParameters(JsonDocument configDoc){
 }
 
 void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_client) {
+    // Gestion du webSocketMutex
     if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(100))) {
-        Serial.println(F("Failed to acquire mutex in setClientConnected"));
+        Serial.println(F("Failed to acquire webSocketMutex in setClientConnected"));
         return;
     }
+    MutexGuard webSocketGuard(webSocketMutex);
 
+    // Gestion des webSocket messages
     clientconnected = status;
     if (status) {
         client = _client;
         clientConnectedAt = millis();
         lastHeartbeatSend = 0;
-        Serial.printf("%lu:: WebSocket new connection %lu from %s\n", 
-                     millis(), (long unsigned)client->id(), 
-                     client->remoteIP().toString().c_str()); 
-
         heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
         newClientConnected = true;
-        if (isLastMessageFatal) {
-            setPlcBroken("Last message was fatal");
-        }
     } else {
-        // client disconnected
-        Serial.printf("%lu:: Current client just disconnect\r\n", millis());
         client = nullptr;
-        
-        // Vide la liste des messages du websocket
-        Serial.println("On vide les listes....");
         webSocketMessagesList.free();
+    }
 
+    // Gestion du notifMutex
+    if (!xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100))) {
+        Serial.println(F("Failed to acquire notifMutex in setClientConnected"));
+        return;
+    }
+    MutexGuard notifGuard(notifMutex);
+
+    // Nettoyage des notifications
+    if (!status) {
         notifMessagesList.free();
     }
-    xSemaphoreGive(webSocketMutex);
 }
 
 void BorneUniverselle::closeActualConnection(AsyncWebSocketClient *newClient){
@@ -647,16 +647,24 @@ bool BorneUniverselle::sendMessage() {
 }
 
 void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
+    if (!_client) {
+        Serial.println(F("Invalid client pointer in tooMuchClients"));
+        return;
+    }
+
     JsonDocument doc;
     doc[TOO_MUCH_CLIENTS] = true;
     char chain[256];
     serializeJson(doc, chain);
     Serial.printf("%lu:: Too much clients: %lu: will be closed...\r\n", millis(), (unsigned long)_client->id());
-    _client->text(chain);
-    delay(100);
-    _client->close();  
-}
 
+    // Envoi du message et fermeture
+    if (_client->status() == WS_CONNECTED) {
+        _client->text(chain);
+        vTaskDelay(pdMS_TO_TICKS(100));  // Utiliser vTaskDelay au lieu de delay
+        _client->close();
+    }
+}
 
 void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
     // Protection contre les pointeurs nuls ou textes vides
