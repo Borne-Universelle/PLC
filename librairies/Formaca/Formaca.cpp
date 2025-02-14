@@ -2,6 +2,11 @@
 
 Formaca::Formaca() {
     Serial.println(CONSTR_FORMACA);
+    // Inscrit la callback
+    BorneUniverselle::setInitialStateLoadedCallback([this]() {
+        this->initialStateLoadedHandler();
+    });
+
 
     buzzer = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, BUZZER);
     eStopA = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ESTOPA);
@@ -139,6 +144,8 @@ Formaca::Formaca() {
     }	
 }
 
+
+
 void Formaca::setEmergencyMode(bool status){
     running = false;
     ejectPhase = false,
@@ -169,6 +176,7 @@ bool Formaca::isEmergencyMode(){
 }
 
 bool Formaca::logiqueExecutor() {
+    uint32_t start = millis();
     //Serial.println("Logic executor");
     // Method implementation
     if (PF8574BooleanInputNode::isInterrupt()){
@@ -245,10 +253,6 @@ bool Formaca::logiqueExecutor() {
         Serial.println("Fin du flip flop de la scie");
     }
 
-    if (BorneUniverselle::isNewClientConnected()){
-       newClientConnected();
-    }
-
     if (alarmsReset->getIsChanged() && alarmsReset->getValue() == true){
         Serial.printf("%lu:: Alarms reset\r\n", millis());
         goHome = false;
@@ -274,6 +278,9 @@ bool Formaca::logiqueExecutor() {
          // Initialisation du servo drive
         driveInitialisation();
         // Serial.println("Will go out !");
+        if (millis() - start > 100){
+            Serial.printf("LogicalExecutor take long time when drive is not initaialised: %u\r\n", millis() - start);
+        }
         return true;   
     }
 
@@ -601,9 +608,8 @@ void Formaca::cycleSpeedChange(){
     saveDriveParameters();
 }
 
-
-void Formaca::newClientConnected(){
-    Serial.println("NEW CLIENT CONNECTED !!!!!!!!!!!!!!!!!!!!!!");
+void Formaca::initialStateLoadedHandler(){
+    Serial.println("NEW CLIENT CONNECTED AND LOADED!!!!!!!!!!!!!!!!!!!!!!");
     JsonDocument docToSend;
     JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
     for (uint8_t id = 0; id < parameters.nbRecettes; id++){
@@ -613,7 +619,7 @@ void Formaca::newClientConnected(){
     }
 
     drompDownIndicator->setItems(docToSend);
-    Serial.println("Will set persistants parameters to the web client");
+    Serial.println("Will set parameters to the web client");
     overAllLenght->setValue(parameters.overAllLenght);
     parkOffset->setValue(parameters.parkOffset);
     wasteLength->setValue(parameters.wasteLength);
@@ -632,18 +638,23 @@ void Formaca::newClientConnected(){
     if (!capteur_pression_air->getValue()){
         BorneUniverselle::prepareMessage(ERROR, "Attention on a perdu la pression d'air !!!");
     }
-
-    
-    BorneUniverselle::clearNewClientConnected();
 }
 
 bool Formaca::setNewRecette(char *recette){
+    if (strlen(recette) == 0){
+        char message[256];
+        snprintf(message, sizeof(message), "%s: %s", "Formaca::setNewRecette", "text from recette length is 0, probably recette component mis configured");
+        BorneUniverselle::setPlcBroken(message);
+        return false;
+    }
+
     // on cherche juste le idRecette
     for (idRecette = 0; idRecette < parameters.nbRecettes; idRecette++){
         if (!strcmp(parameters.recettes[idRecette].name, recette)){
             break;
         }
     }
+
 
     Serial.printf("Nouveau choix de recette: %s, id: %d\r\n", recette, idRecette);
     widthLength->setValue(parameters.recettes[idRecette].width);

@@ -12,83 +12,85 @@
 #ifndef FORMACA01_H
 #define FORMACA01_H
 
-#define BUZZER 291612745
-#define ESTOPA 3037871547
-#define CAPTEUR_PRESSION_AIR        4188971739
-#define STARTCYCLE                  2799774631
-#define SERVOON 814574035
-#define ALARMSRESET 6472957
-#define JOG 3917490492
-#define FWD 3697777386
-#define RWD 1143003751
-#define GO_TO_PARK                  1870762650
-#define GO_TO_REF                   3285838443
-#define CALIBRATE                   4246518124
-#define GO_HOME_BUTTON              2237651145
-#define SCIER                       4151588873
-#define EJECT                       1021838199
-#define CYLINDER_CAPTOR             3806663719
+#define BUZZER 1711197005
+#define ESTOPA 645363011
+#define CAPTEUR_PRESSION_AIR        396324830
+#define STARTCYCLE                  3822078925
+#define SERVOON 1927398708
+#define ALARMSRESET 4138453966
+#define JOG 627952477
+#define FWD 936928435
+#define RWD 2405696470
+#define GO_TO_PARK                  431233
+#define GO_TO_REF                   1483048151
+#define CALIBRATE                   3874886927
+#define GO_HOME_BUTTON              3099259876
+#define SCIER                       2853133322
+#define EJECT                       3772375986
+#define CYLINDER_CAPTOR             1168588921
 
-#define SERVOREADY 2621527064
-#define SERVOACTIVATED 1631903391
-#define ZEROSPEED 367886937
-#define TARGETSPEEDRATED 2641471820
-#define ATTARGET 1587245951
-#define SERVOALARM 2114280809
-#define ABSOLUTE_POS_LOST 3102308124
-#define BATTERYALARM 3279613467
-#define MULTIPLETURNSOVERFLOW 1686859766
-#define PUUOVERFLOW 2918759982
-#define ABSOLUTECOORDONATENOTSET    3208586081
-#define HOMEDONE                    365447618
-#define MODBUSERROR                 2051383628
-#define DRIVEINITIALISED            124264916
+#define SERVOREADY 1578545169
+#define SERVOACTIVATED 1878960780
+#define ZEROSPEED 3381240120
+#define TARGETSPEEDRATED 204382134
+#define ATTARGET 2857997314
+#define SERVOALARM 1036420395
+#define ABSOLUTE_POS_LOST 1845100150
+#define BATTERYALARM 1229514833
+#define MULTIPLETURNSOVERFLOW 4013941733
+#define PUUOVERFLOW 3738696056
+#define ABSOLUTECOORDONATENOTSET    2023813836
+#define HOMEDONE                    3171404866
+#define MODBUSERROR                 460376054
+#define DRIVEINITIALISED            714661227
 
-#define V_JOG_SPEED                 553984527
-#define VCYCLE_SPEED                2842387093
-#define TORQUE_CTRL                 3237558477
+#define V_JOG_SPEED                 2984797290
+#define VCYCLE_SPEED                1951357668
+#define TORQUE_CTRL                 3526906192
 
-#define OVERALL_LENGTH              283223379
-#define PARK_OFFSET                 217690474 // distance entre le morceau de bois brute et le poussoir lorsque le poussoir est au repos.
+#define OVERALL_LENGTH              645363011
+#define PARK_OFFSET                 2984797290 // distance entre le morceau de bois brute et le poussoir lorsque le poussoir est au repos.
 
-#define NB_CYCLES_VOULUS                166926353
-#define NB_CYCLES_EFFECTUES             4113844772
-#define CHOIX_RECETTE                   1596686534
-#define STATUS_DRIVE                    377854433
-#define ABSOLUTE_COORDONATE_SYSTEM_STATUS 3997433423
-#define ALARMS                          4256228255
-#define TRIGGER_READ                    398410701
-#define JOG_SPEED_READ                  3519725700
-#define AUX_FUNCTION                    2007447512
-#define TRIGGER                         1429083291
-#define JOG_SPEED                       2800637332
-#define POSITION                        3574303952
-#define MAX_TORQUE                      2909542849
-#define TARGET_A_READ                   1738444368
-#define TARGET_B_READ                   1314273954
-#define PR_SPEED_READ                   1829651207
-#define TARGET_A                        2454344301
-#define TARGET_B                        3358289165
-#define TARGET_C                        2574806929
-#define PR1_SPEED                       3831064525
-#define PR2_SPEED                       762150080
-#define PR3_SPEED                       1786677819
-#define DO_HOME                         426015916
+#define NB_CYCLES_VOULUS                1168588921
+#define NB_CYCLES_EFFECTUES             3018797200
+#define CHOIX_RECETTE                   645363011
+#define STATUS_DRIVE                    4137233651
+#define ABSOLUTE_COORDONATE_SYSTEM_STATUS 4098304980
+#define ALARMS                          4126332617
+#define TRIGGER_READ                    4059768218
+#define JOG_SPEED_READ                  4031699079
+#define AUX_FUNCTION                    2308213873
+#define TRIGGER                         748480285
+#define JOG_SPEED                       4031699079
+#define POSITION                        4045003206
+#define MAX_TORQUE                      3740987040
+#define TARGET_A_READ                   2843041799
+#define TARGET_B_READ                   2152625540
+#define PR_SPEED_READ                   1103145540
+#define TARGET_A                        2532989225
+#define TARGET_B                        3432736329
 
-#define IMMEDIATE_STOP          685018269
-#define ALARM_RESET             6472957        // relais de reset des alarms
-#define FLIP_FLOP_SCIE          2466655937
-#define NB_CYCLES_CLEAR         922671543
-#define USABLE_LENGTH           2461030330
-#define JOG_FULL_TORQUE         2578051090
+#define TARGET_C                        2731028726  // ?
 
-#define POS_INCH                1379913110
-#define WASTE_LENGTH            303611356
-#define RIGHT_STOP              3066607874
-#define WIDTH_LENGTH            847062088
-#define LENGTH                  119864519
-#define V_START                 3417162335
-#define CANCEL_CYCLE            1083491018 
+#define PR1_SPEED                       1282109782
+#define PR2_SPEED                       2019104905
+#define PR3_SPEED                       4171829142
+#define DO_HOME                         3099259876
+
+#define IMMEDIATE_STOP          973196112
+#define ALARM_RESET             4138453966        // relais de reset des alarms
+#define FLIP_FLOP_SCIE          818201161
+#define NB_CYCLES_CLEAR         362298148
+//#define USABLE_LENGTH           396324830 // ?
+#define JOG_FULL_TORQUE         313736047
+
+#define POS_INCH                3822078925
+#define WASTE_LENGTH            1951357668
+#define RIGHT_STOP              3526906192
+#define WIDTH_LENGTH            396324830
+#define LENGTH                  396324830
+#define V_START                 362298148
+#define CANCEL_CYCLE            824782083 
 
 // Software defines
 #define NOMINAL_TORQUE         100
@@ -164,8 +166,11 @@ public:
     bool logiqueExecutor();
     static void printPersistance();
 
-private: 
     static void InterruptHandling();
+    // Déclaration de la méthode non statique
+    void initialStateLoadedHandler();
+
+private: 
     void displayAlarmsAndStatus();
     void driveInitialisation();
     void saveDriveParameters();
@@ -173,7 +178,6 @@ private:
     bool setNewRecette(char *recette);
     uint32_t convToPUU(float); // converti des pouces en PUU
     float convToInch(uint32_t);
-    void newClientConnected();
     void cycleSpeedChange(); 
     void jogTreatment();
     bool saveMachineParameters();

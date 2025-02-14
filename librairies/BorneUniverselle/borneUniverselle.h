@@ -297,5 +297,6 @@ class BorneUniverselle{
 
            // Callback enregistrée
         static std::function<void()> initialStateLoadedCallback;
+        char hearbeatChain[256];
 };
 #endif

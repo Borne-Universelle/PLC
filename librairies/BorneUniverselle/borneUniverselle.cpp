@@ -155,6 +155,11 @@ BorneUniverselle::BorneUniverselle() :
         Serial.printf("Config version: %2.2f\r\n", getConfigVersion());
     }
 
+    // prepare heartbeat chain
+    JsonDocument doc;
+	doc[HEARTBEAT] 	= TRUE_J;
+  	serializeJson(doc, hearbeatChain);
+
     PLC_Tools tools;
     auto files = tools.getFilteredFiles("/", "*.*");
     Serial.println("List of files in the root directory:");
@@ -260,16 +265,12 @@ void BorneUniverselle::refresh(){
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
-            Serial.println(F("Refresh is too long, will check heartbeat and Websocket message"));
+            Serial.println(F("Refresh:: will check heartbeat and Websocket message"));
             checkHeartbeat();
             lastCheck = millis();
             // on a peut etre reçu un hearbeat   
             handleWebSocketMessage();
             vTaskDelay(1);
-        }
-
-        if ((isClientConnected() && client != nullptr && client->queueIsFull()) || isWebSocketMessagesListMoreThanHalf()){
-            return;
         }
 
         vTaskDelay(1);
@@ -443,41 +444,45 @@ bool BorneUniverselle::isClientConnected(){
 }
 
 void BorneUniverselle::sendHeartbeat(bool reset){
-    JsonDocument doc;
-	doc[HEARTBEAT] 	= TRUE_J;
-	
- 	char chain[256];
-  	serializeJson(doc, chain);
-    //Serial.println(chain);
-
-    if (client != NULL && isClientConnected()){
-        sendTextToClient(chain);
-        lastHeartbeatSend = millis();
-        // Serial.printf("nextHeartbeatToSend: %d\r\n", lastHeartbeatSend + HEARTBEAT_DELAY);
-        if (reset && heartbeatReceive){
-            heartbeatReceive = false;
-        }
-        
-        if (showHeartbeatMessages){
-            Serial.printf("%lu:: Heartbeat sent\r\n", millis());
-        } 
-
-        if  (millis() > heartbeatTimeout){
-            Serial.printf("%lu:: Timeout update due to late hearbeat send\r\n", millis());
-            
-        }
-        heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
-    } else {
-        Serial.println(F("Client is null !!!"));
+    if (!isClientConnected() || client == nullptr) {
+        return;
     }
+
+    // Prendre le mutex avec timeout
+    if (xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+        Serial.println(F("Failed to acquire mutex in sendHeartbeat"));
+        return;
+    }
+
+    sendTextToClient(hearbeatChain);
+    lastHeartbeatSend = millis();
+    Serial.printf("nextHeartbeatToSend: %lu\r\n", lastHeartbeatSend + HEARTBEAT_DELAY);
+    if (reset && heartbeatReceive){
+        heartbeatReceive = false;
+    }
+    
+    if (showHeartbeatMessages){
+        Serial.printf("%lu:: Heartbeat sent\r\n", millis());
+    } 
+
+    if  (millis() > heartbeatTimeout){
+        Serial.printf("%lu:: late hearbeat send\r\n", millis());
+    } 
+    heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
+    xSemaphoreGive(webSocketMutex);
 }
 
 void BorneUniverselle::sendTextToClient(char *text){
-    const uint32_t QUEUE_TIMEOUT_MS = 1000; // 1 seconde
+    const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
 
+    if (!isClientConnected() || client == nullptr){
+        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
+        return;
+    }
+
     // Attendre que la queue se libère avec un timeout
-    while (isClientConnected() && client != nullptr && client->queueIsFull()) {
+    while (client->queueIsFull()) {
         if (millis() - startTime > QUEUE_TIMEOUT_MS) {
             Serial.println(F("WebSocket queue full timeout - message dropped"));
             return;
@@ -489,9 +494,9 @@ void BorneUniverselle::sendTextToClient(char *text){
         if (strlen(text) < SOCKET_MESSAGE_MAX_SIZE){
             client->text(text);
         } else {
-            text[128];
-            sprintf(text, "Try to send more than 20 Kb to the web socket");
-           setPlcBroken(text);
+            char buff[128];
+            sprintf(buff, "Try to send more than 20 Kb to the web socket");
+           setPlcBroken(buff);
         }
     } else {
         Serial.println("WARNING ! Try to send something to web client but no client is connected !");
@@ -551,14 +556,8 @@ void BorneUniverselle::sendMessage() {
         return;
     }
     
-
-    if (!isClientConnected() || millis() - clientConnectedAt <= 1000 || notifMessagesList.isEmpty()) {
+    if (!isClientConnected() || notifMessagesList.isEmpty()) {
         xSemaphoreGive(notifMutex);
-        return;
-    }
-   
-    if (xSemaphoreTake(notifMutex, portMAX_DELAY) != pdTRUE) {
-        Serial.println(F("BorneUniverselle::sendMessage, failed to acquire notifMutex"));
         return;
     }
 
@@ -910,9 +909,13 @@ void BorneUniverselle::handleWebSocketMessage() {
         }
 
         // Notez que j'ai ajouté !isClientConnected() et client == nullptr dans la vérification
-        if (!isClientConnected() || client == nullptr || client->queueIsFull() || !isAllInputsReadOnce()) {
-            Serial.println(F("Client is not connected or queue is full or all inputs are not read once"));
+        if (!isClientConnected() || client == nullptr || client->queueIsFull() ) {
+            Serial.println(F("handleWebSocketMessage: client is not connected or queue is full "));
             return;
+        }
+
+        if (!isAllInputsReadOnce()){
+            Serial.println("handleWebSocketMessage: all inputs are not read once");
         }
 
         if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(50))) {
@@ -1045,19 +1048,10 @@ void BorneUniverselle::setInitialStateLoadedCallback(std::function<void()> callb
 }
 
 void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
-    if (socketDoc[PATH].isNull()) {
-        Serial.printf("BorneUniverselle::handleSaveFile: path key: %s is missing\r\n", PATH);
-        return;
-    }
-    String path = socketDoc[PATH]; 
+    const char* path = socketDoc["saveFile"][0][PATH]; // "/interface.json"
+    const char* data = socketDoc["saveFile"][0][DATA]; // "le contenue du fichier à enregistrer"
 
-    if (socketDoc[DATA].isNull()) {
-        Serial.printf("BorneUniverselle::handleSaveFile: data key: %s is missing\r\n", DATA);
-        return;
-    }
-    String data = socketDoc[DATA];
-
-    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u, data: %s\r\n", path.c_str(), data.length(), data.c_str());
+    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u, data: %s\r\n", path, data.length(), data);
 
     File file = LittleFS.open(path, FILE_WRITE);
     char buff[256]; 
@@ -1069,7 +1063,7 @@ void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
     } 
     file.print(data);
     file.close();
-    sprintf(buff, "File: %s saved with success\r\n", path.c_str());
+    sprintf(buff, "File: %s saved with success\r\n", path);
     prepareMessage(SUCCESS, buff);    
 }
 
@@ -1100,6 +1094,7 @@ void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
 
 void BorneUniverselle::handleGetAllValues(){
     notifyWebClient(true);
+    Serial.printf("%lu:: BorneUniverselle::handleGetAllValues, end\r\n", millis());
 }
 
 void BorneUniverselle::handleGetValue(uint32_t hash){
@@ -2289,6 +2284,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     }
 
     uint32_t start = millis();
+    uint32_t lastCheck = millis();
     //Serial.printf("%u:: start notifyWebClient\r\n", millis());
     bool hasTosend = false;
     //char mess[1024];
@@ -2336,7 +2332,13 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
 
             //Serial.printf("Will notify for node: %s\r\n", node->getName());
         }
-        yield();
+
+        if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
+            Serial.println(F("Refresh:: will check heartbeat and Websocket message"));
+            checkHeartbeat();
+            lastCheck = millis();
+            vTaskDelay(1);
+        }
     } 
 
     if (hasTosend){
@@ -2368,7 +2370,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             }
             
             free(chain);
-            Serial.println(F("End web notify\r\n"));
+            Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
         }
 
         if (millis() - start > 300){ 
