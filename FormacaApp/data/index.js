@@ -8477,6 +8477,20 @@ class TxDropdown extends ConnectedElement {
         // Bind the event handler to the class instance
         this.handleItemClick = this.handleItemClick.bind(this);
     }
+    async connectedCallback() {
+      super.connectedCallback();
+      await this.initializeDropdown();
+    }
+  
+    async initializeDropdown() {
+        // Attendre que le descriptor soit disponible
+        if (!this._descriptor) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            return this.initializeDropdown();
+        }
+        this.updateFromDescriptor();
+        this.menu.addEventListener('sl-select', this.handleItemClick);
+    }
 
     connectedCallback() {
         this.updateFromDescriptor();
@@ -8490,21 +8504,24 @@ class TxDropdown extends ConnectedElement {
     }
 
     updateFromDescriptor() {
-        if (this._descriptor) {
-            this.name = this._descriptor.name || "Selection";
-            this.items = this._descriptor.items || [];
-            
-            // Check for default value in descriptor
-            if (this._descriptor.default && this.items.includes(this._descriptor.default)) {
-                this.selectedValue = this._descriptor.default;
-                this.buttonTitle.textContent = this.selectedValue;
-            } else {
-                this.buttonTitle.textContent = this.name;
-            }
-            
-            this.populateMenu();
+    if (this._descriptor) {
+        this.name = this._descriptor.name || "Selection";
+        this.items = this._descriptor.items || [];
+        
+        // Si on a une valeur courante dans le descriptor, l'utiliser
+        if (this._descriptor.value) {
+            this.selectedValue = this._descriptor.value;
+            this.buttonTitle.textContent = this.selectedValue;
+        } else if (this._descriptor.default && this.items.includes(this._descriptor.default)) {
+            this.selectedValue = this._descriptor.default;
+            this.buttonTitle.textContent = this.selectedValue;
+        } else {
+            this.buttonTitle.textContent = this.name;
         }
+        
+        this.populateMenu();
     }
+}
 
     populateMenu() {
         this.menu.innerHTML = '';
