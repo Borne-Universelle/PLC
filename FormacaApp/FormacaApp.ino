@@ -387,10 +387,13 @@ void loop() {
       Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
     }
 
-    bu->notifyWebClient(); // notify only changed nodes         
+    bu->notifyWebClient(); // notify only changed nodes      
   }  
-    
-  bu->sendMessage();
+   
+  if (!bu->sendMessage()){
+    Serial.println("Unable to send a message to the client");
+  }
+
   ws.cleanupClients();
   if (millis() - start > 1500){
     Serial.printf("Lopp time: %lu\r\n", millis() - start);

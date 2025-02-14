@@ -264,13 +264,15 @@ void BorneUniverselle::refresh(){
             prepareMessage(WARNING, mess);
         }
 
+        //checkHeartbeat();
+        
+
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
             Serial.println(F("Refresh:: will check heartbeat and Websocket message"));
             checkHeartbeat();
             lastCheck = millis();
             // on a peut etre reçu un hearbeat   
             handleWebSocketMessage();
-            vTaskDelay(1);
         }
 
         vTaskDelay(1);
@@ -454,9 +456,13 @@ void BorneUniverselle::sendHeartbeat(bool reset){
         return;
     }
 
-    sendTextToClient(hearbeatChain);
-    lastHeartbeatSend = millis();
-    Serial.printf("nextHeartbeatToSend: %lu\r\n", lastHeartbeatSend + HEARTBEAT_DELAY);
+    if (sendTextToClient(hearbeatChain)){
+        lastHeartbeatSend = millis();
+        Serial.printf("nextHeartbeatToSend: %lu\r\n", lastHeartbeatSend + HEARTBEAT_DELAY);
+    } else {
+        Serial.println("sendHeartbeat: unable to send text to client");
+    }
+
     if (reset && heartbeatReceive){
         heartbeatReceive = false;
     }
@@ -472,34 +478,31 @@ void BorneUniverselle::sendHeartbeat(bool reset){
     xSemaphoreGive(webSocketMutex);
 }
 
-void BorneUniverselle::sendTextToClient(char *text){
+bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
-
-    if (!isClientConnected() || client == nullptr){
-        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
-        return;
-    }
 
     // Attendre que la queue se libère avec un timeout
     while (client->queueIsFull()) {
         if (millis() - startTime > QUEUE_TIMEOUT_MS) {
             Serial.println(F("WebSocket queue full timeout - message dropped"));
-            return;
+            return false;
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
-    } return;
+    }
+
+    if (!isClientConnected() || client == nullptr){
+        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
+        return false;
+    }
     
-    if (isClientConnected() && client != nullptr){
-        if (strlen(text) < SOCKET_MESSAGE_MAX_SIZE){
-            client->text(text);
-        } else {
-            char buff[128];
-            sprintf(buff, "Try to send more than 20 Kb to the web socket");
-           setPlcBroken(buff);
-        }
+    if (strlen(text) < SOCKET_MESSAGE_MAX_SIZE){
+        client->text(text);
+        return true;
     } else {
-        Serial.println("WARNING ! Try to send something to web client but no client is connected !");
+        char buff[128];
+        sprintf(buff, "Try to send more than %u Kb to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
+        return false;
     }
 }
 
@@ -545,20 +548,20 @@ void BorneUniverselle::setShowHeartbeatMessages(bool status){
     showHeartbeatMessages = status;
 }
 
-void BorneUniverselle::sendMessage() { 
+bool BorneUniverselle::sendMessage() { 
     if (ESP.getFreeHeap() < 4096) {
        setPlcBroken(" BorneUniverselle::sendMessage, low memory...");
-        return;
+        return false;
     }
 
     if (xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         Serial.println(F("BorneUniverselle::sendMessage, failed to acquire notifMutex"));
-        return;
+        return false;
     }
     
     if (!isClientConnected() || notifMessagesList.isEmpty()) {
         xSemaphoreGive(notifMutex);
-        return;
+        return true;
     }
 
     NOTIF_MESSAGE *notifMessage = notifMessagesList.front();
@@ -567,7 +570,7 @@ void BorneUniverselle::sendMessage() {
         Serial.println(F("BorneUniverselle::sendMessage, invalid notification message"));
         notifMessagesList.remove(notifMessage);
         xSemaphoreGive(notifMutex);
-        return;
+        return false;
     }
 
         // Vérification supplémentaire du message
@@ -575,7 +578,7 @@ void BorneUniverselle::sendMessage() {
         Serial.println(F("BorneUniverselle::sendMessage, invalid message content"));
         notifMessagesList.remove(notifMessage);
         xSemaphoreGive(notifMutex);
-        return;
+        return false;
     }
 
     JsonDocument doc;
@@ -600,7 +603,7 @@ void BorneUniverselle::sendMessage() {
             notifMessagesList.remove(notifMessage);
             xSemaphoreGive(notifMutex);
             setPlcBroken("Failed to allocate memory for truncated message");
-            return;
+            return false;
         }
     
         // Copier en limitant à MAX_MESSAGE_LENGTH caractères
@@ -623,20 +626,24 @@ void BorneUniverselle::sendMessage() {
         notifMessagesList.remove(notifMessage);
         xSemaphoreGive(notifMutex);
         setPlcBroken("BorneUniverselle::sendMessage, failed to allocate memory for Json message");
-        return;
+        return false;
     }
 
     serializeJson(doc, chain, len);
-    notifMessagesList.remove(notifMessage);
-    sendTextToClient(chain);
     
+    if (!sendTextToClient(chain)){
+        Serial.println("SendMEssage: unable to send text to client");
+        return false;
+    }
+
+    notifMessagesList.remove(notifMessage);
     xSemaphoreGive(notifMutex);
-    sendTextToClient(chain);
     
     free(chain);
     if (tempMessage) {
         free(tempMessage);
     }
+    return true;
 }
 
 void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
@@ -1051,13 +1058,13 @@ void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
     const char* path = socketDoc["saveFile"][0][PATH]; // "/interface.json"
     const char* data = socketDoc["saveFile"][0][DATA]; // "le contenue du fichier à enregistrer"
 
-    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u, data: %s\r\n", path, data.length(), data);
+    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u, data: %s\r\n", path, strlen(data), data);
 
     File file = LittleFS.open(path, FILE_WRITE);
     char buff[256]; 
     if (!file || file.size() == 0){ 
         file.close();
-        sprintf(buff, "BorneUniverselle::handleSaveFile:: Unable to open file: %s\r\n", path.c_str());
+        sprintf(buff, "BorneUniverselle::handleSaveFile:: Unable to open file: %s\r\n", path);
         prepareMessage(ERROR, buff);
         return;
     } 

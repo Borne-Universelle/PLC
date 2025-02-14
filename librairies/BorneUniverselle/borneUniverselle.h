@@ -36,7 +36,7 @@ const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 #define TOSTRING(x) STRINGIFY(x)
 
 #define NAME_LENGHT                 80
-#define MAX_MESSAGE_LENGTH          100
+#define MAX_MESSAGE_LENGTH          200
 
 // errors messages send to js
 
@@ -200,7 +200,7 @@ class BorneUniverselle{
         static void prepareMessage(uint8_t type, const char *text); // send message to web socket
         static bool getIsKinconyA8S();
         void printConfigFile();
-        void sendMessage();
+        bool sendMessage();
         bool isPlcBroken();
         static void setPlcBroken(const char *context);
         void tooMuchClients(AsyncWebSocketClient *client);
@@ -214,7 +214,7 @@ class BorneUniverselle{
         static void refresHardwareInputs();
         bool isWebSocketMessagesListMoreThanHalf();
         bool isAllInputsReadOnce();
-        static void sendTextToClient(char *text);
+        static bool sendTextToClient(char *text);
         static std::map<uint32_t, Node *> getNodesMap();
         float getConfigVersion(){
             return projectVersion;
