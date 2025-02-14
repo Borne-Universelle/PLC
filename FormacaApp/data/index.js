@@ -6610,9 +6610,7 @@ template$f.innerHTML = `
         @import url("static/css/style.css")
     </style>
     <div class="card">
-        <h2>Section title</h2>
-        <div class="details row">
-           
+        <div class="details row"> 
         </div>
         <div class="children">
         </div>
@@ -6656,11 +6654,7 @@ class HwDock extends HTMLElement {
 
   render(){
       let $template = template$f.content.cloneNode(true);
-      // Set values
-      $template.querySelector("h2").innerText = this._descriptor.name;
-      //$template.querySelector(".hardware").innerText = this._descriptor.hardware
-      //$template.querySelector(".type").innerText = this._descriptor.type
-      // Append children
+
       this.children.map((child) => {
           $template.querySelector(".children").appendChild(child);
       });

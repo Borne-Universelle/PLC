@@ -659,6 +659,12 @@ void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
 
 
 void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
+    // Protection contre les pointeurs nuls ou textes vides
+    if (!text || !*text) {
+        Serial.println(F("Empty message discarded"));
+        return;
+    }
+
     // on discard les warning messages si il n'y a pas de client connecté..
     if (!isClientConnected()){
         switch (type) {
@@ -680,50 +686,51 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
     }
 
     // Prendre le mutex avant de tester la longueur
-    if (xSemaphoreTake(notifMutex, portMAX_DELAY) != pdTRUE) {
+    if (xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         Serial.println(F("Failed to acquire notifMutex in prepareMessage"));
         return;
     }
 
-    if (notifMessagesList.length() < MAX_MESSAGES_PENDING) { 
-        NOTIF_MESSAGE *notif = new NOTIF_MESSAGE;
-        if (!notif) {
-            xSemaphoreGive(notifMutex);
-            Serial.println(F("malloc failed for notif message structure"));
-            return;
-        }
+    MutexGuard guard(notifMutex); // // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
 
-        notif->severity = type;
-
-         // Calculate required message length, ensuring space for null terminator
-        size_t messageLength = strlen(text);
-        size_t finalLength = messageLength < MAX_MESSAGE_LENGTH ? messageLength : MAX_MESSAGE_LENGTH - 1;
-
-        notif->message = (char *)malloc(finalLength + 1);
-        
-        if (notif->message) {
-            strncpy(notif->message, text, finalLength);
-            notif->message[finalLength] = '\0';
-
-            if (messageLength > MAX_MESSAGE_LENGTH) {
-                Serial.printf("BorneUniverselle::prepareMessage, message truncated: %s, max message size: %u\r\n", notif->message, MAX_MESSAGE_LENGTH);
-            }
-
-            notifMessagesList.add(notif);
-            if (notifMessagesList.length() > MAX_MESSAGES_PENDING / 2) {
-                Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
-            }
-        } else {
-            delete notif;
-            Serial.printf("prepareMessage:: Unable to alloc memory for the message, message size: %d\r\n", 
-                strlen(text));
-        }
-    } else {
-        Serial.println(F("prepareMessage:: the queue notifMessagesList is full !"));
+    if (notifMessagesList.length() >= MAX_MESSAGES_PENDING) { 
+        Serial.println(F("Message queue full, discarding message"));
+        return;
     }
 
-    // Relâcher le mutex
-    xSemaphoreGive(notifMutex);
+    NOTIF_MESSAGE *notif = new NOTIF_MESSAGE;
+    if (!notif) {
+        Serial.println(F("malloc failed for notif message structure"));
+        return;
+    }
+
+    // Calcul de la longueur finale
+    size_t messageLength = strlen(text);
+    size_t finalLength = messageLength < MAX_MESSAGE_LENGTH ? messageLength : MAX_MESSAGE_LENGTH - 1;
+
+    notif->message = static_cast<char*>(malloc(finalLength + 1));
+    if (!notif->message) {
+        delete notif;
+        Serial.println(F("Failed to allocate message buffer"));
+        return;
+    }
+
+    // Configuration du message
+    notif->severity = type;
+    strncpy(notif->message, text, finalLength);
+    notif->message[finalLength] = '\0';
+
+    // Logging si le message a été tronqué
+    if (messageLength > MAX_MESSAGE_LENGTH) {
+        Serial.printf("Message truncated from %u to %u characters\n", messageLength, MAX_MESSAGE_LENGTH);
+    }
+
+    notifMessagesList.add(notif);
+
+    if (notifMessagesList.length() > MAX_MESSAGES_PENDING / 2) {
+        Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
+    }
+        
 }
 
 bool BorneUniverselle::setName(const char *_name, bool check){
@@ -763,7 +770,6 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
     return isMoreThanHalf;
 }
 
-// Nouveau code pour la gestion des messages WebSocket
 void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client) {
     if (isPlcBroken()){
         if (!noPLC_BrokenMessage){
@@ -823,37 +829,41 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
         uint8_t attempts = 0;
         
         while (attempts++ < MAX_MUTEX_ATTEMPTS) {
-            // Add yield before mutex attempt
             vTaskDelay(1);
             if (xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                if (webSocketMessageLength < MAX_MESSAGES_PENDING) {
+                if (webSocketMessagesList.length() < MAX_MESSAGES_PENDING) {  // Utiliser length() directement
                     WEB_SOCKET_MESSAGE *webSocketMessage = new WEB_SOCKET_MESSAGE;
+                    if (!webSocketMessage) {  // Vérifier l'allocation
+                        xSemaphoreGive(webSocketMutex);
+                        Serial.println(F("Failed to allocate webSocketMessage"));
+                        continue;
+                    }
+        
                     webSocketMessage->arg = _arg;
                     webSocketMessage->len = _len;
                     webSocketMessage->client = _client;
                     webSocketMessage->data = dataCopy;
                     webSocketMessage->timeOfOrigine = millis();
-
+        
                     webSocketMessagesList.add(webSocketMessage);
                     messageAdded = true;
-
-                    xSemaphoreGive(webSocketMutex);
                     webSocketMessageLength++;
-                    break;  // On sort de la boucle car succès
                 } else {
                     Serial.println(F("Message list full"));
-                    break;  // Liste pleine, inutile de réessayer
                 }
                 
                 xSemaphoreGive(webSocketMutex);
+                if (messageAdded) {
+                    break;
+                }
             }
             
-            vTaskDelay(1);  // Petit délai avant nouvelle tentative
+            vTaskDelay(1);
             Serial.printf("Attempt %d to take mutex\n", attempts);
         }
         
         // Si le message n'a pas été ajouté, on libère la mémoire
-        if (!messageAdded) {
+        if (!messageAdded) { 
             free(dataCopy);
             Serial.printf("Failed to process message after %d attempts\n", attempts);
         }

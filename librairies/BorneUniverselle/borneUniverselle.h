@@ -227,6 +227,20 @@ class BorneUniverselle{
 
 
     private:
+        class MutexGuard {
+            SemaphoreHandle_t& mutex;
+            
+            // Empêcher la copie
+            MutexGuard(const MutexGuard&) = delete;
+            MutexGuard& operator=(const MutexGuard&) = delete;
+        
+        public:
+            explicit MutexGuard(SemaphoreHandle_t& m) : mutex(m) {}
+            ~MutexGuard() { xSemaphoreGive(mutex); }
+        };
+
+
+
         static char name[NAME_LENGHT];
         static char ota_url[OTA_URL_SIZE];
         static uint32_t  wifiStartupTime;
