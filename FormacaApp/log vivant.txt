@@ -1,0 +1,280 @@
+rst:0xc (SW_CPU_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 153911750, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:1184
+load:0x40078000,len:13260
+load:0x40080400,len:3028
+entry 0x400805e4
+
+
+
+Starting Formaca....
+Will start BorneUniverselle library...
+Borne Universelle 2.2.0
+Reboot history
+*************
+[
+  {
+    "reason": "Software reset"
+  }
+]
+End of reboot history
+
+BorneUniverselle constructor
+PSRAM is not available !
+Will parse config
+Project name: Formaca
+Project version: 2.00
+Item with dhcp
+New nb network: 1
+Item with dhcp
+New nb network: 2
+Item with dhcp
+New nb network: 3
+Fixed address
+SSID: Formaca Tigger stop successfuly added, connexion name: Routeur Formaca ip: 10.10.10.11, dns: 10.10.10.10, gateway: 10.10.10.10, mask: 255.255.255.0 New nb network: 4
+ota_url: truc
+Section name: Direct outputs
+hardware: Kincony_KC868_A8S
+type: tx-bool
+Card is an Kincony A8S, pin 2 must be set after go ip
+I2C bus is initialised
+Bus I2C initialized
+Try to initialise Modbus
+RS485 speed: 57600, rx pin: 32, tx pin: 33 config: 134217788
+Modbus RTU timeout: 101
+MyModbus timeout: 101 ms
+InterframeTime: 1750 [us]
+Modbus initialized
+Will set pin 2 as output
+Node Direct outputs/1 created with succes (ESP32 pin 2) with type HardwareBooleanOutputNode and hash: 1711197005
+Section name: Inputs
+hardware: Kincony_KC868_A8S
+type: PF8574_rx-bool
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+PF8574BooleanInputNode::RefreshInterval for node Inputs/1 is 0
+Node Inputs/1 created with succes with type PF8574BooleanInputNode and hash: 645363011, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs/2 is 0
+Node Inputs/2 created with succes with type PF8574BooleanInputNode and hash: 396324830, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs/7 is 0
+Node Inputs/7 created with succes with type PF8574BooleanInputNode and hash: 1168588921, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs/6 is 0
+Node Inputs/6 created with succes with type PF8574BooleanInputNode and hash: 3822078925, refresh interval: 0, web refresh interval: 0
+Section name: Outputs
+hardware: Kincony_KC868_A8S
+type: PF8574_tx-bool
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+Node Outputs/1 created with succes with type PF8574BooleanOutputNode and hash: 1927398708
+Node Outputs/2 created with succes with type PF8574BooleanOutputNode and hash: 4235117271
+Node Outputs/3 created with succes with type PF8574BooleanOutputNode and hash: 818201161
+Node Outputs/4 created with succes with type PF8574BooleanOutputNode and hash: 973196112
+Node Outputs/5 created with succes with type PF8574BooleanOutputNode and hash: 4138453966
+Section name: Jog
+hardware: virtual
+type: tx-bool
+Node Jog/1 created (VirtualBooleanOutputNode) with succes, hash: 627952477
+Node Jog/2 created (VirtualBooleanOutputNode) with succes, hash: 936928435
+Node Jog/3 created (VirtualBooleanOutputNode) with succes, hash: 2405696470
+Node Jog/4 created (VirtualBooleanOutputNode) with succes, hash: 313736047
+Node Jog/5 created (VirtualBooleanOutputNode) with succes, hash: 2853133322
+Node Jog/6 created (VirtualBooleanOutputNode) with succes, hash: 3099259876
+Node Jog/7 created (VirtualBooleanOutputNode) with succes, hash: 431233
+Node Jog/8 created (VirtualBooleanOutputNode) with succes, hash: 1483048151
+Node Jog/9 created (VirtualBooleanOutputNode) with succes, hash: 3772375986
+Node Jog/10 created (VirtualBooleanOutputNode) with succes, hash: 3874886927
+Section name: Status
+hardware: virtual
+type: tx-bool
+Node Status/1 created (VirtualBooleanOutputNode) with succes, hash: 1578545169
+Node Status/2 created (VirtualBooleanOutputNode) with succes, hash: 1878960780
+Node Status/3 created (VirtualBooleanOutputNode) with succes, hash: 3381240120
+Node Status/4 created (VirtualBooleanOutputNode) with succes, hash: 204382134
+Node Status/5 created (VirtualBooleanOutputNode) with succes, hash: 2857997314
+Node Status/7 created (VirtualBooleanOutputNode) with succes, hash: 1036420395
+Node Status/9 created (VirtualBooleanOutputNode) with succes, hash: 1845100150
+Node Status/10 created (VirtualBooleanOutputNode) with succes, hash: 1229514833
+Node Status/11 created (VirtualBooleanOutputNode) with succes, hash: 4013941733
+Node Status/12 created (VirtualBooleanOutputNode) with succes, hash: 3738696056
+Node Status/13 created (VirtualBooleanOutputNode) with succes, hash: 2023813836
+Node Status/14 created (VirtualBooleanOutputNode) with succes, hash: 3171404866
+Node Status/15 created (VirtualBooleanOutputNode) with succes, hash: 460376054
+Node Status/16 created (VirtualBooleanOutputNode) with succes, hash: 714661227
+Section name: Inputs
+hardware: virtual
+type: tx-uint32
+Node Inputs/3 created (VirtualUint32OutputNode) with succes, hash: 2984797290
+Node Inputs/4 created (VirtualUint32OutputNode) with succes, hash: 1951357668
+Node Inputs/5 created (VirtualUint32OutputNode) with succes, hash: 3526906192
+Node Inputs/7 created (VirtualUint32OutputNode) with succes, hash: 1168588921
+Node Inputs/8 created (VirtualUint32OutputNode) with succes, hash: 3018797200
+Node Inputs/9 created (VirtualUint32OutputNode) with succes, hash: 362298148
+Node Inputs/9 created (VirtualUint32OutputNode) with succes, hash: 362298148
+Node Inputs/10 created (VirtualUint32OutputNode) with succes, hash: 824782083
+Section name: Floats Inputs
+hardware: virtual
+type: tx-float
+Node Floats Inputs/1 created (VirtualFloatOutputNode) with succes, hash: 3749283751
+Node Floats Inputs/2 created (VirtualFloatOutputNode) with succes, hash: 2736300668
+Node Floats Inputs/2 created (VirtualFloatOutputNode) with succes, hash: 2736300668
+Node Floats Inputs/3 created (VirtualFloatOutputNode) with succes, hash: 1041711882
+Node Floats Inputs/4 created (VirtualFloatOutputNode) with succes, hash: 1541073354
+Node Floats Inputs/5 created (VirtualFloatOutputNode) with succes, hash: 3335850172
+Node Floats Inputs/6 created (VirtualFloatOutputNode) with succes, hash: 3132370279
+Section name: DropDown Inputs
+hardware: virtual
+type: tx-text
+Node DropDown Inputs/1 created (VirtualTextOutputNode) with succes, hash: 2565368844
+Section name: Servo read holding register
+hardware: SureServo
+type: ModbusReadHoldingRegister
+Modbus initialized
+Node Servo read holding register/1 created with succes with type ModbusReadHoldingRegister, hash: 4137233651, address: 127, offset: 92, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/2 created with succes with type ModbusReadHoldingRegister, hash: 4098304980, address: 127, offset: 100, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/3 created with succes with type ModbusReadHoldingRegister, hash: 4126332617, address: 127, offset: 2, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/4 created with succes with type ModbusReadHoldingRegister, hash: 4059768218, address: 127, offset: 1294, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/5 created with succes with type ModbusReadHoldingRegister, hash: 4031699079, address: 127, offset: 1034, refresh interval: 0, web refresh interval 0
+Section name: Servo write holding register
+hardware: SureServo
+type: ModbusWriteHoldingRegister
+Modbus initialized
+Node Servo write holding register/1 created with succes with type ModbusWriteHoldingRegister, hash: 2308213873, address: 127, offset: 572
+Node Servo write holding register/2 created with succes with type ModbusWriteHoldingRegister, hash: 748480285, address: 127, offset: 1294
+Node Servo write holding register/4 created with succes with type ModbusWriteHoldingRegister, hash: 3187488644, address: 127, offset: 1034
+Node Servo write holding register/5 created with succes with type ModbusWriteHoldingRegister, hash: 3740987040, address: 127, offset: 370
+Section name: Num Status
+hardware: SureServo
+type: ModbusReadDobbleHoldingRegister
+Modbus initialized
+Node Num Status/1 created with succes with type ModbusReadDoubleHoldingRegisters, hash: 4045003206, address: 127, offset: 22, refresh interval: 1000, web refresh interval 0
+Node Num Status/3 created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2843041799, address: 127, offset: 1542, refresh interval: 0, web refresh interval 0
+Node Num Status/4 created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2152625540, address: 127, offset: 1546, refresh interval: 0, web refresh interval 0
+Node Num Status/5 created with succes with type ModbusReadDoubleHoldingRegisters, hash: 1103145540, address: 127, offset: 1540, refresh interval: 0, web refresh interval 0
+Node Num Status/6 created with succes with type ModbusReadDoubleHoldingRegisters, hash: 3626159173, address: 127, offset: 1550, refresh interval: 0, web refresh interval 0
+Section name: Servo write dobble holding registers
+hardware: SureServo
+type: ModbusWriteDobbleHoldingRegister
+Modbus initialized
+Node Servo write dobble holding registers/1 created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2532989225, address: 127, offset: 1542
+Node Servo write dobble holding registers/2 created with succes with type ModbusWriteDoubleHoldingRegister, hash: 3432736329, address: 127, offset: 1546
+Node Servo write dobble holding registers/3 created with succes with type ModbusWriteDoubleHoldingRegister, hash: 1282109782, address: 127, offset: 1540
+Node Servo write dobble holding registers/4 created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2019104905, address: 127, offset: 1544
+Node Servo write dobble holding registers/5 created with succes with type ModbusWriteDoubleHoldingRegister, hash: 4171829142, address: 127, offset: 1548
+Node Servo write dobble holding registers/6 created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2731028726, address: 127, offset: 1550
+PLC_InterfaceMenu initialized
+Will parse the interface file
+LittleFS monté avec succès
+JSON parsing successful - parsing nodes
+Found 2 pages
+Page: Page principale
+Will parse section: Section principale
+Found 2 nodes in section Section principale
+Page: Monitoring
+Will parse section: Section principale
+Found 2 nodes in section Section principale
+Interface file parsed with success
+Loop on nodes to set node name from the interface file
+Node name set: Section principale/Choix Recette
+Node name set: Section principale/StartCycle
+Node name set: Section principale/capteur pression air
+Node name set: Section principale/capteur cylindres
+List of files in the root directory:
+Formaca.json
+config.json
+config.old.json
+index.html
+index.js
+interface.json
+reboot_log.json
+End of BorneUniversel constuctor, nb nodes: 67
+Constructeur class Formaca
+Recette name: 11 7/8
+Machine name received: Formaca scie, machine name ref: Formaca scie
+Persistance parameters
+----------------------
+Home position: 700
+Référence: 3101409
+Longeur brute: 96.00
+Offset parque: 0.50
+Longeur du rebut: 6.00
+Butée droite: 97.00
+Nb recettes: 1
+Recettes
+--------
+    Name: 11 7/8
+    Long lenght: 11.88
+    Angle: 45.00
+    Width: 3.50
+
+Will get next wifi network
+Current wifi: Mexique, item: 0
+Try to connect to: Mexique, SSID: PosadaLaHacienda, PWD: Chispas2020
+Wifi is with DHCP
+Server static no cache
+Input node: Section principale/capteur pression air is up now
+2740:: node: Section principale/capteur pression air, new value: true
+Input node: Inputs/1 is up now
+2754:: node: Inputs/1, new value: true
+2770:: node: Num Status/5, new value: 983042
+2790:: node: Num Status/4, new value: 700
+2804:: node: Num Status/3, new value: 3170039
+2824:: node: Num Status/6, new value: 3170039
+2838:: node: Servo read holding register/5, new value: 100
+2846:: node: Num Status/1, new value: 4294967295
+2874:: node: Servo read holding register/1, new value: 5
+Servo ready: true
+Target position reached: false
+Servo alarm: false
+Home done: false
+2879::logiqueExecutor: phase: 0
+New lowest free heap: 205448 bytes
+New lowest free PSRAM: 0 bytes
+2940:: Uint16OutputNode::node: Servo write holding register/1, new value: 5
+3018::logiqueExecutor: phase: 1
+3137:: node: Servo read holding register/1, new value: 151
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: false
+3141::logiqueExecutor: phase: 2
+3274::logiqueExecutor: phase: 3
+Servo drive initailised, will read values and prepare interface
+--------------------------------------------------------------
+Jog speed lu: 100
+Uint32OutputNode:: setValue for node: Inputs/3: 100
+Uint32OutputNode:: setValue for node: Inputs/4: 15
+New user speed: 15. Will set register with value 0x000f0002
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/3: 983042
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/4: 983042
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/5: 983042
+3316:: SUCCESS: Cycle speed updated
+PR1 speed lue du drive et isolée: 15
+Uint32OutputNode:: setValue for node: Inputs/5: 100
+3336:: SUCCESS: Servo drive initialised
+--------------------------------------------------------------
+3369:: Uint32OutputNode::node: Servo write dobble holding registers/3, new value: 983042
+3377:: Uint32OutputNode::node: Inputs/4, new value: 15
+3385:: Uint32OutputNode::node: Servo write dobble holding registers/4, new value: 983042
+3411:: Uint32OutputNode::node: Inputs/3, new value: 100
+3420:: Uint32OutputNode::node: Inputs/5, new value: 100
+3436:: Uint16OutputNode::node: Servo write holding register/5, new value: 100
+3484:: Uint32OutputNode::node: Servo write dobble holding registers/5, new value: 983042
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: Alexis, item: 1
+Try to connect to: Alexis, SSID: TELUSAFF7, PWD: h6vJ96UKmUr7
+Wifi is with DHCP
+New lowest free heap: 204784 bytes
+5966:: Connected to AP successfully, SSID: TELUSAFF7, level: -48 [dB]
+New lowest free heap: 204320 bytes
+WiFi connected, IP address: 192.168.1.92, level: -50 [dB]
+mDNS responder started: address is: Formaca.local
+Web server started !
+New lowest free heap: 180100 bytes
+New lowest free heap: 179960 bytes
+New lowest free heap: 179820 bytes
+New lowest free heap: 177536 bytes
