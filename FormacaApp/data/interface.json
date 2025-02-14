@@ -12,12 +12,13 @@
                             "name": "Choix Recette",
                             "component": "tx-dropdown",
                             "items": [],
+                            "default": "11 7/8",
                             "hash": 2565368844
                         },
                         {
                             "name": "StartCycle",
-                            "component": "rx-indicator",
-                            "color": "green",
+                            "component": "tx-button-hold",
+                            "color": "success",
                             "hash": 3822078925
                         }
                     ]
