@@ -55,7 +55,7 @@
       ]
     },
     {
-      "name": "Inputs",
+      "name": "Inputs Kincony",
       "hardware": "Kincony_KC868_A8S",
       "type": "PF8574_rx-bool",
       "children": [
@@ -63,55 +63,55 @@
           "id": 1,
           "name": "EStopA",
           "inverse": true,
-          "hash": 645363011
+          "hash": 721063196
         },
         {
           "id": 2,
           "name": "capteur pression air",
-          "hash": 396324830
+          "hash": 998762341
         },
         {
           "id": 7,
           "name": "capteur cylindres",
-          "hash": 1168588921
+          "hash": 134240750
         },
         {
           "id": 6,
           "name": "StartCycle",
-          "hash": 3822078925
+          "hash": 2986050054
         }
       ]
     },
     {
-      "name": "Outputs",
+      "name": "Outputs Kincony",
       "hardware": "Kincony_KC868_A8S",
       "type": "PF8574_tx-bool",
       "children": [
         {
           "id": 1,
           "name": "servoOn",
-          "hash": 1927398708
+          "hash": 2864105056
         },
         {
           "A supprimer": true,
           "id": 2,
           "name": "Do home",
-          "hash": 4235117271
+          "hash": 2206102162
         },
         {
           "id": 3,
           "name": "Flip flop scie",
-          "hash": 818201161
+          "hash": 756474627
         },
         {
           "id": 4,
           "name": "immediatStop",
-          "hash": 973196112
+          "hash": 3505331062
         },
         {
           "id": 5,
           "name": "alarmsReset",
-          "hash": 4138453966
+          "hash": 2122812135
         }
       ]
     },
@@ -173,7 +173,7 @@
       ]
     },
     {
-      "name": "Status",
+      "name": "Drive Status",
       "hardware": "virtual",
       "component": "hw-section",
       "type": "tx-bool",
@@ -182,72 +182,72 @@
           "id": 1,
           "name": "servoReady",
           "component": "rx-indicator",
-          "hash": 1578545169
+          "hash": 1948505786
         },
         {
           "id": 2,
           "name": "servoActivated",
-          "hash": 1878960780
+          "hash": 3387538036
         },
         {
           "id": 3,
           "name": "zeroSpeed",
-          "hash": 3381240120
+          "hash": 343892977
         },
         {
           "id": 4,
           "name": "targetSpeedRated",
-          "hash": 204382134
+          "hash": 1762420137
         },
         {
           "id": 5,
           "name": "AtTarget",
-          "hash": 2857997314
+          "hash": 3030039596
         },
         {
           "id": 7,
           "name": "servoAlarm",
-          "hash": 1036420395
+          "hash": 3569748327
         },
         {
           "id": 9,
           "name": "absolutPositionLost",
-          "hash": 1845100150
+          "hash": 773850583
         },
         {
           "id": 10,
           "name": "batteryAlarm",
-          "hash": 1229514833
+          "hash": 1101239736
         },
         {
           "id": 11,
           "name": "multipleTurnsOverflow",
-          "hash": 4013941733
+          "hash": 2620738621
         },
         {
           "id": 12,
           "name": "puuOverflow",
-          "hash": 3738696056
+          "hash": 570368243
         },
         {
           "id": 13,
           "name": "absoluteCoordonateNotSet",
-          "hash": 2023813836
+          "hash": 4234803574
         },
         {
           "id": 14,
           "name": "homeDone",
-          "hash": 3171404866
+          "hash": 2166030126
         },
         {
           "id": 15,
           "name": "modbusError",
-          "hash": 460376054
+          "hash": 1552688811
         },
         {
           "id": 16,
           "name": "driveInitialised",
-          "hash": 714661227
+          "hash": 3779480165
         }
       ]
     },
@@ -287,12 +287,12 @@
           "hash": 362298148
         },
         {
-          "id": 9,
+          "id": 10,
           "name": "v_start",
-          "hash": 362298148
+          "hash": 824782083
         },
         {
-          "id": 10,
+          "id": 11,
           "name": "Cancel cycle",
           "hash": 824782083
         }
@@ -314,27 +314,27 @@
           "hash": 2736300668
         },
         {
-          "id": 2,
-          "name": "Largeur",
-          "hash": 2736300668
-        },
-        {
           "id": 3,
-          "name": "Offset chargement",
+          "name": "Largeur",
           "hash": 1041711882
         },
         {
           "id": 4,
+          "name": "Offset chargement",
+          "hash": 1041711882
+        },
+        {
+          "id": 5,
           "name": "Longueur du rebut",
           "hash": 1541073354
         },
         {
-          "id": 5,
+          "id": 6,
           "name": "butée droite",
           "hash": 3335850172
         },
         {
-          "id": 6,
+          "id": 7,
           "name": "Position actuelle en inch",
           "hash": 3132370279
         }

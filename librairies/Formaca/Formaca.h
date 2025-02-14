@@ -13,10 +13,10 @@
 #define FORMACA01_H
 
 #define BUZZER 1711197005
-#define ESTOPA 645363011
-#define CAPTEUR_PRESSION_AIR        396324830
-#define STARTCYCLE                  3822078925
-#define SERVOON 1927398708
+#define ESTOPA 721063196
+#define CAPTEUR_PRESSION_AIR        998762341
+#define STARTCYCLE                  2986050054
+#define SERVOON 2864105056
 #define ALARMSRESET 4138453966
 #define JOG 627952477
 #define FWD 936928435
@@ -27,22 +27,22 @@
 #define GO_HOME_BUTTON              3099259876
 #define SCIER                       2853133322
 #define EJECT                       3772375986
-#define CYLINDER_CAPTOR             1168588921
+#define CYLINDER_CAPTOR             134240750
 
-#define SERVOREADY 1578545169
-#define SERVOACTIVATED 1878960780
-#define ZEROSPEED 3381240120
-#define TARGETSPEEDRATED 204382134
-#define ATTARGET 2857997314
-#define SERVOALARM 1036420395
-#define ABSOLUTE_POS_LOST 1845100150
-#define BATTERYALARM 1229514833
-#define MULTIPLETURNSOVERFLOW 4013941733
-#define PUUOVERFLOW 3738696056
-#define ABSOLUTECOORDONATENOTSET    2023813836
-#define HOMEDONE                    3171404866
-#define MODBUSERROR                 460376054
-#define DRIVEINITIALISED            714661227
+#define SERVOREADY 1948505786
+#define SERVOACTIVATED 3387538036
+#define ZEROSPEED 343892977
+#define TARGETSPEEDRATED 1762420137
+#define ATTARGET 3030039596
+#define SERVOALARM 3569748327
+#define ABSOLUTE_POS_LOST 773850583
+#define BATTERYALARM 1101239736
+#define MULTIPLETURNSOVERFLOW 2620738621
+#define PUUOVERFLOW 570368243
+#define ABSOLUTECOORDONATENOTSET    4234803574
+#define HOMEDONE                    2166030126
+#define MODBUSERROR                 1552688811
+#define DRIVEINITIALISED            3779480165
 
 #define V_JOG_SPEED                 2984797290
 #define VCYCLE_SPEED                1951357668
@@ -75,11 +75,11 @@
 #define PR1_SPEED                       1282109782
 #define PR2_SPEED                       2019104905
 #define PR3_SPEED                       4171829142
-#define DO_HOME                         3099259876
+#define DO_HOME                         2206102162
 
-#define IMMEDIATE_STOP          973196112
-#define ALARM_RESET             4138453966        // relais de reset des alarms
-#define FLIP_FLOP_SCIE          818201161
+#define IMMEDIATE_STOP          3505331062
+#define ALARM_RESET             2122812135        // relais de reset des alarms
+#define FLIP_FLOP_SCIE          756474627
 #define NB_CYCLES_CLEAR         362298148
 //#define USABLE_LENGTH           396324830 // ?
 #define JOG_FULL_TORQUE         313736047
@@ -87,9 +87,9 @@
 #define POS_INCH                3822078925
 #define WASTE_LENGTH            1951357668
 #define RIGHT_STOP              3526906192
-#define WIDTH_LENGTH            396324830
+#define WIDTH_LENGTH            1041711882
 #define LENGTH                  396324830
-#define V_START                 362298148
+#define V_START                 824782083
 #define CANCEL_CYCLE            824782083 
 
 // Software defines
