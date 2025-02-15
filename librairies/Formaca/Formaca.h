@@ -17,7 +17,7 @@
 #define CAPTEUR_PRESSION_AIR        998762341
 #define STARTCYCLE                  2986050054
 #define SERVOON 2864105056
-#define ALARMSRESET 4138453966
+#define ALARMSRESET 2122812135
 #define JOG 627952477
 #define FWD 936928435
 #define RWD 2405696470
@@ -48,8 +48,8 @@
 #define VCYCLE_SPEED                1951357668
 #define TORQUE_CTRL                 3526906192
 
-#define OVERALL_LENGTH              645363011
-#define PARK_OFFSET                 2984797290 // distance entre le morceau de bois brute et le poussoir lorsque le poussoir est au repos.
+#define OVERALL_LENGTH              3749283751
+#define PARK_OFFSET                 1541073354 // distance entre le morceau de bois brute et le poussoir lorsque le poussoir est au repos.
 
 #define NB_CYCLES_VOULUS                1168588921
 #define NB_CYCLES_EFFECTUES             3018797200
@@ -84,13 +84,13 @@
 //#define USABLE_LENGTH           396324830 // ?
 #define JOG_FULL_TORQUE         313736047
 
-#define POS_INCH                3822078925
-#define WASTE_LENGTH            1951357668
-#define RIGHT_STOP              3526906192
+#define POS_INCH                666618897
+#define WASTE_LENGTH            3335850172
+#define RIGHT_STOP              3132370279
 #define WIDTH_LENGTH            1041711882
-#define LENGTH                  396324830
+#define LENGTH                  2736300668
 #define V_START                 824782083
-#define CANCEL_CYCLE            824782083 
+#define CANCEL_CYCLE            2539529911 
 
 // Software defines
 #define NOMINAL_TORQUE         100

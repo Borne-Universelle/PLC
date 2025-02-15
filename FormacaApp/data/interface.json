@@ -19,7 +19,7 @@
                             "name": "StartCycle",
                             "component": "tx-button-hold",
                             "color": "success",
-                            "hash": 3822078925
+                            "hash": 2986050054
                         }
                     ]
                 }
@@ -36,13 +36,13 @@
                             "name": "capteur pression air",
                             "component": "rx-indicator",
                             "color": "green",
-                            "hash": 396324830
+                            "hash": 998762341
                         },
                         {
                             "name": "capteur cylindres",
                             "component": "rx-indicator",
                             "color": "red",
-                            "hash": 1168588921
+                            "hash": 134240750
                         }
                     ]
                 }
