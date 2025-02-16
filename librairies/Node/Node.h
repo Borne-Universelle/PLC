@@ -65,7 +65,7 @@
 
 class Node{
     public:
-        Node(char *name, char *hashRef, uint32_t hash, uint16_t webRefreshIntervl);
+        Node(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshIntervl);
         virtual int classType() { return CLASS_NODE; }
         char *getName();
         bool setName(const char *name, const char *parentName);
@@ -113,7 +113,7 @@ class Node{
 class InputNode: public Node{
     // external world change the value of the node..
     public:
-        InputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        InputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_INPUT_NODE; }
         void setRefreshInterval(uint16_t interval);
         uint32_t getRefreshInterval();
@@ -127,13 +127,13 @@ class InputNode: public Node{
 class OutputNode: public Node{
     // the node can change the external world..
     public:
-        OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        OutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_OUTPUT_NODE; }
 };
 
 class BooleanInputNode: public InputNode{
      public:
-        BooleanInputNode(char *name, char *parentName, uint32_t hash,  uint16_t refreshInterval, uint16_t webRefreshInterval);
+        BooleanInputNode(char *name, char *parentName, uint16_t id, uint32_t hash,  uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_BOOLEAN_INPUT_NODE; }  
         bool getValue();
         uint32_t getLastUp();
@@ -153,7 +153,7 @@ class BooleanInputNode: public InputNode{
 
 class BooleanOutputNode: public OutputNode{
     public: 
-        BooleanOutputNode(char *name, char *parentName, uint32_t has,  uint16_t webRefreshInterval);
+        BooleanOutputNode(char *name, char *parentName, uint16_t id, uint32_t has,  uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_BOOLEAN_OUTPUT_NODE; }
         void setValue(bool newValue);
         bool getValue();
@@ -169,7 +169,7 @@ class BooleanOutputNode: public OutputNode{
 
 class Uint16InputNode: public InputNode{
     public:
-        Uint16InputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        Uint16InputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_UINT16_INPUT_NODE; }
         uint16_t getValue();
         bool specificRefresh();   
@@ -181,7 +181,7 @@ class Uint16InputNode: public InputNode{
 
 class Uint32InputNode: public InputNode{
     public:
-        Uint32InputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        Uint32InputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_UINT32_INPUT_NODE; }
         uint32_t getValue();
         bool specificRefresh();
@@ -193,7 +193,7 @@ class Uint32InputNode: public InputNode{
 
 class FloatInputNode: public InputNode{
      public:
-        FloatInputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        FloatInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_FLOAT_INPUT_NODE; }
         float getValue();
         bool specificRefresh();
@@ -205,7 +205,7 @@ class FloatInputNode: public InputNode{
 
 class Uint16OutputNode: public OutputNode{
     public: 
-        Uint16OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        Uint16OutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_UINT16_OUTPUT_NODE; }
         void setValue(uint16_t newValue);
         uint16_t getValue();
@@ -218,7 +218,7 @@ class Uint16OutputNode: public OutputNode{
 
 class Uint32OutputNode: public OutputNode{
     public: 
-        Uint32OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        Uint32OutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_UINT32_OUTPUT_NODE; }
         void setValue(uint32_t newValue);
         uint32_t getValue();
@@ -231,7 +231,7 @@ class Uint32OutputNode: public OutputNode{
 
 class FloatOutputNode: public OutputNode{
     public: 
-        FloatOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        FloatOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_FLOAT_OUTPUT_NODE; }
         void setValue(float newValue);
         float getValue();
@@ -244,7 +244,7 @@ class FloatOutputNode: public OutputNode{
 
 class TextInputNode: public InputNode{
     public:
-        TextInputNode(char *name, char *parentName, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        TextInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_TEXT_INPUT_NODE; }
         char * getValue();
         bool specificRefresh();
@@ -256,7 +256,7 @@ class TextInputNode: public InputNode{
 
 class TextOutputNode: public OutputNode{
      public: 
-        TextOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        TextOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_TEXT_OUTPUT_NODE; }
         void setValue(const char * newValue);
         char * getValue();
@@ -269,7 +269,7 @@ class TextOutputNode: public OutputNode{
 
 class HardwareBooleanInputNode: public BooleanInputNode{
     public:
-        HardwareBooleanInputNode(char *name, char *parentName, uint32_t hash, uint8_t _pin, bool inputInverted, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        HardwareBooleanInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint8_t _pin, bool inputInverted, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_HW_BOOLEAN_INPUT_NODE; }
         
     private:
@@ -279,7 +279,7 @@ class HardwareBooleanInputNode: public BooleanInputNode{
 
 class PF8574BooleanInputNode: public BooleanInputNode{
     public:
-        PF8574BooleanInputNode(char *name, char *parentName, uint32_t hash, uint8_t  i2cAddr, uint8_t pin, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        PF8574BooleanInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint8_t  i2cAddr, uint8_t pin, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_PFC8574_BOOLEAN_INPUT_NODE; }
         static void interruptHandler();
         static bool isInterrupt();
@@ -303,7 +303,7 @@ class PF8574BooleanInputNode: public BooleanInputNode{
 class ModbusReadCoilNode: public BooleanInputNode {
     // Function 01
     public:
-        ModbusReadCoilNode(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
+        ModbusReadCoilNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
    
         bool getNewValue();
 
@@ -318,7 +318,7 @@ class ModbusReadCoilNode: public BooleanInputNode {
 class ModbusReadMultipleInputsRegistersNode: public InputNode  {
     // Function 01
     public:
-        ModbusReadMultipleInputsRegistersNode(char *name, char *parentName, uint32_t hash, uint16_t address,  uint16_t offset, uint8_t nbValues, uint16_t refreshInterval,  uint16_t webRefreshInterval);
+        ModbusReadMultipleInputsRegistersNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address,  uint16_t offset, uint8_t nbValues, uint16_t refreshInterval,  uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_READ_MULTIPLE_INPUTS_STATUS; }
         bool specificRefresh();
 
@@ -404,7 +404,7 @@ class ModbusReadMultipleInputsRegistersNode: public InputNode  {
 class ModbusReadHoldingRegister: public Uint16InputNode {
     // Function 03
     public:
-        ModbusReadHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
+        ModbusReadHoldingRegister(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_READHOLDINGREGISTER; }
         
         private: 
@@ -416,7 +416,7 @@ class ModbusReadHoldingRegister: public Uint16InputNode {
 
 class ModbusReadDobbleInputRegisters: public Uint32InputNode {
     public:
-        ModbusReadDobbleInputRegisters(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
+        ModbusReadDobbleInputRegisters(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_READ_DOUBLE_INPUTREGISTER; }
         
         private:
@@ -429,7 +429,7 @@ class ModbusReadDobbleInputRegisters: public Uint32InputNode {
 
 class ModbusReadDoubleHoldingRegisters: public Uint32InputNode {
     public:
-        ModbusReadDoubleHoldingRegisters(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval, uint16_t webRefreshInterval);
+        ModbusReadDoubleHoldingRegisters(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_READ_DOUBLE_HOLDING_REGISTER; }
         
         private:
@@ -443,7 +443,7 @@ class ModbusReadDoubleHoldingRegisters: public Uint32InputNode {
 class ModbusWriteHoldingRegister: public Uint16OutputNode {
     // Function 06
     public:
-        ModbusWriteHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t webRefreshInterval);
+        ModbusWriteHoldingRegister(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_WRITEHOLDINGREGISTER; }
         
         private:
@@ -457,7 +457,7 @@ class ModbusWriteHoldingRegister: public Uint16OutputNode {
 class ModbusWriteDoubleHoldingRegister: public Uint32OutputNode {
     // Function 06
     public:
-        ModbusWriteDoubleHoldingRegister(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t webRefreshInterval);
+        ModbusWriteDoubleHoldingRegister(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_WRITE_DOUBLE_HOLDING_REGISTER; }
 
          bool setNewValue(uint32_t newValue);  // POUR TEST UNIQUEMENT !!!!!!!!!!!!!!!!!!!!!!!!! THIERRY Thierry
@@ -473,7 +473,7 @@ class ModbusWriteDoubleHoldingRegister: public Uint32OutputNode {
 class ModbusReadInputRegister: public Uint16InputNode {
     // Function 04
     public:
-        ModbusReadInputRegister(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
+        ModbusReadInputRegister(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t refreshInterval,  uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_READINPUTREGISTER; }
         
         private:
@@ -487,7 +487,7 @@ class ModbusReadInputRegister: public Uint16InputNode {
 
 class HardwareBooleanOutputNode: public BooleanOutputNode{
     public:
-        HardwareBooleanOutputNode(char *name, char *parentName, uint32_t hash, uint8_t _pin, uint16_t webRefreshInterval);
+        HardwareBooleanOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint8_t _pin, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_HW_BOOLEAN_OUTPUT_NODE; }
     private:
         bool setNewValue(bool newValue);
@@ -499,7 +499,7 @@ class HardwareBooleanOutputNode: public BooleanOutputNode{
 
 class PF8574BooleanOutputNode: public BooleanOutputNode{
     public:
-        PF8574BooleanOutputNode(char *name, char *parentName, uint32_t hash, uint8_t  i2cAddr, uint8_t pin, uint16_t webRefreshInterval);
+        PF8574BooleanOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint8_t  i2cAddr, uint8_t pin, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_PFC8574_BOOLEAN_OUTPUT_NODE; }
     
     private:
@@ -512,7 +512,7 @@ class PF8574BooleanOutputNode: public BooleanOutputNode{
 class ModbusWriteCoilNode: public BooleanOutputNode {
     // Function 05
     public:
-        ModbusWriteCoilNode(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _id, uint16_t webRefreshInterval);
+        ModbusWriteCoilNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _id, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_WRITE_COIL_NODE; }
         
         private:
@@ -526,7 +526,7 @@ class ModbusWriteCoilNode: public BooleanOutputNode {
 
 class ModbusWriteMultipleCoilslNode: public OutputNode {
     public:
-        ModbusWriteMultipleCoilslNode(char *name, char *parentName, uint32_t hash, uint16_t address, uint16_t _register, uint8_t nbValues, uint16_t webRefreshInterval);
+        ModbusWriteMultipleCoilslNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t address, uint16_t _register, uint8_t nbValues, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_MODBUS_WRITE_MULTIPLE_COILS; }
 
         bool specificRefresh();
@@ -547,7 +547,7 @@ class ModbusWriteMultipleCoilslNode: public OutputNode {
 
 class VirtualBooleanInputNode: public BooleanInputNode{
     public:
-        VirtualBooleanInputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualBooleanInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_BOOLEAN_INPUT_NODE; }
         void setValue(bool _value);
 
@@ -559,7 +559,7 @@ class VirtualBooleanInputNode: public BooleanInputNode{
 
 class VirtualUint32InputNode: public Uint32InputNode{
     public:
-        VirtualUint32InputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualUint32InputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_UINT32_INPUT_NODE; }
         void setValue(uint32_t _value);
 
@@ -571,7 +571,7 @@ class VirtualUint32InputNode: public Uint32InputNode{
 
 class VirtualFloatInputNode: public FloatInputNode{
     public:
-        VirtualFloatInputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualFloatInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_FLOAT_INPUT_NODE; }
         void setValue(float _value);
 
@@ -583,7 +583,7 @@ class VirtualFloatInputNode: public FloatInputNode{
 
 class VirtualBooleanOutputNode: public BooleanOutputNode{
     public:
-        VirtualBooleanOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualBooleanOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() { return CLASS_HW_BOOLEAN_OUTPUT_NODE; }
 
     private:    
@@ -595,7 +595,7 @@ class VirtualBooleanOutputNode: public BooleanOutputNode{
 
 class VirtualUint32OutputNode: public Uint32OutputNode{
     public:
-        VirtualUint32OutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualUint32OutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_UINT32_OUTPUT_NODE; }
 
     private:
@@ -607,7 +607,7 @@ class VirtualUint32OutputNode: public Uint32OutputNode{
 
 class VirtualFloatOutputNode: public FloatOutputNode{
     public:
-        VirtualFloatOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualFloatOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_FLOAT_OUTPUT_NODE; }
 
     private:
@@ -619,7 +619,7 @@ class VirtualFloatOutputNode: public FloatOutputNode{
 
 class VirtualTextInputNode: public TextInputNode{
     public:
-        VirtualTextInputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualTextInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_TEXT_INPUT_NODE; }
         void setValue(const char *text);      
 
@@ -631,7 +631,7 @@ class VirtualTextInputNode: public TextInputNode{
 
 class VirtualTextOutputNode: public TextOutputNode{
      public:
-        VirtualTextOutputNode(char *name, char *parentName, uint32_t hash, uint16_t webRefreshInterval);
+        VirtualTextOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_TEXT_OUTPUT_NODE; }
 
     private:

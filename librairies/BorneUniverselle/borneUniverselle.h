@@ -201,7 +201,7 @@ class BorneUniverselle{
         static bool getIsKinconyA8S();
         void printConfigFile();
         bool sendMessage();
-        bool isPlcBroken();
+        static bool isPlcBroken();
         static void setPlcBroken(const char *context);
         void tooMuchClients(AsyncWebSocketClient *client);
         void closeActualConnection(AsyncWebSocketClient *newClient);
@@ -224,7 +224,6 @@ class BorneUniverselle{
         void showMessage(Node *node, const char *text);
         static void modbusMessageHandler(uint8_t severity, const char* message);
         static void setInitialStateLoadedCallback(std::function<void()> callback);
-
 
     private:
         class MutexGuard {
@@ -274,10 +273,10 @@ class BorneUniverselle{
         bool RS485Init(JsonDocument contextDoc);
         bool modbusInit(JsonDocument contextDoc);
         static void unableToFindKey(char *context, char *key);
-        bool createRxBoolNode(char *name, char *parentName, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument descriptor, bool check); // c'est ici que l'on créé les nodes !
-        bool createTxBoolNode(char *name, char *parentName, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
-        bool createVirtualNode(char *name, char *sectionName, char *type, uint32_t *hash, JsonDocument descriptor, bool check);
-        bool createModbusNode(char *nodeName, char *sectionName, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
+        bool createRxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument descriptor, bool check); // c'est ici que l'on créé les nodes !
+        bool createTxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
+        bool createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument descriptor, bool check);
+        bool createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
                                      JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
         // void modbusTask();
         bool parseConfig(JsonDocument doc, bool check = true);

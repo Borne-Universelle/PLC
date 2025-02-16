@@ -1,3 +1,4 @@
+
 {
   "name": "Formaca",
   "type": 2,
@@ -321,22 +322,22 @@
         {
           "id": 4,
           "name": "Offset chargement",
-          "hash": 1041711882
+          "hash": 1541073354
         },
         {
           "id": 5,
           "name": "Longueur du rebut",
-          "hash": 1541073354
+          "hash": 3335850172
         },
         {
           "id": 6,
           "name": "butée droite",
-          "hash": 3335850172
+          "hash": 3132370279
         },
         {
           "id": 7,
           "name": "Position actuelle en inch",
-          "hash": 3132370279
+          "hash": 666618897
         }
       ]
     },

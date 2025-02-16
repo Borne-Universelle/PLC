@@ -77,6 +77,12 @@ Formaca::Formaca() {
     cancelCycle             = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CANCEL_CYCLE);
     cylinderCaptor          = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CYLINDER_CAPTOR);
 
+    if (BorneUniverselle::isPlcBroken()){
+        Serial.flush();
+        Serial.println("PLC is broken, aborting Formaca constructor");
+        return;
+    }
+
     if (!LittleFS.begin()){
         BorneUniverselle::setPlcBroken("Formaca::Formaca An Error has occurred while mounting LittleFS");
         return;
@@ -141,7 +147,8 @@ Formaca::Formaca() {
         drompDownIndicator = new DropDown(recette);
         visu = new VisualIndicator(nbCyclesMade);
         flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
-    }	
+    }
+    Serial.println("Fin du constructeur Formaca");	
 }
 
 
@@ -279,7 +286,7 @@ bool Formaca::logiqueExecutor() {
         driveInitialisation();
         // Serial.println("Will go out !");
         if (millis() - start > 100){
-            Serial.printf("LogicalExecutor take long time when drive is not initaialised: %u\r\n", millis() - start);
+            Serial.printf("LogicalExecutor take long time when drive is not initaialised: %lu\r\n", millis() - start);
         }
         return true;   
     }

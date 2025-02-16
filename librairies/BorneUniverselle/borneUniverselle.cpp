@@ -57,11 +57,12 @@ BorneUniverselle::BorneUniverselle() :
     Serial.println(BORNE_UNIVERSELLE_VERSION); 
     webSocketMutex = xSemaphoreCreateMutex();
     notifMutex = xSemaphoreCreateMutex();
-   
+    
 
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
 
     PLC_Tools::logReboot();
+
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
     Serial.println(PLC_Tools::getRebootLog());
@@ -130,6 +131,8 @@ BorneUniverselle::BorneUniverselle() :
         } else {
             Serial.println("Interface file parsed with success");
         }
+
+
 
         Serial.println("Loop on nodes to set node name from the interface file");
         for (const MenuNode& menuNode : *menuInterface) {  
@@ -458,7 +461,9 @@ void BorneUniverselle::sendHeartbeat(bool reset){
 
     if (sendTextToClient(hearbeatChain)){
         lastHeartbeatSend = millis();
-        Serial.printf("nextHeartbeatToSend: %lu\r\n", lastHeartbeatSend + HEARTBEAT_DELAY);
+        if (showHeartbeatMessages){
+            Serial.printf("nextHeartbeatToSend: %lu\r\n", lastHeartbeatSend + HEARTBEAT_DELAY);
+        }
     } else {
         Serial.println("sendHeartbeat: unable to send text to client");
     }
@@ -812,11 +817,21 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
 
     // On évite d'ajouter un message incomplet
     AwsFrameInfo *info = (AwsFrameInfo*)_arg;
-    if (info->final && info->index == 0 && info->len == _len && info->opcode == WS_TEXT) {
-        ;
-    } else {
-        Serial.println(F("Malformed webSocket message"));
+    
+    // Vérifie simplement que c'est un message texte
+    if (info->opcode != WS_TEXT) {
+        Serial.println(F("Not a text message"));
         return;
+    }
+
+    // Si c'est le dernier fragment du message
+    if (info->final) {
+        // Traiter le message
+        Serial.printf("Processing message fragment at index %lu\n", (uint32_t)info->index);
+        
+        // ... reste du code de traitement ...
+    } else {
+        Serial.println(F("Message fragment received, waiting for final"));
     }
    
     if (_len > 10 && _len < WEB_SOCKET_MESSAGE_MAX_SIZE) {
@@ -1073,6 +1088,8 @@ void BorneUniverselle::setInitialStateLoadedCallback(std::function<void()> callb
 }
 
 void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
+    serializeJsonPretty(socketDoc, Serial);
+    /*
     const char* path = socketDoc["saveFile"][0][PATH]; // "/interface.json"
     const char* data = socketDoc["saveFile"][0][DATA]; // "le contenue du fichier à enregistrer"
 
@@ -1089,7 +1106,8 @@ void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
     file.print(data);
     file.close();
     sprintf(buff, "File: %s saved with success\r\n", path);
-    prepareMessage(SUCCESS, buff);    
+    prepareMessage(SUCCESS, buff);
+    */    
 }
 
 void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
@@ -1509,14 +1527,13 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
         if (!strcmp(hardware, VIRTUAL)){
             for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
                 char nodeName[128];
-                if (projectVersion < 2){
-                    if (c[NAME].isNull()){
-                        sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
-                        prepareMessage(ERROR, buff);
-                        return false;  
-                    }
-                    strcpy(nodeName, c[NAME]);
-                } 
+                if (c[NAME].isNull()){
+                    sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
+                    prepareMessage(ERROR, buff);
+                    return false;  
+                }
+                strcpy(nodeName, c[NAME]);
+               
                 //Serial.printf("node name: %s\r\n", nodeName);
                 uint32_t hash, hashLocal;
 
@@ -1526,11 +1543,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
                     return false;
                 } else {
                     hash = c[HASH].as<unsigned int>();
-                    hashLocal = hash;
-
-                    if (projectVersion >=2){
-                        sprintf(nodeName, "%lu", hash); // Pour les versions 2 et plus, le nom du node est son hash car le nom est défini dans le fichier interface.json
-                    }   
+                    hashLocal = hash;   
                 }
 
                 if (c[ID].isNull()){
@@ -1539,17 +1552,12 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
                 return false;  
                 }
                 uint8_t addr = c[ID].as<int>();
-                if (projectVersion >=2){
-                    sprintf(nodeName, "%u", addr); // Pour les versions 2 et plus, le nom du node est son hash car le nom est défini dans le fichier interface.json
-                }
-
-                //Serial.printf("Node name: %s, hash found: %lu \r\n", nodeName, hash);
 
                 JsonDocument descriptor;
                 descriptor.set(c);
 
 
-                if (!createVirtualNode(nodeName, sectionName, type,  &hashLocal, descriptor, check)){
+                if (!createVirtualNode(nodeName, sectionName, addr, type,  &hashLocal, descriptor, check)){
                     sprintf(buff, "Error on creating virtual node");
                     prepareMessage(ERROR, buff);
                     return false;
@@ -1650,15 +1658,12 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
 
         for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
             char nodeName[128];
-
-            if (projectVersion < 2){
-                if (c[NAME].isNull()){
-                    sprintf(buff, "parseHardwares:: sub section doesnt contains key %s from config file", NAME);
-                    prepareMessage(ERROR, buff);
-                    return false;  
-                }
-                strcpy(nodeName, c[NAME]);
+            if (c[NAME].isNull()){
+                sprintf(buff, "parseHardwares:: sub section doesnt contains key %s from config file", NAME);
+                prepareMessage(ERROR, buff);
+                return false;  
             }
+            strcpy(nodeName, c[NAME]);
         
             uint32_t hash = 0, hashLocal;
             //Serial.printf("node name: %s\r\n", nodeName);
@@ -1680,10 +1685,6 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
             }
 
             uint8_t addr = c[ID].as<int>();
-            if (projectVersion >=2){
-                    sprintf(nodeName, "%u", addr); // Pour les versions 2 et plus, le nom du node est son hash car le nom est défini dans le fichier interface.json
-            }
-            //Serial.printf("Will search for id %d from config, type: %s\r\n", addr, type);
 
             bool found = false;
             for (JsonObject hardSection : nodesDoc[type].as<JsonArray>()) {
@@ -1720,14 +1721,14 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
                     descriptor.set(c);
                     
                     if (!strcmp(type, RX_BOOL) || !strcmp(type, PF8574_RX_BOOL)){
-                        if (!createRxBoolNode(nodeName, sectionName, &hashLocal, nodesDoc, hardSection, type, refreshInterval, webRefreshInterval, descriptor, check)){
+                        if (!createRxBoolNode(nodeName, sectionName, addr, &hashLocal, nodesDoc, hardSection, type, refreshInterval, webRefreshInterval, descriptor, check)){
                             sprintf(buff, "parseHardwares:: Error on creating RxBoolNode with file %s\r\n", fileName);
                             prepareMessage(ERROR, buff);
                             return false;
                         }
                         found = true;
                     }  else  if (!strcmp(type, TX_BOOL) || !strcmp(type, PF8574_TX_BOOL)){
-                            if (!createTxBoolNode(nodeName, sectionName, &hashLocal, nodesDoc, hardSection, type, webRefreshInterval, descriptor, check)){
+                            if (!createTxBoolNode(nodeName, sectionName, addr, &hashLocal, nodesDoc, hardSection, type, webRefreshInterval, descriptor, check)){
                                 sprintf(buff, "parseHardwares:: Error on creating TxBoolNode with file %s\r\n", fileName);
                                 prepareMessage(ERROR, buff);
                                 return false;
@@ -1742,7 +1743,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
                                     uint16_t slaveAddress = children[ADDRESS];
                             
                                     //Serial.printf("Modbus slave address: %u\r\n", slaveAddress);
-                                    if (!createModbusNode(nodeName, sectionName, &hashLocal, slaveAddress, nodesDoc, hardSection, type, refreshInterval, webRefreshInterval, descriptor, check)){
+                                    if (!createModbusNode(nodeName, sectionName, addr, &hashLocal, slaveAddress, nodesDoc, hardSection, type, refreshInterval, webRefreshInterval, descriptor, check)){
                                         sprintf(buff, "parseHardwares:: Error on creating Modbus node with file %s\r\n", fileName);
                                         prepareMessage(ERROR, buff);
                                     }
@@ -1794,7 +1795,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
  // setHardware
 }
 
-bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
+bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
                                      JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument descriptor, bool check){
     
     if (!isModbusInitialised){
@@ -1828,17 +1829,17 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
     if (!strcmp(type, MODBUS_READ_COIL)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadCoilNode));
-            node = new (a) ModbusReadCoilNode(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+            node = new (a) ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
         } else {
-            node = new ModbusReadCoilNode(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+            node = new ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
         }
         Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_COIL)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteCoilNode));
-            node = new (a) ModbusWriteCoilNode(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new (a) ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
         } else {
-            node = new ModbusWriteCoilNode(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
         }
         Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_WRITE_MULTIPLE_COILS)){
@@ -1855,50 +1856,50 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
 
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteMultipleCoilslNode));
-            node = new (a) ModbusWriteMultipleCoilslNode(nodeName, sectionName, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+            node = new (a) ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
         } else {
-             node = new ModbusWriteMultipleCoilslNode(nodeName, sectionName, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+             node = new ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
         }
 
         Serial.printf("Node %s created with succes with type ModbusWriteMultipleCoilslNode, hash: %lu, address: %d, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset); 
     } else if (!strcmp(type, MODBUS_READ_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadHoldingRegister));
-            node = new (a) ModbusReadHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            node = new (a) ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
         } else {
-            node = new ModbusReadHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            node = new ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
         }
         Serial.printf("Node %s created with succes with type ModbusReadHoldingRegister, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteHoldingRegister));
-            node = new (a) ModbusWriteHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new (a) ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
         } else {
-            node = new ModbusWriteHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
         }
         Serial.printf("Node %s created with succes with type ModbusWriteHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_READ_DOUBLE_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadDoubleHoldingRegisters));
-            node = new (a) ModbusReadDoubleHoldingRegisters(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+            node = new (a) ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
         } else {
-            node = new ModbusReadDoubleHoldingRegisters(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+            node = new ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
         }
         Serial.printf("Node %s created with succes with type ModbusReadDoubleHoldingRegisters, hash: %lu, address: %u, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_DOUBLE_HOLDING_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusWriteDoubleHoldingRegister));
-            node = new (a) ModbusWriteDoubleHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new (a) ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
         } else {
-            node = new ModbusWriteDoubleHoldingRegister(nodeName, sectionName, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
         }
         Serial.printf("Node %s created with succes with type ModbusWriteDoubleHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_READ_INPUT_REGISTER)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadInputRegister));
-            node = new (a) ModbusReadInputRegister(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            node = new (a) ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
         } else {
-            node = new ModbusReadInputRegister(nodeName, sectionName, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            node = new ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
         } 
         Serial.printf("Node %s created with succes with type ModbusReadInputRegister, hash: %lu, address: %u, offset: %u, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_READ_MULTIPLE_INPUTS_STATUS)){
@@ -1914,9 +1915,9 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint3
         } 
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(ModbusReadMultipleInputsRegistersNode));
-            node = new (a) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+            node = new (a) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
         } else {         
-            node = new ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+            node = new ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
         }
     } else {
         sprintf(message, "createModbusNode:: Unable to identifiy node type with class %s\r\n", type);
@@ -2067,7 +2068,7 @@ bool BorneUniverselle::modbusInit(JsonDocument contextDoc){
     return true;
 }
 
-bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char * type, uint16_t refreshInterval, uint16_t webRefreshInterval,
+bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char * type, uint16_t refreshInterval, uint16_t webRefreshInterval,
                                         JsonDocument descriptor, bool check){
     // Cree un input node boolean hardware
     char buff[256];
@@ -2095,9 +2096,9 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
 
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(HardwareBooleanInputNode));
-            node = new (a) HardwareBooleanInputNode(name, parentName, *hash, pin, inputsInverted, refreshInterval, webRefreshInterval); 
+            node = new (a) HardwareBooleanInputNode(name, parentName, id, *hash, pin, inputsInverted, refreshInterval, webRefreshInterval); 
         } else {
-            node = new HardwareBooleanInputNode(name, parentName, *hash, pin, inputsInverted, refreshInterval, webRefreshInterval);
+            node = new HardwareBooleanInputNode(name, parentName, id, *hash, pin, inputsInverted, refreshInterval, webRefreshInterval);
         }
         
         Serial.printf("Node %s created with succes (ESP32 pin %d), with type HardwareBooleanInputNode and hash: %lu, refresh interval: %u, web refresh interval: %u\r\n", node->getName(), pin, (unsigned long)*hash, refreshInterval, webRefreshInterval);
@@ -2109,9 +2110,9 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
                 uint8_t i2cAddr = contextDoc[I2C][RX_ADDR];
                 if (psRamAvailable){
                     void * a = ps_malloc(sizeof(PF8574BooleanInputNode));
-                    node = new (a) PF8574BooleanInputNode(name, parentName, *hash, i2cAddr, pin, refreshInterval, webRefreshInterval);
+                    node = new (a) PF8574BooleanInputNode(name, parentName, id, *hash, i2cAddr, pin, refreshInterval, webRefreshInterval);
                 } else {
-                    node = new PF8574BooleanInputNode(name, parentName, *hash, i2cAddr, pin, refreshInterval, webRefreshInterval);
+                    node = new PF8574BooleanInputNode(name, parentName, id, *hash, i2cAddr, pin, refreshInterval, webRefreshInterval);
                 }
                 Serial.printf("Node %s created with succes with type PF8574BooleanInputNode and hash: %lu, refresh interval: %u, web refresh interval: %u\r\n", node->getName(), (unsigned long)*hash, refreshInterval, webRefreshInterval);
             } else {
@@ -2140,7 +2141,7 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint32_t 
     return true;
 }
 
-bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char * type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check){
+bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint16_t id,  uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char * type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check){
     // Cree un input node boolean hardware
     uint8_t pin;
     char buff[128];
@@ -2158,9 +2159,9 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *
         //Serial.println("type TX bool"); 
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(HardwareBooleanOutputNode));
-            node = new (a) HardwareBooleanOutputNode(name, parentName, *hash, pin, webRefreshInterval);
+            node = new (a) HardwareBooleanOutputNode(name, parentName, id, *hash, pin, webRefreshInterval);
         } else {  
-            node = new HardwareBooleanOutputNode(name, parentName, *hash, pin, webRefreshInterval);
+            node = new HardwareBooleanOutputNode(name, parentName, id, *hash, pin, webRefreshInterval);
         }
 
         Serial.printf("Node %s created with succes (ESP32 pin %d) with type HardwareBooleanOutputNode and hash: %lu\r\n", node->getName(), pin, (unsigned long)*hash); 
@@ -2173,9 +2174,9 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *
 
                 if (psRamAvailable){
                     void * a = ps_malloc(sizeof(PF8574BooleanOutputNode));
-                    node = new (a) PF8574BooleanOutputNode(name, parentName, *hash, i2cAddr, pin, webRefreshInterval);
+                    node = new (a) PF8574BooleanOutputNode(name, parentName, id, *hash, i2cAddr, pin, webRefreshInterval);
                 } else {
-                    node = new PF8574BooleanOutputNode(name, parentName, *hash, i2cAddr, pin, webRefreshInterval);
+                    node = new PF8574BooleanOutputNode(name, parentName, id, *hash, i2cAddr, pin, webRefreshInterval);
                 }
 
                 Serial.printf("Node %s created with succes with type PF8574BooleanOutputNode and hash: %lu\r\n", node->getName(), (unsigned long)*hash); 
@@ -2206,7 +2207,7 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint32_t *
     return true;
 }
 
-bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *type, uint32_t *hash, JsonDocument descriptor, bool check){
+bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument descriptor, bool check){
     char buff[128];
     bool found = false;
     //Serial.printf("createVirtualNode section: %s,  node name: %s, \r\n", sectionName, name);
@@ -2215,18 +2216,18 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
     if (!strcmp(type, RX_BOOL)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualBooleanInputNode));
-            node = new (a) VirtualBooleanInputNode(name, sectionName, *hash, 0);    
+            node = new (a) VirtualBooleanInputNode(name, sectionName, id, *hash, 0);    
         } else {
-            node = new VirtualBooleanInputNode(name, sectionName, *hash, 0);
+            node = new VirtualBooleanInputNode(name, sectionName, id, *hash, 0);
         }
         Serial.printf("Node %s created (VirtualBooleanInputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
         found = true;
     } else if (!strcmp(type, TX_BOOL)) {
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualBooleanOutputNode));
-            node = new (a) VirtualBooleanOutputNode(name, sectionName, *hash, 0);
+            node = new (a) VirtualBooleanOutputNode(name, sectionName, id, *hash, 0);
         } else {
-            node = new VirtualBooleanOutputNode(name, sectionName, *hash, 0);
+            node = new VirtualBooleanOutputNode(name, sectionName, id, *hash, 0);
         }
         
         Serial.printf("Node %s created (VirtualBooleanOutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
@@ -2234,9 +2235,9 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
     } else if (!strcmp(type, RX_UINT32)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualUint32InputNode));
-            node = new (a) VirtualUint32InputNode(name, sectionName, *hash, 0);
+            node = new (a) VirtualUint32InputNode(name, sectionName, id, *hash, 0);
         } else {
-            node = new VirtualUint32InputNode(name, sectionName, *hash, 0);
+            node = new VirtualUint32InputNode(name, sectionName, id, *hash, 0);
         }
         
         Serial.printf("Node %s created (VirtualUint32InputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
@@ -2244,9 +2245,9 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
     } else if (!strcmp(type, TX_UINT32)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualUint32OutputNode));
-            node = new (a) VirtualUint32OutputNode(name, sectionName, *hash, 0);
+            node = new (a) VirtualUint32OutputNode(name, sectionName, id, *hash, 0);
         } else {
-            node = new VirtualUint32OutputNode(name, sectionName, *hash, 0);
+            node = new VirtualUint32OutputNode(name, sectionName, id, *hash, 0);
         }
         
         Serial.printf("Node %s created (VirtualUint32OutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
@@ -2254,9 +2255,9 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
     } else if (!strcmp(type, TX_FLOAT)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualFloatOutputNode));
-            node = new (a) VirtualFloatOutputNode(name, sectionName, *hash, 0); 
+            node = new (a) VirtualFloatOutputNode(name, sectionName, id, *hash, 0); 
         } else {
-            node = new VirtualFloatOutputNode(name, sectionName, *hash, 0);
+            node = new VirtualFloatOutputNode(name, sectionName, id, *hash, 0);
         }
         
         Serial.printf("Node %s created (VirtualFloatOutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
@@ -2264,9 +2265,9 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
     } else if (!strcmp(type, RX_FLOAT)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualFloatInputNode));
-            node = new (a) VirtualFloatInputNode(name, sectionName, *hash, 0); 
+            node = new (a) VirtualFloatInputNode(name, sectionName, id, *hash, 0); 
         } else {
-            node = new VirtualFloatInputNode(name, sectionName, *hash, 0);
+            node = new VirtualFloatInputNode(name, sectionName, id, *hash, 0);
         }
         
         Serial.printf("Node %s created (VirtualFloatInputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
@@ -2274,9 +2275,9 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, char *ty
     } else if (!strcmp(type, TX_TEXT)){
         if (psRamAvailable){
             void * a = ps_malloc(sizeof(VirtualTextOutputNode));
-            node = new (a) VirtualTextOutputNode(name, sectionName, *hash, 0); 
+            node = new (a) VirtualTextOutputNode(name, sectionName, id, *hash, 0); 
         } else {
-            node = new VirtualTextOutputNode(name, sectionName, *hash, 0);
+            node = new VirtualTextOutputNode(name, sectionName, id, *hash, 0);
         }
         
         Serial.printf("Node %s created (VirtualTextOutputNode) with succes, hash: %lu\r\n", node->getName(), (unsigned long)node->getHash());
@@ -2526,7 +2527,6 @@ Node *BorneUniverselle::findNode(const char *context, uint32_t hash){
     } else {
         char text[256];
         snprintf(text, sizeof(text), "findNode:: Searching for node with hash: %lu, with context: %s but not found !\r\n", (unsigned long)hash, context);
-        prepareMessage(ERROR, text);
         setPlcBroken(text);
         return nullptr;
     }  
