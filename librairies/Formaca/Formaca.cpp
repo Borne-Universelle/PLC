@@ -442,7 +442,7 @@ void Formaca::interfaceTreatment(){
     }
 }
 
-void Formaca::machineTreatment(){
+void Formaca::machineTreatment(){ 
     //Serial.printf("MachineTreatmement:: wasteCutting: %s, targetPosition: %s, startCycle: %s, zeroSpeed: %s\r\n", wasteCutting ? "true" : "false", targetPositionReached->getValue() ? "true" : "false", startCycle->getValue() ? "true": "false", zeroSpeed->getValue() ? "true" : "false");
 
     if (wasteCutting && targetPositionReached->getValue() && !getIsStartCycle() && zeroSpeed->getValue() && !normalCut && millis() > startMovment + 1000){ // target position est vrai avant le mouvement....
