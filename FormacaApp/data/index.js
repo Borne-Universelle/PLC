@@ -8251,7 +8251,7 @@ class TxBool extends ConnectedElement {
         //this.define(this._value)
         let hash = this._descriptor.hash;
         let value = e.target.checked;
-        Logger.debug(ComponentType.TX_BOOL, `onclick: ${hash}:${value}`);
+       // Logger.debug(ComponentType.TX_BOOL, `onclick: ${hash}:${value}`);
         Socket.defaultSocket.sendMessage("states", [{hash:hash, value:value}]);
     }
 
@@ -8354,12 +8354,12 @@ class TxButtonHold extends ConnectedElement {
 
     onmousedown(e) {
         let hash = this._descriptor.hash;
-        Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmousedown: ${hash}:${true}`);
+      //  Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmousedown: ${hash}:${true}`);
         Socket.defaultSocket.sendMessage("states", [{hash:hash, value:true}]);
     }
     onmouseup(e) {
         let hash = this._descriptor.hash;
-        Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmouseup: ${hash}:${false}`);
+       // Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmouseup: ${hash}:${false}`);
         Socket.defaultSocket.sendMessage("states", [{ hash: hash, value: false }]);
     }
 
