@@ -70,7 +70,6 @@ Formaca::Formaca() {
     pr2Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR2_SPEED);
     pr3Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR3_SPEED);
     immediateStop           = (PF8574BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, IMMEDIATE_STOP);
-    alarmsReset             = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ALARM_RESET);
     absolutePositionLost    = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ABSOLUTE_POS_LOST);
     nbCyclesClear           = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, NB_CYCLES_CLEAR);
     vStart                  = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_START);

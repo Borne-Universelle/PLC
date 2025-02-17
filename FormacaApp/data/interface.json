@@ -27,14 +27,12 @@
                         },
                         {
                             "name": "Reset compteur cycles",
-                            "component": "tx-button-hold",
-                            "color": "normal",
+                            "component": "tx-bool",
                             "hash": 362298148
                         },
                         {
                             "name": "Reset défauts",
-                            "component": "tx-button-hold",
-                            "color": "normal",
+                            "component": "tx-bool",
                             "hash": 2122812135
                         }
                     ]
@@ -46,19 +44,18 @@
                         {
                             "name": "Jog Mode",
                             "component": "tx-bool",
-                            "color": "success",
                             "hash": 627952477
                         },
                         {
                             "name": "Jog +",
                             "component": "tx-button-hold",
-                            "color": "normal",
+                            "color": "warning",
                             "hash": 2405696470
                         },
                         {
                             "name": "Jog -",
                             "component": "tx-button-hold",
-                            "color": "normal",
+                            "color": "warning",
                             "hash": 936928435
                         },
                         {
@@ -255,8 +252,6 @@
                         {
                             "name": "Vitesse Jog",
                             "component": "tx-numeric",
-                            "min": 0,
-                            "max": 15,
                             "hash": 2984797290
                         },
                         {
