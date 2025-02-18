@@ -32,8 +32,21 @@
                         },
                         {
                             "name": "Reset défauts",
-                            "component": "tx-bool",
+                            "component": "tx-button-hold",
+                            "color": "warning",
                             "hash": 1771340376
+                        },
+                        {
+                            "name": "Nb cycles effectués",
+                            "component": "tx-numeric",
+                            "readonly": true,
+                            "hash": 3018797200
+                        },
+                        {
+                            "name": "Reset Stop",
+                            "component": "tx-button-hold",
+                            "color": "warning",
+                            "hash": 4098079457
                         }
                     ]
                 },
@@ -195,7 +208,6 @@
         },
         {
             "PageName": "Configuration",
-            "password": "1234",
             "sections": [
                 {
                     "SectionName": "Paramètres machine",
@@ -333,7 +345,7 @@
                         },
                         {
                             "name": "Stop immediat",
-                            "component": "tx-button-hold",
+                            "component": "tx-bool",
                             "color": "danger",
                             "hash": 4098079457
                         }
