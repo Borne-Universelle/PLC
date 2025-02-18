@@ -90,7 +90,7 @@
 #define WIDTH_LENGTH                    1041711882
 #define LENGTH                          2736300668
 #define V_START                         824782083
-#define CANCEL_CYCLE            824782083 
+#define CANCEL_CYCLE            2539529911 
 
 // Software defines
 #define NOMINAL_TORQUE         100
@@ -124,6 +124,12 @@
 #define MM_PER_TURN             80.425  // mm / tours Données de Yannick
 #define INCH_PER_TURN           (MM_PER_TURN * 0.0393701)
 #define PULSES_PER_INCH         (INCH_PER_TURN * PULSES_PER_TURN)
+
+// kincony virtuals outputs defines
+#define V_SERVO_ON              1581937258  
+#define V_FLIP_FLOP_SCIE       1291836804   
+#define V_IMMEDIATE_STOP       4098079457 
+#define V_ALARMS_RESET         1771340376  
 
 
 struct RECETTE{
@@ -197,7 +203,7 @@ private:
     // BooleanOutputNode elements
     BooleanOutputNode *buzzer, *servoOn, *alarmsReset, *fwd, *rwd, *jog, *jogFullTorque, *goToPark, *gotoRef, *calibrate, *servoReady, *servoActivated, *zeroSpeed, *targetSpeedRated, *targetPositionReached, *servoAlarm,
                       *absolutPositionLost, *batteryAlarm, *multipleTurnsOverflow, *puuOverflow, *absoluteCoordonateNotSet, *homeDone, *modbusError, *driveInitialised, *freeRun, *scier, *flipFlopScie,
-                      *absolutePositionLost, *doHome, *ejectButton, *goHomeButton;
+                      *absolutePositionLost, *doHome, *ejectButton, *goHomeButton, *v_servoOn, *v_flipFlopScie, *v_immediateStop, *v_alarmsReset;
 
     PF8574BooleanOutputNode *immediateStop;
 
