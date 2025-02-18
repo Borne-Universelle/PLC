@@ -195,6 +195,7 @@
         },
         {
             "PageName": "Configuration",
+            "password": "1234",
             "sections": [
                 {
                     "SectionName": "Paramètres machine",

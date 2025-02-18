@@ -198,7 +198,7 @@ bool Formaca::logiqueExecutor() {
         PF8574BooleanInputNode::clearInterruptFlag();
     }
 
-    if ((cancelCycle->getIsChanged() && cancelCycle->getValue()) && running){
+    if (cancelCycle->getIsChanged() && cancelCycle->getValue() && running) {
         setEmergencyMode(true);
         BorneUniverselle::prepareMessage(ERROR, "Appui sur le bouton Cancel Cycle");
     }
