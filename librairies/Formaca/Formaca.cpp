@@ -559,6 +559,7 @@ void Formaca::jogTreatment(){
         if (fwd->getValue()){
             if (convToPUU(position->getValue()) > 2){
                 jogSpeed->setValue(FWD_VALUE);
+                BorneUniverselle::prepareMessage(SUCCESS, "On lance le jog fwd !");
             } else {
                 jogSpeed->setValue(STOP_VALLUE);
                 BorneUniverselle::prepareMessage(WARNING, "On est trop pres du switch de home. Mouvement interdit !");

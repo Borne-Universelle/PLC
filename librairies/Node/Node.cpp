@@ -385,6 +385,7 @@ uint16_t Uint16OutputNode::getValue(){
 }
 
 void Uint16OutputNode::setValue(uint16_t _value){
+    Serial.printf("Uint16OutputNode:: setValue for node: %s: %u\r\n", getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
