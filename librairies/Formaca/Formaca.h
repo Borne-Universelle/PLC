@@ -195,7 +195,7 @@ private:
     uint8_t currentPr = 1;
 
     // BooleanOutputNode elements
-    BooleanOutputNode *buzzer, *servoOn, *alarmsReset, *jog, *fwd, *rwd, *jogFullTorque, *goToPark, *gotoRef, *calibrate, *servoReady, *servoActivated, *zeroSpeed, *targetSpeedRated, *targetPositionReached, *servoAlarm,
+    BooleanOutputNode *buzzer, *servoOn, *alarmsReset, *fwd, *rwd, *jog, *jogFullTorque, *goToPark, *gotoRef, *calibrate, *servoReady, *servoActivated, *zeroSpeed, *targetSpeedRated, *targetPositionReached, *servoAlarm,
                       *absolutPositionLost, *batteryAlarm, *multipleTurnsOverflow, *puuOverflow, *absoluteCoordonateNotSet, *homeDone, *modbusError, *driveInitialised, *freeRun, *scier, *flipFlopScie,
                       *absolutePositionLost, *doHome, *ejectButton, *goHomeButton;
 

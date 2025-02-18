@@ -358,11 +358,12 @@ bool Formaca::logiqueExecutor() {
     if (getIsStartCycle() && running && lock){
         lock = false;
     }
+
+    if (jog->getIsChanged()){
+        Serial.printf("%lu::Formaca:: new value of jog button: %s\r\n", millis(), jog->getValue() ? "true": "false");
+    }
  
     if (jog->getValue()){
-        if (jog->getIsChanged()){
-            Serial.printlf("Formaca:: new value of jog button: %s\r\n", jog->getValue() ? "true": "false");
-        }
         readyForNext = false;
         jogTreatment();
     }
@@ -374,7 +375,7 @@ bool Formaca::logiqueExecutor() {
     } 
 
     return true;
-}
+} // logicExacutor
 
 bool Formaca::getIsStartCycle(){
     return (startCycle->getIsChanged() && startCycle->getValue()) || (vStart->getIsChanged() && vStart->getValue());
