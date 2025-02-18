@@ -93,7 +93,6 @@
           "hash": 2864105056
         },
         {
-          "A supprimer": true,
           "id": 2,
           "name": "Do home",
           "hash": 2206102162
@@ -169,6 +168,26 @@
           "id": 10,
           "name": "Calibrate !!!",
           "hash": 3874886927
+        },
+        {
+          "id": 11,
+          "name": "v_servoOn",
+          "hash": 1581937258  
+        },
+        {
+          "id": 12,
+          "name": "v_flipFlopScie", 
+          "hash": 1291836804 
+        },
+        {
+          "id": 13,
+          "name": "v_immediateStop",
+          "hash": 4098079457  
+        },
+        {
+          "id": 14,
+          "name": "v_alarmsReset",
+          "hash": 1771340376  
         }
       ]
     },

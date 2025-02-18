@@ -75,6 +75,13 @@ Formaca::Formaca() {
     vStart                  = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_START);
     cancelCycle             = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CANCEL_CYCLE);
     cylinderCaptor          = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CYLINDER_CAPTOR);
+    // Initialisation des nodes virtuels miroirs
+    v_servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_SERVO_ON);
+    v_flipFlopScie = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_FLIP_FLOP_SCIE);
+    v_immediateStop = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_IMMEDIATE_STOP);
+    v_alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_ALARMS_RESET);
+
+
 
     if (BorneUniverselle::isPlcBroken()){
         Serial.flush();
@@ -376,13 +383,27 @@ bool Formaca::getIsStartCycle(){
 }
 
 void Formaca::interfaceTreatment(){
+
+    // Gestion des miroirs virtuels
+    if (v_servoOn->getIsChanged()) {
+        servoOn->setValue(v_servoOn->getValue());
+    }
+    if (v_flipFlopScie->getIsChanged()) {
+        flipFlopScie->setValue(v_flipFlopScie->getValue());
+    }
+    if (v_immediateStop->getIsChanged()) {
+        immediateStop->setValue(v_immediateStop->getValue());
+    }
+    if (v_alarmsReset->getIsChanged()) {
+        alarmsReset->setValue(v_alarmsReset->getValue());
+    }
     if (overAllLenght->getIsChanged()){
         BorneUniverselle::prepareMessage(SUCCESS, "La longeur brute a été mis à jour");
         BorneUniverselle::prepareMessage(WARNING, "Il est nécéssaire d'aller a la position park");
         parameters.overAllLenght = overAllLenght->getValue();
         saveMachineParameters();
         parkPosition = parameters.reference - convToPUU(overAllLenght->getValue() + parkOffset->getValue());
-        Serial.printf("Nouvelle position de parque: %lu pulses, soit %.2f inch\r\n", (long unsigned int)parkPosition, convToInch(parkPosition));
+        Serial.printf("Nouvelle position de park: %lu pulses, soit %.2f inch\r\n", (long unsigned int)parkPosition, convToInch(parkPosition));
         
     }
 

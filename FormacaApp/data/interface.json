@@ -33,7 +33,7 @@
                         {
                             "name": "Reset défauts",
                             "component": "tx-bool",
-                            "hash": 2122812135
+                            "hash": 1771340376
                         }
                     ]
                 },
@@ -317,13 +317,24 @@
                             "name": "Scier",
                             "component": "tx-button-hold",
                             "color": "danger",
-                            "hash": 2853133322
+                            "hash": 1291836804
                         },
                         {
                             "name": "Éjecter",
                             "component": "tx-button-hold",
                             "color": "warning",
                             "hash": 3772375986
+                        },
+                        {
+                            "name": "Servo on off",
+                            "component": "tx-bool",
+                            "hash": 1581937258
+                        },
+                        {
+                            "name": "Stop immediat",
+                            "component": "tx-button-hold",
+                            "color": "danger",
+                            "hash": 4098079457
                         }
                     ]
                 }
