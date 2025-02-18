@@ -639,7 +639,10 @@ bool BorneUniverselle::sendMessage() {
     if (!sendTextToClient(chain)){
         Serial.println("SendMEssage: unable to send text to client");
         return false;
+    } else {
+        Serial.printf("sendMessage: message %s send to the client\r\n", chain);
     }
+
 
     notifMessagesList.remove(notifMessage);
     xSemaphoreGive(notifMutex);
@@ -783,7 +786,46 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
     return isMoreThanHalf;
 }
 
-void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client) {
+void BorneUniverselle::handleWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client){
+    // Vérifie simplement que c'est un message texte
+    AwsFrameInfo *info = (AwsFrameInfo*)_arg;
+    if (info->opcode != WS_TEXT) {
+        Serial.println(F("Not a text message"));
+        return;
+    }
+
+    if (_len < 10 || _len > WEB_SOCKET_MESSAGE_MAX_SIZE) { 
+        Serial.printf("WebSocketMessage size out of bounds: %u [bytes]\r\n", _len);
+        return;
+    }  
+
+    // Message complet en une seule frame
+    if (info->final && info->index == 0 && info->len == _len && info->opcode == WS_TEXT) {
+        keepWebSocketMessage((const char *)_data, _arg, _client);
+        return;
+    }
+
+    // Premier fragment
+    if (info->index == 0) {
+        messageBuffer = "";
+        expectedSize = info->len;
+        Serial.printf("handleWebSocketMessage:: start collecting message, expected size: %u\n", expectedSize);
+    }
+
+    // Ajouter le fragment
+    messageBuffer += String((char*)_data, _len);
+
+    // Si on a tout reçu
+    if (messageBuffer.length() >= expectedSize) {
+        Serial.println("handleWebSocketMessage: processing complete reassembled message");
+        keepWebSocketMessage(messageBuffer.c_str(), _arg, _client);
+        messageBuffer = ""; // Nettoyer
+    } else {
+        Serial.println("handleWebSocketMessage: collecting more data");
+    }
+}
+
+void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, AsyncWebSocketClient *_client) {
     if (isPlcBroken()){
         if (!noPLC_BrokenMessage){
             Serial.println(F("Because the PLC is broken, we don't read the websocket message"));
@@ -814,38 +856,18 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
         Serial.println(F("Discarding messages from client disconnected or timed out"));
         return; 
     }
-
-    // On évite d'ajouter un message incomplet
-    AwsFrameInfo *info = (AwsFrameInfo*)_arg;
-    
-    // Vérifie simplement que c'est un message texte
-    if (info->opcode != WS_TEXT) {
-        Serial.println(F("Not a text message"));
-        return;
-    }
-
-    // Si c'est le dernier fragment du message
-    if (info->final) {
-        // Traiter le message
-        Serial.printf("Processing message fragment at index %lu\n", (uint32_t)info->index);
-        
-        // ... reste du code de traitement ...
-    } else {
-        Serial.println(F("Message fragment received, waiting for final"));
-    }
    
-    if (_len > 10 && _len < WEB_SOCKET_MESSAGE_MAX_SIZE) {
         vTaskDelay(1);
         // Copie des données
-        unsigned char* dataCopy = (unsigned char*)malloc(_len + 1);
+        unsigned char* dataCopy = (unsigned char*)malloc(strlen(data) + 1);
         if (!dataCopy) {
             Serial.println(F("Memory allocation error for websocket message copy"));
             setPlcBroken("Memory allocation error for websocket message copy");
             return;
         }
-        memcpy(dataCopy, _data, _len);
+        memcpy(dataCopy, data, strlen(data));
         bool messageAdded = false;
-        dataCopy[_len] = 0;  // Ajouter le zéro terminal
+        dataCopy[strlen(data)] = 0;  // Ajouter le zéro terminal
         webSocketMessageLength = webSocketMessagesList.length();
         
         // Tentatives d'acquérir le mutex
@@ -862,8 +884,8 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
                         continue;
                     }
         
-                    webSocketMessage->arg = _arg;
-                    webSocketMessage->len = _len;
+                    webSocketMessage->arg = arg;
+                    webSocketMessage->len = strlen(data);
                     webSocketMessage->client = _client;
                     webSocketMessage->data = dataCopy;
                     webSocketMessage->timeOfOrigine = millis();
@@ -890,9 +912,7 @@ void BorneUniverselle::keepWebSocketMessage(void *_arg, unsigned char *_data, si
             free(dataCopy);
             Serial.printf("Failed to process message after %d attempts\n", attempts);
         }
-    } else {
-        Serial.printf("WebSocketMessage size out of bounds: %u [bytes]\r\n", _len);
-    }
+   
 
     if (millis() - start > 100){
         Serial.printf("Time to add one element on the webSocketMessageList: %lu[us]\r\n", millis() - start); 
@@ -1088,12 +1108,12 @@ void BorneUniverselle::setInitialStateLoadedCallback(std::function<void()> callb
 }
 
 void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
-    serializeJsonPretty(socketDoc, Serial);
-    /*
+    //serializeJsonPretty(socketDoc, Serial);
+
     const char* path = socketDoc["saveFile"][0][PATH]; // "/interface.json"
     const char* data = socketDoc["saveFile"][0][DATA]; // "le contenue du fichier à enregistrer"
 
-    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u, data: %s\r\n", path, strlen(data), data);
+    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u\r\n", path, strlen(data));
 
     File file = LittleFS.open(path, FILE_WRITE);
     char buff[256]; 
@@ -1103,11 +1123,16 @@ void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
         prepareMessage(ERROR, buff);
         return;
     } 
-    file.print(data);
+    
+    size_t bytesWritten = file.print(data);
     file.close();
+    if (bytesWritten != strlen(data)){
+        sprintf(buff, "BorneUniverselle::handleSaveFile:: Write error:\r\n");
+        prepareMessage(ERROR, buff);
+        return;
+    }
     sprintf(buff, "File: %s saved with success\r\n", path);
-    prepareMessage(SUCCESS, buff);
-    */    
+    prepareMessage(SUCCESS, buff);  
 }
 
 void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
@@ -1661,6 +1686,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
             if (c[NAME].isNull()){
                 sprintf(buff, "parseHardwares:: sub section doesnt contains key %s from config file", NAME);
                 prepareMessage(ERROR, buff);
+                PLC_Tools::printJsonObject(c);
                 return false;  
             }
             strcpy(nodeName, c[NAME]);
@@ -2051,8 +2077,7 @@ bool BorneUniverselle::modbusInit(JsonDocument contextDoc){
         Serial.printf("Modbus RTU timeout: %u\r\n", timeout);
         myModbus.setTimeout(timeout);
     } else {
-        prepareMessage(ERROR, "modbusInit:: unable to find key modbus/timeout in context file");
-        return false;
+        myModbus.setTimeout(DEFAULT_TIMEOUT);
     }
 
     ModbusRTU *modbus = new ModbusRTU();

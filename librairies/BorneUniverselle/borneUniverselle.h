@@ -209,7 +209,7 @@ class BorneUniverselle{
         void handleDirectoryRequest(JsonDocument socketDoc);
         void handleSaveFile(JsonDocument socketDoc);
         bool getIsWifiParsedOk();
-        void keepWebSocketMessage(void *arg, uint8_t *data, size_t len,  AsyncWebSocketClient *client);
+        void handleWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client);
         void clearInputschanged(); // if no client connected
         static void refresHardwareInputs();
         bool isWebSocketMessagesListMoreThanHalf();
@@ -311,5 +311,9 @@ class BorneUniverselle{
            // Callback enregistrée
         static std::function<void()> initialStateLoadedCallback;
         char hearbeatChain[256];
+
+        String messageBuffer; // buffer pour la réception de message du web socket en plusieurs morceaux
+        size_t expectedSize = 0;
+        void keepWebSocketMessage(const char *data, void *arg, AsyncWebSocketClient *_client);
 };
 #endif

@@ -70,7 +70,6 @@ Formaca::Formaca() {
     pr2Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR2_SPEED);
     pr3Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR3_SPEED);
     immediateStop           = (PF8574BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, IMMEDIATE_STOP);
-    alarmsReset             = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ALARM_RESET);
     absolutePositionLost    = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ABSOLUTE_POS_LOST);
     nbCyclesClear           = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, NB_CYCLES_CLEAR);
     vStart                  = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_START);
@@ -329,8 +328,10 @@ bool Formaca::logiqueExecutor() {
         } 
 
         if (longLength->getValue() < 1 || longLength->getValue() > 100 || isnan(longLength->getValue())){
-            BorneUniverselle::prepareMessage(WARNING, "Vous devez dabord choisir une recette");
-            return true;
+            if (!setNewRecette(recette->getValue())){
+                BorneUniverselle::setPlcBroken("Incapable de lire la recette active");
+            }
+            return false;
         }
 
         if (!capteur_pression_air->getValue()){
@@ -359,6 +360,9 @@ bool Formaca::logiqueExecutor() {
     }
  
     if (jog->getValue()){
+        if (jog->getIsChanged()){
+            Serial.printlf("Formaca:: new value of jog button: %s\r\n", jog->getValue() ? "true": "false");
+        }
         readyForNext = false;
         jogTreatment();
     }

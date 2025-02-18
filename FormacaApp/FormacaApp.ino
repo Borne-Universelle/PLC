@@ -257,7 +257,8 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     break;
     
     case WS_EVT_DATA:
-      bu->keepWebSocketMessage(arg, data, len, client);
+      //bu->keepWebSocketMessage(arg, data, len, client);
+      bu->handleWebSocketMessage(arg, data, len, client);
     break;
     
     case WS_EVT_PONG:
