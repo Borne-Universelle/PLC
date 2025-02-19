@@ -6775,12 +6775,12 @@ class HwNotification extends HTMLElement {
             case "danger":
                 variant = "danger";
                 icon = "exclamation-circle";
-                duration = 7200000;
+                duration = 10000;
                 break;
             case "warning":
                 variant = "warning";
                 icon = "exclamation-triangle";
-                duration = 99000;
+                duration = 5000;
                 break;
             case "info":
             case "primary":
@@ -6790,7 +6790,7 @@ class HwNotification extends HTMLElement {
             case "success":
                 variant = "success";
                 icon = "check-circle";
-                duration = 5000;
+                duration = 2000;
                 break;
         }
 
