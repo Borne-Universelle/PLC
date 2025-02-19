@@ -1,0 +1,223 @@
+187773:: Node notify (Uint16OutputNode): Vitesses et compteurs/Vitesse Jog new value: 0
+
+187786:: notifyWebClient: End web notify
+187952:: Uint16OutputNode::node: Vitesses et compteurs/Vitesse Jog, new value: 0
+Refresh:: will check heartbeat and Websocket message
+188007:: node: Servo read holding register/status, new value: 419
+Servo ready: true
+Target position reached: false
+Servo alarm: false
+Home done: true
+188011:: Node notify (Uint16InputNode): Servo read holding register/status new value: 419
+
+188024:: notifyWebClient: End web notify
+188131:: node: Num Status/Position, new value: 4292915237
+188164:: Node notify (float output): Paramètres machine/Position actuelle new value: 135579.719
+188167:: Node notify: Num Status/Position (Uint32InputNode) new value: 4292915237
+
+188179:: notifyWebClient: End web notify
+188950:: node: Servo read holding register/trigger read, new value: 20001
+188972:: node: Servo read holding register/status, new value: 439
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+188976:: Node notify: États du servo/Vitesse Zéro new value: true
+188986:: Node notify: États du servo/Position Cible Atteinte new value: true
+188996:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20001
+188997:: Node notify (Uint16InputNode): Servo read holding register/status new value: 439
+
+189010:: notifyWebClient: End web notify
+189137:: node: Servo read holding register/status, new value: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+189141:: Node notify (Uint16InputNode): Servo read holding register/status new value: 407
+
+189154:: notifyWebClient: End web notify
+189261:: node: Num Status/Position, new value: 4292996228
+189294:: Node notify (float output): Paramètres machine/Position actuelle new value: 135582.281
+189297:: Node notify: Num Status/Position (Uint32InputNode) new value: 4292996228
+
+189310:: notifyWebClient: End web notify
+190907:: handleNodesChange: Web socket nodes change received. Node: Jog/Jog Mode new value: false
+End Web socket nodes change received
+
+190918::Formaca:: new value of jog button: false
+190919:: Node notify: Jog/Jog Mode new value: false
+
+190921:: notifyWebClient: End web notify
+Refresh:: will check heartbeat and Websocket message
+193416:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 1
+Node: Opération/Start Cycle new value: 1
+End Web socket nodes change received
+
+193428:: Node notify (uint32 output): Opération/Start Cycle new value: 1
+
+193441:: notifyWebClient: End web notify
+193452:: Uint32OutputNode::node: Opération/Start Cycle, new value: 1
+193517:: MyModbus::waitEndTransaction: warning: long transaction: 58 ms
+Refresh:: will check heartbeat and Websocket message
+194471:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 0
+Node: Opération/Start Cycle new value: 0
+End Web socket nodes change received
+
+194483:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+
+194496:: notifyWebClient: End web notify
+194516:: Uint32OutputNode::node: Opération/Start Cycle, new value: 0
+Refresh:: will check heartbeat and Websocket message
+198471:: There are now 2 webMessages on the list (to be processed)
+198598:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Reset compteur cycles: 1
+Node: Opération/Reset compteur cycles new value: 1
+End Web socket nodes change received
+
+Uint32OutputNode:: setValue for node: Vitesses et compteurs/Nb cycles effectués: 0
+Nb cycles clear
+198623:: Node notify (uint32 output): Opération/Reset compteur cycles new value: 1
+
+198626:: notifyWebClient: End web notify
+sendMessage: message {"notification":{"status":200,"type":"success","desc":"Nb cycles clear by nb cycle clear button"}} send to the client
+198726:: Uint32OutputNode::node: Opération/Reset compteur cycles, new value: 1
+199129:: There are now 2 webMessages on the list (to be processed)
+199140:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Reset compteur cycles: 0
+Node: Opération/Reset compteur cycles new value: 0
+End Web socket nodes change received
+
+Uint32OutputNode:: setValue for node: Vitesses et compteurs/Nb cycles effectués: 0
+Nb cycles clear
+199162:: Node notify (uint32 output): Opération/Reset compteur cycles new value: 0
+
+199174:: notifyWebClient: End web notify
+sendMessage: message {"notification":{"status":200,"type":"success","desc":"Nb cycles clear by nb cycle clear button"}} send to the client
+199220:: Uint32OutputNode::node: Opération/Reset compteur cycles, new value: 0
+Refresh:: will check heartbeat and Websocket message
+200976:: There are now 2 webMessages on the list (to be processed)
+201012:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 1
+Node: Opération/Start Cycle new value: 1
+End Web socket nodes change received
+
+201026:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 0
+Node: Opération/Start Cycle new value: 0
+End Web socket nodes change received
+
+201048:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+
+201050:: notifyWebClient: End web notify
+201062:: Uint32OutputNode::node: Opération/Start Cycle, new value: 0
+Refresh:: will check heartbeat and Websocket message
+Refresh:: will check heartbeat and Websocket message
+214533:: There are now 2 webMessages on the list (to be processed)
+214650:: There are now 2 webMessages on the list (to be processed)
+214656:: There are now 3 webMessages on the list (to be processed)
+214664:: There are now 4 webMessages on the list (to be processed)
+214668:: There are now 5 webMessages on the list (to be processed)
+Client queue is full !!!
+Client queue is full !!!
+Client queue is full !!!
+Client queue is full !!!
+WebSocket queue full timeout - message dropped
+sendHeartbeat: unable to send text to client
+Client queue is full !!!
+WebSocket queue full timeout - message dropped
+sendHeartbeat: unable to send text to client
+Client queue is full !!!
+Receive a new connection: close the actual and keep the new one
+219438:: There are now 2 webMessages on the list (to be processed)
+219446:: There are now 3 webMessages on the list (to be processed)
+219451:: There are now 4 webMessages on the list (to be processed)
+219452:: client 3 is disconnected, will remove it
+Discarding messages from client disconnected or timed out
+227720:: There are now 2 webMessages on the list (to be processed)
+BorneUniverselle::processMessage: receive get all states request
+227741:: Node notify: Jog/Position Park new value: false
+227742:: Node notify: États du système/Capteur cylindres new value: false
+227752:: client 4 is disconnected, will remove it
+227753:: Node notify: Vitesses et compteurs/Full torque new value: false
+227763:: Node notify: États du servo/Vitesse Zéro new value: true
+227774:: Node notify (uint32 output): Opération/Reset compteur cycles new value: 0
+227774:: Node notify: Alarmes/Overflow PUU new value: false
+227784:: Node notify: Jog/Jog Mode new value: false
+227784:: Node notify (float output): Paramètres machine/Position actuelle new value: 135582.281
+227795:: Node notify: États du système/E-Stop new value: true
+227805:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 1
+227805:: Node notify: Outputs Kincony/Flip flop scie new value: false
+227815:: Node notify: Alarmes/Position Absolue Perdue new value: false
+227816:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+227826:: Node notify: Jog/Jog - new value: false
+227836:: Node notify: États du système/Pression d'air new value: true
+227836:: Node notify (float output): Paramètres machine/Largeur new value: -2042959537178148864.000
+227847:: Node notify: Alarmes/Alarme Batterie new value: false
+227857:: Node notify: Num Status/PR speed read (Uint32InputNode) new value: 786434
+227857:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles voulus new value: 0
+227868:: Node notify (uint32 output): Servo write dobble holding registers/PR1 speed new value: 786434
+227878:: Node notify: Test/Scier new value: false
+227878:: Node notify: Commandes de calibration/Aller à la référence new value: false
+227888:: Node notify (float output): Paramètres machine/Offset chargement new value: 0.500
+227899:: Node notify: Alarmes/Erreur Modbus new value: false
+227899:: Node notify: Test/Servo on off new value: true
+227909:: Node notify: Direct outputs/Buzzer new value: false
+227909:: Node notify: États du servo/Vitesse Cible Atteinte new value: false
+227919:: Node notify: Opération/Reset défauts new value: false
+227930:: Node notify: États du servo/Servo Ready new value: true
+227930:: Node notify (uint32 output): Vitesses et compteurs/Vitesse Cycle new value: 12
+227940:: Node notify (uint32 output): Servo write dobble holding registers/PR2 speed new value: 786434
+Refresh:: will check heartbeat and Websocket message
+227951:: Node notify: Outputs Kincony/alarmsReset new value: false
+227962:: Node notify: Num Status/target B Read (Uint32InputNode) new value: 45891
+227962:: Node notify: États du servo/Home effectué new value: true
+227972:: Node notify: Outputs Kincony/Do home new value: false
+227972:: Node notify (Uint16OutputNode): Servo write holding register/aux_function new value: 5
+227982:: Node notify: Jog/Jog + new value: false
+227993:: Node notify (uint32 output): Servo write dobble holding registers/target A new value: 45891
+228003:: Node notify (uint32 output): Opération/Stop cycle new value: 0
+228003:: Node notify: Opération/Choix Recette new value: 
+228013:: Node notify: Alarmes/Overflow Tours Multiples new value: false
+228014:: Node notify (uint32 output): Servo write dobble holding registers/PR3 data new value: 0
+228024:: Node notify (float output): Paramètres machine/Longueur new value: 0.000
+228034:: Node notify: Num Status/target A Read (Uint32InputNode) new value: 45891
+228034:: Node notify: Jog/Scier new value: false
+228045:: Node notify: Outputs Kincony/servoOn new value: true
+228045:: Node notify (uint32 output): Inputs/vjog speed new value: 1200
+228055:: Node notify: Inputs Kincony/StartCycle new value: false
+228065:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles effectués new value: 0
+228066:: Node notify: États du servo/Position Cible Atteinte new value: true
+228076:: Node notify: Commandes de calibration/Go Home new value: false
+228086:: Node notify (float output): Paramètres machine/Butée droite new value: 97.000
+228086:: Node notify (Uint16OutputNode): Vitesses et compteurs/Vitesse Jog new value: 0
+228097:: Node notify (float output): Paramètres machine/Longueur de rebut new value: 6.000
+228107:: Node notify: États du servo/Servo Activé new value: true
+228107:: Node notify (uint32 output): Servo write dobble holding registers/target B new value: 0
+228118:: Node notify: Outputs Kincony/immediatStop new value: false
+228128:: Node notify (uint32 output): Vitesses et compteurs/Contrôle Couple new value: 100
+228138:: Node notify: Alarmes/Alarme Servo new value: false
+228138:: Node notify: Num Status/Target C read (Uint32InputNode) new value: 3170039
+228149:: Node notify (Uint16OutputNode): Servo write holding register/Max torque new value: 100
+Refresh:: will check heartbeat and Websocket message
+228159:: Node notify (float output): Paramètres machine/Longueur brute new value: 96.000
+228170:: Node notify: Test/Éjecter new value: false
+228170:: Node notify: États du système/Drive Initialisé new value: true
+228180:: Node notify: Commandes de calibration/Calibrer new value: false
+228190:: Node notify (Uint16InputNode): Servo read holding register/jog speed read new value: 1200
+228191:: Node notify: Num Status/Position (Uint32InputNode) new value: 4292996228
+228201:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20001
+228211:: Node notify: Test/Stop immediat new value: false
+228211:: Node notify (Uint16InputNode): Servo read holding register/absolute coordonate system status new value: 0
+228222:: Node notify (Uint16InputNode): Servo read holding register/alarms new value: 0
+228232:: Node notify (Uint16InputNode): Servo read holding register/status new value: 407
+228242:: Node notify (uint32 output): Servo write dobble holding registers/PR3 speed new value: 786434
+228253:: Node notify: Alarmes/Coordonnées Absolues Non Définies new value: false
+
+228263:: End notifyWebClient: duration: 523
+228263:: BorneUniverselle::handleGetAllValues, end
+handleWebSocketMessage:: message processing duration: 524, message: {"allStatesRequest":true}(b⸮@
+Discarding messages from client disconnected or timed out
+236013:: There are now 2 webMessages on the list (to be processed)
+236050:: client 5 is disconnected, will remove it
+Discarding messages from client disconnected or timed out
+243074:: There are now 2 webMessages on the list (to be processed)
+243100:: client 6 is disconnected, will remove it
+Discarding messages from client disconnected or timed out
+250149:: There are now 2 webMessages on the list (to be processed)
+250174:: client 7 is disconnected, will remove it

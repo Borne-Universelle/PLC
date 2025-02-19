@@ -9593,7 +9593,7 @@ class InterfaceEditor extends ConnectedElement {
                     data: content
                 };
                 
-                this.socket.sendMessage("saveFile", message);
+                this.socket.sendMessage("saveFile", [message]);
                 
                 window.notify({
                     type: "success",
