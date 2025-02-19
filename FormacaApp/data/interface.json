@@ -10,7 +10,8 @@
                         {
                             "name": "Choix Recette",
                             "component": "tx-dropdown",
-                            "items": [],
+                            "items": ["11 7/8"],
+                            "default": "11 7/8",
                             "hash": 2565368844
                         },
                         {

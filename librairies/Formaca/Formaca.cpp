@@ -332,14 +332,38 @@ bool Formaca::logiqueExecutor() {
         if (!isAtPArkPosition()){
             goToParkPosition();
             return true;
-        } 
+    } 
 
-        if (longLength->getValue() < 1 || longLength->getValue() > 100 || isnan(longLength->getValue())){
-            if (!setNewRecette(recette->getValue())){
-                BorneUniverselle::setPlcBroken("Incapable de lire la recette active");
+    // Vérification recette
+    if (longLength->getValue() < 1 || longLength->getValue() > 100 || isnan(longLength->getValue())) {
+        // Récupérer d'abord la valeur courante
+        const char* currentRecipe = recette->getValue();
+        bool recipeFound = false;
+
+        // Si aucune valeur courante, chercher la valeur par défaut
+        if (!currentRecipe || strlen(currentRecipe) == 0) {
+            Serial.println("Pas de recette sélectionnée, recherche de la recette par défaut...");
+            
+            // Chercher dans les recettes disponibles la première recette
+            if (parameters.nbRecettes > 0) {
+                currentRecipe = parameters.recettes[0].name;
+                Serial.printf("Utilisation de la première recette disponible: %s\n", currentRecipe);
+                recipeFound = true;
             }
+        } else {
+            recipeFound = true;
+        }
+
+        if (!recipeFound) {
+            BorneUniverselle::prepareMessage(ERROR, "Aucune recette n'est sélectionnée ou disponible");
             return false;
         }
+
+        if (!setNewRecette(currentRecipe)) {
+            BorneUniverselle::prepareMessage(ERROR, "La recette sélectionnée n'est pas valide");
+            return false;
+        }
+    }
 
         if (!capteur_pression_air->getValue()){
             BorneUniverselle::prepareMessage(ERROR, "Il n'y a pas de pression d'air !!!");
@@ -674,7 +698,7 @@ void Formaca::initialStateLoadedHandler(){
     }
 }
 
-bool Formaca::setNewRecette(char *recette){
+bool Formaca::setNewRecette(const char *recette){
     if (strlen(recette) == 0){
         char message[256];
         snprintf(message, sizeof(message), "%s: %s", "Formaca::setNewRecette", "text from recette length is 0, probably recette component mis configured");
@@ -688,7 +712,6 @@ bool Formaca::setNewRecette(char *recette){
             break;
         }
     }
-
 
     Serial.printf("Nouveau choix de recette: %s, id: %d\r\n", recette, idRecette);
     widthLength->setValue(parameters.recettes[idRecette].width);

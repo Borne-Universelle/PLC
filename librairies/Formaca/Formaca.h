@@ -181,7 +181,7 @@ private:
     void driveInitialisation();
     void saveDriveParameters();
     void setCycleSpeed(uint8_t cycleSpeed);
-    bool setNewRecette(char *recette);
+    bool setNewRecette(const char *recette);
     uint32_t convToPUU(float); // converti des pouces en PUU
     float convToInch(uint32_t);
     void cycleSpeedChange(); 
