@@ -677,6 +677,15 @@ void Formaca::initialStateLoadedHandler(){
     }
 
     drompDownIndicator->setItems(docToSend);
+     // Définir la première recette comme active
+     if (parameters.nbRecettes > 0) {
+        if (!setNewRecette(parameters.recettes[0].name)) {
+            BorneUniverselle::prepareMessage(ERROR, "Erreur lors du chargement de la recette par défaut");
+        } else {
+            // Mettre à jour l'interface avec la recette par défaut
+            recette->setValue(parameters.recettes[0].name);
+        }
+    }
     Serial.println("Will set parameters to the web client");
     overAllLenght->setValue(parameters.overAllLenght);
     parkOffset->setValue(parameters.parkOffset);
