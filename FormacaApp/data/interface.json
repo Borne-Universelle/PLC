@@ -265,7 +265,7 @@
                         {
                             "name": "Vitesse Jog",
                             "component": "tx-numeric",
-                            "hash": 2984797290
+                            "hash": 3187488644
                         },
                         {
                             "name": "Vitesse Cycle",

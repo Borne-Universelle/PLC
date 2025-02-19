@@ -61,7 +61,7 @@
 #define JOG_SPEED_READ                  4031699079
 #define AUX_FUNCTION                    2308213873
 #define TRIGGER                         748480285
-#define JOG_SPEED                       4031699079
+#define JOG_SPEED                       3187488644
 #define POSITION                        4045003206
 #define MAX_TORQUE                      3740987040
 #define TARGET_A_READ                   2843041799
@@ -78,7 +78,7 @@
 #define DO_HOME                         2206102162
 
 #define IMMEDIATE_STOP                  3505331062
-#define ALARM_RESET                     2122812135        // relais de reset des alarms
+//#define ALARM_RESET                     2122812135        // relais de reset des alarms
 #define FLIP_FLOP_SCIE                  756474627
 #define NB_CYCLES_CLEAR                 362298148
 //#define USABLE_LENGTH           396324830 // ?
