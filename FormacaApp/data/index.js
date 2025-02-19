@@ -6522,6 +6522,7 @@ class HwDynamic extends HTMLElement {
         const page = this._interface.pages[index];
         
         if (page.password) {
+          console.log("Password found:", page.password);
             if (!passwordManager.isUnlocked(`page-${page.PageName}`)) {
                 // Hide content before showing dialog
                 this.hidePageContent();
