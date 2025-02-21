@@ -268,12 +268,17 @@ bool Formaca::logiqueExecutor() {
 
     if (alarmsReset->getIsChanged() && alarmsReset->getValue() == true){
         Serial.printf("%lu:: Alarms reset\r\n", millis());
-        goHome = false;
-        triggerPending = false;
         running = false;
-        ejectPhase = false,
+        ejectPhase = false;
         parkPositionPhase = false;
         flipflopInAction = false;
+        wasteCutting = false;
+        normalCut = false;
+        readyForNext = false;
+        goHome = false;
+        triggerPending = false;
+        bladeInhibit = false;
+        lock = false;  // Déverrouiller si un verrouillage était actif
     }
 
     if (immediateStop->getIsChanged() && !immediateStop->getValue()){

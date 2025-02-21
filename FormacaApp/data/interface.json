@@ -27,9 +27,10 @@
                             "hash": 2539529911
                         },
                         {
-                            "name": "Reset compteur cycles",
-                            "component": "tx-bool",
-                            "hash": 362298148
+                            "name": "Reset Stop",
+                            "component": "tx-button-hold",
+                            "color": "warning",
+                            "hash": 4098079457
                         },
                         {
                             "name": "Reset défauts",
@@ -38,16 +39,21 @@
                             "hash": 1771340376
                         },
                         {
+                            "name": "Alarme Servo",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 3569748327
+                        },
+                        {
                             "name": "Nb cycles effectués",
                             "component": "tx-numeric",
                             "readonly": true,
                             "hash": 3018797200
                         },
                         {
-                            "name": "Reset Stop",
-                            "component": "tx-button-hold",
-                            "color": "warning",
-                            "hash": 4098079457
+                            "name": "Reset compteur cycles",
+                            "component": "tx-bool",
+                            "hash": 362298148
                         }
                     ]
                 },
