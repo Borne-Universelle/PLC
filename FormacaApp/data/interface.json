@@ -8,13 +8,6 @@
                     "orientation": "horizontal",
                     "NodesList": [
                         {
-                            "name": "Choix Recette",
-                            "component": "tx-dropdown",
-                            "items": ["11 7/8"],
-                            "default": "11 7/8",
-                            "hash": 2565368844
-                        },
-                        {
                             "name": "Start Cycle",
                             "component": "tx-button-hold",
                             "color": "success",
@@ -25,12 +18,6 @@
                             "component": "tx-button-hold",
                             "color": "danger",
                             "hash": 2539529911
-                        },
-                        {
-                            "name": "Reset Stop",
-                            "component": "tx-button-hold",
-                            "color": "warning",
-                            "hash": 4098079457
                         },
                         {
                             "name": "Reset défauts",
@@ -54,6 +41,12 @@
                             "name": "Reset compteur cycles",
                             "component": "tx-bool",
                             "hash": 362298148
+                        },
+                        {
+                            "name": "Position Park",
+                            "component": "tx-button-hold",
+                            "color": "normal",
+                            "hash": 431233
                         }
                     ]
                 },
@@ -79,10 +72,17 @@
                             "hash": 936928435
                         },
                         {
-                            "name": "Position Park",
-                            "component": "tx-button-hold",
-                            "color": "normal",
-                            "hash": 431233
+                            "name": "Position actuelle",
+                            "component": "tx-numeric",
+                            "unit": "pouces",
+                            "readonly": true,
+                            "hash": 666618897
+                        },
+                        {
+                            "name": "Longueur brute",
+                            "component": "tx-numeric",
+                            "unit": "pouces",
+                            "hash": 3749283751
                         }
                     ]
                 }
@@ -92,32 +92,20 @@
             "PageName": "Monitoring",
             "sections": [
                 {
-                    "SectionName": "États du système",
+                    "SectionName": "Commandes de calibration",
                     "orientation": "horizontal",
                     "NodesList": [
                         {
-                            "name": "Pression d'air",
-                            "component": "rx-indicator",
-                            "color": "green",
-                            "hash": 998762341
+                            "name": "Calibrer",
+                            "component": "tx-button-hold",
+                            "color": "warning",
+                            "hash": 3874886927
                         },
                         {
-                            "name": "Capteur cylindres",
-                            "component": "rx-indicator",
-                            "color": "yellow",
-                            "hash": 134240750
-                        },
-                        {
-                            "name": "E-Stop",
-                            "component": "rx-indicator",
-                            "color": "red",
-                            "hash": 721063196
-                        },
-                        {
-                            "name": "Drive Initialisé",
-                            "component": "rx-indicator",
-                            "color": "green",
-                            "hash": 3779480165
+                            "name": "Aller à la référence",
+                            "component": "tx-button-hold",
+                            "color": "warning",
+                            "hash": 1483048151
                         }
                     ]
                 },
@@ -210,6 +198,36 @@
                             "hash": 1552688811
                         }
                     ]
+                },
+                {
+                    "SectionName": "États du système",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "Pression d'air",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 998762341
+                        },
+                        {
+                            "name": "Capteur cylindres",
+                            "component": "rx-indicator",
+                            "color": "yellow",
+                            "hash": 134240750
+                        },
+                        {
+                            "name": "E-Stop",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 721063196
+                        },
+                        {
+                            "name": "Drive Initialisé",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 3779480165
+                        }
+                    ]
                 }
             ]
         },
@@ -221,6 +239,13 @@
                     "SectionName": "Paramètres machine",
                     "orientation": "vertical",
                     "NodesList": [
+                        {
+                            "name": "Choix Recette",
+                            "component": "tx-dropdown",
+                            "items": ["11 7/8"],
+                            "default": "11 7/8",
+                            "hash": 2565368844
+                        },
                         {
                             "name": "Longueur brute",
                             "component": "tx-numeric",
@@ -256,13 +281,6 @@
                             "component": "tx-numeric",
                             "unit": "pouces",
                             "hash": 3132370279
-                        },
-                        {
-                            "name": "Position actuelle",
-                            "component": "tx-numeric",
-                            "unit": "pouces",
-                            "readonly": true,
-                            "hash": 666618897
                         }
                     ]
                 },
@@ -270,17 +288,18 @@
                     "SectionName": "Vitesses et compteurs",
                     "orientation": "vertical",
                     "NodesList": [
-                        {
-                            "name": "Vitesse Jog",
-                            "component": "tx-numeric",
-                            "hash": 3187488644
-                        },
+                        
                         {
                             "name": "Vitesse Cycle",
                             "component": "tx-numeric",
                             "min": 0,
                             "max": 15,
                             "hash": 1951357668
+                        },
+                        {
+                            "name": "Vitesse Jog",
+                            "component": "tx-numeric",
+                            "hash": 3187488644
                         },
                         {
                             "name": "Contrôle Couple",
@@ -303,30 +322,6 @@
                             "component": "tx-bool",
                             "color": "green",
                             "hash": 313736047
-                        }
-                    ]
-                },
-                {
-                    "SectionName": "Commandes de calibration",
-                    "orientation": "horizontal",
-                    "NodesList": [
-                        {
-                            "name": "Calibrer",
-                            "component": "tx-button-hold",
-                            "color": "warning",
-                            "hash": 3874886927
-                        },
-                        {
-                            "name": "Go Home",
-                            "component": "tx-button-hold",
-                            "color": "warning",
-                            "hash": 3099259876
-                        },
-                        {
-                            "name": "Aller à la référence",
-                            "component": "tx-button-hold",
-                            "color": "warning",
-                            "hash": 1483048151
                         }
                     ]
                 },

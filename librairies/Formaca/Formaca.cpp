@@ -428,9 +428,11 @@ void Formaca::interfaceTreatment(){
     }
     if (v_immediateStop->getIsChanged()) {
         immediateStop->setValue(v_immediateStop->getValue());
+        alarmsReset->setValue(v_alarmsReset->getValue());
     }
     if (v_alarmsReset->getIsChanged()) {
         alarmsReset->setValue(v_alarmsReset->getValue());
+        immediateStop->setValue(v_immediateStop->getValue());
     }
     if (overAllLenght->getIsChanged()){
         BorneUniverselle::prepareMessage(SUCCESS, "La longeur brute a été mis à jour");
