@@ -33,7 +33,7 @@
                         },
                         {
                             "name": "Nb cycles effectués",
-                            "component": "tx-numeric",
+                            "component": "rx-numeric",
                             "readonly": true,
                             "hash": 3018797200
                         },
@@ -73,7 +73,7 @@
                         },
                         {
                             "name": "Position actuelle",
-                            "component": "tx-numeric",
+                            "component": "rx-numeric",
                             "unit": "pouces",
                             "readonly": true,
                             "hash": 666618897
