@@ -39,7 +39,8 @@
                         },
                         {
                             "name": "Reset compteur cycles",
-                            "component": "tx-bool",
+                            "component": "tx-button-hold",
+                            "color": "normal",
                             "hash": 362298148
                         },
                         {

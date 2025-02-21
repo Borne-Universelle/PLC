@@ -700,6 +700,11 @@ void Formaca::initialStateLoadedHandler(){
     rightStop->setValue(parameters.rightStop);
     widthLength->setValue(parameters.recettes[idRecette].width);
     longLength->setValue(parameters.recettes[idRecette].longlength); // longeur final des morceaux
+    // Synchroniser les états virtuels avec leurs équivalents physiques
+    v_servoOn->setValue(servoOn->getValue());
+    v_flipFlopScie->setValue(flipFlopScie->getValue());
+    v_immediateStop->setValue(immediateStop->getValue());
+    v_alarmsReset->setValue(alarmsReset->getValue());
 
     if (isEmergencyMode()){
         BorneUniverselle::prepareMessage(ERROR, "Emergency stop !!!");
