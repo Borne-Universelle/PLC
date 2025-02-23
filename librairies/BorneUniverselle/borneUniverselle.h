@@ -19,6 +19,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "MemoryMonitor.h"  // pour du debug
+#include "MutexGuard.h"
 
 const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
@@ -158,7 +159,7 @@ struct HARDWARE_MODEL{
 struct WEB_SOCKET_MESSAGE{
     void * arg;
     uint8_t *data;
-    size_t len;
+    size_t len; // 
     uint32_t timeOfOrigine;
     AsyncWebSocketClient *client;
 };
@@ -204,12 +205,11 @@ class BorneUniverselle{
         static bool isPlcBroken();
         static void setPlcBroken(const char *context);
         void tooMuchClients(AsyncWebSocketClient *client);
-        void closeActualConnection(AsyncWebSocketClient *newClient);
         bool handleNodesChange(JsonDocument socketDoc);
         void handleDirectoryRequest(JsonDocument socketDoc);
-        void handleSaveFile(JsonDocument socketDoc);
+        bool handleSaveFile(JsonDocument socketDoc);
         bool getIsWifiParsedOk();
-        void handleWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client);
+        void handleWebSocket(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client);
         void clearInputschanged(); // if no client connected
         static void refresHardwareInputs();
         bool isWebSocketMessagesListMoreThanHalf();
@@ -224,21 +224,6 @@ class BorneUniverselle{
         void showMessage(Node *node, const char *text);
         static void modbusMessageHandler(uint8_t severity, const char* message);
         static void setInitialStateLoadedCallback(std::function<void()> callback);
-
-    private:
-        class MutexGuard {
-            SemaphoreHandle_t& mutex;
-            
-            // Empêcher la copie
-            MutexGuard(const MutexGuard&) = delete;
-            MutexGuard& operator=(const MutexGuard&) = delete;
-        
-        public:
-            explicit MutexGuard(SemaphoreHandle_t& m) : mutex(m) {}
-            ~MutexGuard() { xSemaphoreGive(mutex); }
-        };
-
-
 
         static char name[NAME_LENGHT];
         static char ota_url[OTA_URL_SIZE];
@@ -285,10 +270,10 @@ class BorneUniverselle{
         static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
         static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
         void saveParameters(JsonDocument configDoc);
-        void handleGetValue(uint32_t hash);
-        void handleGetAllValues();
+        bool handleGetValue(uint32_t hash);
+        bool handleGetAllValues();
         bool addNodeToNodeObject(Node *node, JsonObject *nodeObject);
-        void processMessage(WEB_SOCKET_MESSAGE *webSocketMessage);
+        bool processMessage(WEB_SOCKET_MESSAGE *webSocketMessage);
         static bool isI2CInitialised, isRs485Initialised, isModbusInitialised;
         static HardwareSerial *myRS485;
         MyModbus& myModbus = MyModbus::getInstance(); // singleton 
@@ -314,6 +299,6 @@ class BorneUniverselle{
 
         String messageBuffer; // buffer pour la réception de message du web socket en plusieurs morceaux
         size_t expectedSize = 0;
-        void keepWebSocketMessage(const char *data, void *arg, AsyncWebSocketClient *_client);
+        void keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client);
 };
 #endif
