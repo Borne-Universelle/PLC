@@ -12,14 +12,10 @@
 #include "borneUniverselle.h"
 #include "wifimanagment.h"
 #include "Formaca.h"
-#include "MemoryMonitor.h"
 
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
-uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
-uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
-
-#define MAIN_VERSION "Version 2.2"
+#define MAIN_VERSION "Version 2.3"
 #define OTA_STARTED "HTTP update process started"
 #define OTA_FINISHED "HTTP update process finished"
 
@@ -28,12 +24,11 @@ Formaca *formaca;
 MyToolBox toolbox;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
-bool memoryMonitorBool = false;
-MemoryMonitor memoryMonitor;
 
 #define BEEP 2
 
 long start;
+bool memoryMonitorBool = false;
 
 void connectToNextNetwork(){  
   Serial.println("Will get next wifi network");
@@ -83,8 +78,10 @@ void modifyLogs(){
     case 'D':     bu->setShowModbusMessages(false);
       break;
 
-    case 'E':     MemoryMonitor memoryMonitor;
-                  memoryMonitor.printStats("MemoryMonitor");
+    case 'E':     MemoryMonitor::printStats("MemoryMonitor");
+      break;
+
+    case 'G':     modifyLogs();
       break;
 
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
@@ -111,7 +108,7 @@ void showHelp(){
   Serial.println("Tapez sur 'F' pour imprimer le fichier de persistance");
   Serial.println("Tapez sur 'G' pour afficher la mémoire de manière cyclique");
   Serial.println("Tapez sur 'Y' pour faire un reset"),
-  Serial.println("Tapez sur 'Z' pour afficher modifier les logs");
+  Serial.println("Tapez sur 'Z' pour modifier les logs");
   Serial.println("Tapez sur '?' pour afficher l'aide");
 }
 
@@ -132,7 +129,7 @@ void commandInterpretor(char car){
     case 'F':     Formaca::printPersistance();
       break;
 
-    case 'G':     memoryMonitorBool = true;;
+    case 'G':     memoryMonitorBool = true;
 
     case 'Y':     Serial.println("ESP32 will reset");
                   ESP.restart();
@@ -198,10 +195,16 @@ void WiFiGotIP(){
   }
     
   // Add service to MDNS-SD
-  MDNS.addService("http", "tcp", 80);
-  Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
-  server.begin();  // Test Thierry
-  Serial.println("Web server started !");
+   MDNS.addService("http", "tcp", 80);
+   Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
+   if (!LittleFS.begin()) {
+     Serial.println(F("Erreur de montage LittleFS"));
+     return;
+   }
+   Serial.println(F("LittleFS monté avec succès"));
+ 
+   server.begin();  // Test Thierry
+   Serial.println("Web server started !");
 } // WiFiGotIP
 
 void WiFiStationDisconnected(){
@@ -243,12 +246,13 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   switch (type) {
     case WS_EVT_CONNECT:
       // nouvelle connexion.. 
-          if (bu->isClientConnected()){
-            // tooMuchClients(client);
-            bu->closeActualConnection(client);
-          } else {
-            bu->setClientConnected(true, client);
-          }
+      Serial.println("onWsEvent::Connect !!!");
+      if (bu->isClientConnected()){
+          tooMuchClients(client);
+        bu->setClientConnected(false, client);
+      } else {
+        bu->setClientConnected(true, client);
+      }
     break;
    
     case WS_EVT_DISCONNECT: 
@@ -257,8 +261,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     break;
     
     case WS_EVT_DATA:
-      //bu->keepWebSocketMessage(arg, data, len, client);
-      bu->handleWebSocketMessage(arg, data, len, client);
+      bu->handleWebSocket(arg, data, len, client);
     break;
     
     case WS_EVT_PONG:
@@ -302,14 +305,6 @@ void setup(){
   Serial.println();Serial.println();Serial.println();
 
   Serial.println("Starting Formaca....");
-  
-  // Begin LittleFS
-  if (!LittleFS.begin()){
-    Serial.println("An Error has occurred while mounting LittleFS");
-    while (1){
-    }
-  } // for ever...
-  File file = LittleFS.open("/", "r");
 
   Serial.println("Will start BorneUniverselle library...");
   bu = new BorneUniverselle();
@@ -318,21 +313,16 @@ void setup(){
     formaca = new Formaca();
   }
 
-  
-  //  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
-  //  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
   WiFi.onEvent([](arduino_event_t *event) {
     WiFiStationConnected();
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED); // Version 3.x
 
-  //  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP); // version 1
-  // WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP); // version 2.0x
+
   WiFi.onEvent([](arduino_event_t *event) {
     WiFiGotIP();
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
-  //  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED); // version 1
-  //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED); //version 2.0x
+ 
   WiFi.onEvent([](arduino_event_t *event) {
     WiFiStationDisconnected();    
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
@@ -379,17 +369,18 @@ void loop() {
   if (!bu->isPlcBroken()){
     bu->refresh(); 
     bu->handleWebSocketMessage();
-
     if (bu->isAllInputsReadOnce()){
       if (!formaca->logiqueExecutor()){
         bu->setPlcBroken("LogicalExecutor");
       }
-    } else {
+    }
+  } else {
+    if (!bu->isPlcBroken()){
       Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
     }
+  }
 
-    bu->notifyWebClient(); // notify only changed nodes      
-  }  
+  bu->notifyWebClient(); // notify only changed nodes        
    
   if (!bu->sendMessage()){
     Serial.println("Unable to send a message to the client");
@@ -400,9 +391,9 @@ void loop() {
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
   }
   
-  memoryMonitor.trackStats();
+  MemoryMonitor::trackStats();
 
   if (memoryMonitorBool){
-    memoryMonitor.printStats("MemoryMonitor");
+    MemoryMonitor::printStats("MemoryMonitor");
   }
 }

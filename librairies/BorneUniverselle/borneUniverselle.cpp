@@ -20,6 +20,8 @@ bool BorneUniverselle::isLastMessageFatal = false;
 bool BorneUniverselle::plcBroken = false;
 bool BorneUniverselle::clientconnected = false;
 bool BorneUniverselle::newClientConnected = false;
+uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
+uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
 
 SemaphoreHandle_t BorneUniverselle::webSocketMutex = NULL;
 SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
@@ -56,8 +58,17 @@ BorneUniverselle::BorneUniverselle() :
  {
     Serial.println(BORNE_UNIVERSELLE_VERSION); 
     webSocketMutex = xSemaphoreCreateMutex();
-    notifMutex = xSemaphoreCreateMutex();
+
+    if (webSocketMutex == NULL) {
+        setPlcBroken("webSocketMutex was not created successfully");
+        return;
+    }
     
+    notifMutex = xSemaphoreCreateMutex();
+    if (notifMutex == NULL) {
+        setPlcBroken("notifMutex was not created successfully");
+        return;
+    }
 
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
 
@@ -69,9 +80,7 @@ BorneUniverselle::BorneUniverselle() :
     Serial.println(F("End of reboot history"));
     Serial.println();
     Serial.println(F("BorneUniverselle constructor"));
-    if (webSocketMutex == NULL) {
-        Serial.println("Error creating mutex");
-    }
+   
 
     if (psramInit()){
         Serial.println(F("PSRAM is available !!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
@@ -168,7 +177,8 @@ BorneUniverselle::BorneUniverselle() :
     Serial.println("List of files in the root directory:");
     for (const String& fileName : files) {
         Serial.println(fileName);  // Affiche juste le nom du fichier
-    }  
+    } 
+   
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
 }
 
@@ -228,17 +238,21 @@ void BorneUniverselle::refresh(){
             return;
     }
 
+    //Serial.println("Refresh");
+
+    MemoryMonitor::trackStats();
+
     char mess[1024];
 
     uint32_t start = millis();
     uint32_t lastCheck = millis();
-    // Serial.printf("%u:: start Refresh\r\n", millis());
+    //Serial.printf("%lu:: start Refresh\r\n", millis());
     std::map<uint32_t, Node *>::iterator it;
     for (it = nodesMap.begin(); it != nodesMap.end(); it++){
         if (PF8574BooleanInputNode::isInterrupt()){
             return;
         }
-        //Serial.printf("Will refresh node key: %d\r\n", it->first);
+        //Serial.printf("Will refresh node key: %u\r\n", it->first);
         Node *node = it->second;
         if (node->getMode() == INPUT_MODE){
             InputNode *inputNode = (InputNode *)node;
@@ -267,15 +281,12 @@ void BorneUniverselle::refresh(){
             prepareMessage(WARNING, mess);
         }
 
-        //checkHeartbeat();
-        
-
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
-            Serial.println(F("Refresh:: will check heartbeat and Websocket message"));
-            checkHeartbeat();
+            Serial.printf("%lu::Refresh:: will check heartbeat and Websocket message\r\n", millis());
             lastCheck = millis();
+            vTaskDelay(pdMS_TO_TICKS(10));
             // on a peut etre reçu un hearbeat   
-            handleWebSocketMessage();
+            handleWebSocketMessage();  // handleWebSocketMessage appel checkHeartbeat
         }
 
         vTaskDelay(1);
@@ -295,6 +306,7 @@ bool BorneUniverselle::isAllInputsReadOnce(){
             if (node->getMode() == INPUT_MODE){
                 InputNode *inputNode = (InputNode *)node;
                 if (inputNode->getLastRefresh() == 0){
+                    Serial.printf("isAllInputsReadOnce: at least node %s has not been read once\r\n", node->getName());
                     status = false;
                     break;
                 }
@@ -405,11 +417,10 @@ void BorneUniverselle::saveParameters(JsonDocument configDoc){
 
 void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_client) {
     // Gestion du webSocketMutex
-    if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(100))) {
-        Serial.println(F("Failed to acquire webSocketMutex in setClientConnected"));
+    MutexGuard webSocketguard(webSocketMutex, "webSocketMutex", __FUNCTION__); 
+    if (!webSocketguard.isAcquired()) {
         return;
     }
-    MutexGuard webSocketGuard(webSocketMutex);
 
     // Gestion des webSocket messages
     clientconnected = status;
@@ -420,42 +431,46 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
         heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
         newClientConnected = true;
     } else {
-        client = nullptr;
+        if (client != nullptr){
+            client->close();
+            client = nullptr;
+        }
+        
+        newClientConnected = false;
         webSocketMessagesList.free();
+        Serial.println("setClientConnected:: after a client disconnection, the list webSocketMessagesList is cleared");
     }
 
     // Gestion du notifMutex
-    if (!xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100))) {
-        Serial.println(F("Failed to acquire notifMutex in setClientConnected"));
+    MutexGuard notifGuard(notifMutex, "notifMutex",  __FUNCTION__) ; 
+    if (!notifGuard.isAcquired()) {
         return;
     }
-    MutexGuard notifGuard(notifMutex);
 
     // Nettoyage des notifications
     if (!status) {
         notifMessagesList.free();
+        Serial.println("setClientConnected:: after a client disconnection, the list notifMessagesList is cleared");
     }
 }
 
-void BorneUniverselle::closeActualConnection(AsyncWebSocketClient *newClient){
-    client->close();
-    delay(1000);
-    Serial.println(F("Receive a new connection: close the actual and keep the new one"));
-    client = newClient;
-}
-
-bool BorneUniverselle::isClientConnected(){
-    return clientconnected;
+bool BorneUniverselle::isClientConnected() {
+    MutexGuard webSocketGuard(webSocketMutex, "webSocketMutex", "isClientConnected");
+    if (!webSocketGuard.isAcquired()) {
+        // Si on ne peut pas acquérir le mutex, par prudence on considère
+        // qu'aucun client n'est connecté
+        return false;
+    }
+    
+    // Maintenant que nous avons le mutex, on peut accéder en toute sécurité
+    // à la variable clientconnected ainsi qu'au pointeur client
+    bool isConnected = clientconnected && (client != nullptr);
+    
+    return isConnected;
 }
 
 void BorneUniverselle::sendHeartbeat(bool reset){
     if (!isClientConnected() || client == nullptr) {
-        return;
-    }
-
-    // Prendre le mutex avec timeout
-    if (xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
-        Serial.println(F("Failed to acquire mutex in sendHeartbeat"));
         return;
     }
 
@@ -480,12 +495,28 @@ void BorneUniverselle::sendHeartbeat(bool reset){
         Serial.printf("%lu:: late hearbeat send\r\n", millis());
     } 
     heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
-    xSemaphoreGive(webSocketMutex);
 }
 
 bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
+
+    if (!isClientConnected() || client == nullptr){
+        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
+        return false;
+    }
+
+    if (strlen(text) > SOCKET_MESSAGE_MAX_SIZE){
+        char buff[128];
+        sprintf(buff, "Try to send more than %u Kb to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
+        Serial.println(buff);
+        return false;
+    }
+
+    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__); 
+    if (!guard.isAcquired()) {
+        return false;
+    }
 
     // Attendre que la queue se libère avec un timeout
     while (client->queueIsFull()) {
@@ -495,20 +526,10 @@ bool BorneUniverselle::sendTextToClient(char *text){
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
     }
-
-    if (!isClientConnected() || client == nullptr){
-        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
-        return false;
-    }
-    
-    if (strlen(text) < SOCKET_MESSAGE_MAX_SIZE){
-        client->text(text);
-        return true;
-    } else {
-        char buff[128];
-        sprintf(buff, "Try to send more than %u Kb to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
-        return false;
-    }
+   
+    client->text(text);
+    //Serial.println("Message sent to the client");
+    return true;    
 }
 
 void BorneUniverselle::updateEarthbeatTimeout(){
@@ -554,18 +575,28 @@ void BorneUniverselle::setShowHeartbeatMessages(bool status){
 }
 
 bool BorneUniverselle::sendMessage() { 
+    static uint32_t lastMessageTime = 0;
     if (ESP.getFreeHeap() < 4096) {
        setPlcBroken(" BorneUniverselle::sendMessage, low memory...");
         return false;
     }
 
-    if (xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-        Serial.println(F("BorneUniverselle::sendMessage, failed to acquire notifMutex"));
+    const uint32_t MIN_MESSAGE_INTERVAL = 500; // 500ms minimum entre messages
+    
+    // Vérifier si assez de temps s'est écoulé depuis le dernier message
+    if (millis() - lastMessageTime < MIN_MESSAGE_INTERVAL) {
+        return true; // On reportera l'envoi au prochain appel
+    }
+
+   
+
+     // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
+    MutexGuard guard(notifMutex, "notifMutex", __FUNCTION__);
+    if (!guard.isAcquired()) {
         return false;
     }
     
     if (!isClientConnected() || notifMessagesList.isEmpty()) {
-        xSemaphoreGive(notifMutex);
         return true;
     }
 
@@ -574,7 +605,6 @@ bool BorneUniverselle::sendMessage() {
     if (!notifMessage) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid notification message"));
         notifMessagesList.remove(notifMessage);
-        xSemaphoreGive(notifMutex);
         return false;
     }
 
@@ -582,7 +612,6 @@ bool BorneUniverselle::sendMessage() {
     if (!notifMessage->message) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid message content"));
         notifMessagesList.remove(notifMessage);
-        xSemaphoreGive(notifMutex);
         return false;
     }
 
@@ -598,18 +627,10 @@ bool BorneUniverselle::sendMessage() {
     }
 
     size_t msgLen = strlen(notifMessage->message);
-    char *tempMessage = nullptr;
 
     if (msgLen > MAX_MESSAGE_LENGTH) {
         Serial.printf("BorneUniverselle::sendMessage, message too long (%d chars), truncating\r\n", msgLen);
-         // Allouer la taille exacte dont on a besoin
-        tempMessage = (char*)malloc(MAX_MESSAGE_LENGTH + 1);
-        if (!tempMessage) {
-            notifMessagesList.remove(notifMessage);
-            xSemaphoreGive(notifMutex);
-            setPlcBroken("Failed to allocate memory for truncated message");
-            return false;
-        }
+        char tempMessage[MAX_MESSAGE_LENGTH + 1];  // Buffer sur la pile
     
         // Copier en limitant à MAX_MESSAGE_LENGTH caractères
         strncpy(tempMessage, notifMessage->message, MAX_MESSAGE_LENGTH);
@@ -624,33 +645,23 @@ bool BorneUniverselle::sendMessage() {
     
     char *chain = (char *)malloc(len);
     if (!chain) {
-        if (tempMessage) {
-            free(tempMessage);
-        }
-
-        notifMessagesList.remove(notifMessage);
-        xSemaphoreGive(notifMutex);
+        // notifMessagesList.remove(notifMessage);
         setPlcBroken("BorneUniverselle::sendMessage, failed to allocate memory for Json message");
         return false;
     }
 
     serializeJson(doc, chain, len);
+
+    bool success = sendTextToClient(chain);
     
-    if (!sendTextToClient(chain)){
-        Serial.println("SendMEssage: unable to send text to client");
-        return false;
+    if (success){
+        lastMessageTime = millis();
+        notifMessagesList.remove(notifMessage);
     } else {
-        Serial.printf("sendMessage: message %s send to the client\r\n", chain);
+        Serial.println("SendMessage: unable to send text to client"); 
     }
 
-
-    notifMessagesList.remove(notifMessage);
-    xSemaphoreGive(notifMutex);
-    
     free(chain);
-    if (tempMessage) {
-        free(tempMessage);
-    }
     return true;
 }
 
@@ -684,34 +695,31 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
     // on discard les warning messages si il n'y a pas de client connecté..
     if (!isClientConnected()){
         switch (type) {
-            case ERROR: Serial.printf("%lu:: ERROR: %s\r\n", millis(), text);
-            break;
+            case ERROR:     Serial.printf("%lu:: ERROR: %s\r\n", millis(), text);
+                            break;
 
-            case WARNING:  Serial.printf("%lu:: WARNING: %s\r\n", millis(), text);
-            break;
+            case WARNING:   Serial.printf("%lu:: WARNING: %s\r\n", millis(), text);
+                            break;
 
-            case INFO: Serial.printf("%lu:: INFO: %s\r\n", millis(), text);
-            break;
+            case INFO:      Serial.printf("%lu:: INFO: %s\r\n", millis(), text);
+                            break;
 
             case SUCCESS:
-                Serial.printf("%lu:: SUCCESS: %s\r\n", millis(), text);
-            break;
+                            Serial.printf("%lu:: SUCCESS: %s\r\n", millis(), text);
+                            break;
         }
         
         return;
     }
 
-    // Prendre le mutex avant de tester la longueur
-    if (xSemaphoreTake(notifMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-        Serial.println(F("Failed to acquire notifMutex in prepareMessage"));
+    MutexGuard guard(notifMutex, "notifyMutex", __FUNCTION__); // // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
+    if (!guard.isAcquired()) {
         return;
     }
 
-    MutexGuard guard(notifMutex); // // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
-
-    if (notifMessagesList.length() >= MAX_MESSAGES_PENDING) { 
-        Serial.println(F("Message queue full, discarding message"));
-        return;
+    if (notifMessagesList.length() >= MAX_MESSAGES_PENDING) {
+        Serial.println(F("Notification queue full, dropping oldest message"));
+        notifMessagesList.remove(notifMessagesList.front());
     }
 
     NOTIF_MESSAGE *notif = new NOTIF_MESSAGE;
@@ -743,6 +751,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
 
     notifMessagesList.add(notif);
 
+
     if (notifMessagesList.length() > MAX_MESSAGES_PENDING / 2) {
         Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
     }
@@ -770,23 +779,26 @@ char *BorneUniverselle::getName(){
     return name;
 }
 
-bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
-    if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(100))) {
-        Serial.println(F("BorneUniverselle::isWebSocketMessagesListMoreThanHalf, unable to take mutex in isWebSocketMessagesListMoreThanHalf"));
+bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() { 
+    if (!isClientConnected()){
+        return false;
+    }
+
+    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
+    if (!guard.isAcquired()) {
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
     bool isMoreThanHalf = webSocketMessagesList.length() > MAX_MESSAGES_PENDING / 2;
-    xSemaphoreGive(webSocketMutex);
 
     if (isMoreThanHalf) {
-        Serial.println(F("webSocketMessagesList greater than half capacity"));
+        Serial.println(F("isWebSocketMessagesList greater than half capacity"));
     }
 
     return isMoreThanHalf;
 }
 
-void BorneUniverselle::handleWebSocketMessage(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client){
+void BorneUniverselle::handleWebSocket(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client){
     // Vérifie simplement que c'est un message texte
     AwsFrameInfo *info = (AwsFrameInfo*)_arg;
     if (info->opcode != WS_TEXT) {
@@ -795,13 +807,13 @@ void BorneUniverselle::handleWebSocketMessage(void *_arg, unsigned char *_data, 
     }
 
     if (_len < 10 || _len > WEB_SOCKET_MESSAGE_MAX_SIZE) { 
-        Serial.printf("WebSocketMessage size out of bounds: %u [bytes]\r\n", _len);
+        Serial.printf("handleWebSocket:: webSocketMessage size out of bounds: %u [bytes]\r\n", _len);
         return;
     }  
 
     // Message complet en une seule frame
     if (info->final && info->index == 0 && info->len == _len && info->opcode == WS_TEXT) {
-        keepWebSocketMessage((const char *)_data, _arg, _client);
+        keepWebSocketMessage((const char *)_data, _arg, _len, _client);
         return;
     }
 
@@ -809,7 +821,7 @@ void BorneUniverselle::handleWebSocketMessage(void *_arg, unsigned char *_data, 
     if (info->index == 0) {
         messageBuffer = "";
         expectedSize = info->len;
-        Serial.printf("handleWebSocketMessage:: start collecting message, expected size: %u\n", expectedSize);
+        Serial.printf("handleWebSocket:: start collecting message, expected size: %u\n", expectedSize);
     }
 
     // Ajouter le fragment
@@ -817,15 +829,15 @@ void BorneUniverselle::handleWebSocketMessage(void *_arg, unsigned char *_data, 
 
     // Si on a tout reçu
     if (messageBuffer.length() >= expectedSize) {
-        Serial.println("handleWebSocketMessage: processing complete reassembled message");
-        keepWebSocketMessage(messageBuffer.c_str(), _arg, _client);
+        Serial.println("handleWebSocket: processing complete reassembled message");
+        keepWebSocketMessage(messageBuffer.c_str(), _arg, _len, _client);
         messageBuffer = ""; // Nettoyer
     } else {
-        Serial.println("handleWebSocketMessage: collecting more data");
+        Serial.println("handleWebSocket:: collecting more data");
     }
-}
+} // handleWebSocket
 
-void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, AsyncWebSocketClient *_client) {
+void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client) {
     if (isPlcBroken()){
         if (!noPLC_BrokenMessage){
             Serial.println(F("Because the PLC is broken, we don't read the websocket message"));
@@ -834,204 +846,174 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, AsyncWe
         return;
     }
 
-    long start = millis();
-    // Add yield to prevent watchdog timeout
-    vTaskDelay(1);
-   
-    // Vérifier d'abord si la liste n'est pas déjà pleine
-    if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(20))) {
-        Serial.println(F("Unable to take mutex for length check"));
-        return;
-    }
-
-    uint16_t webSocketMessageLength = webSocketMessagesList.length();
-    xSemaphoreGive(webSocketMutex);
-   
-    if (webSocketMessageLength >= WEB_SOCKET_MESSAGE_MAX_ENTRYS) {
-        Serial.println(F("Message list is full"));
-        return;
-    }
-   
     if (!isClientConnected()) {
         Serial.println(F("Discarding messages from client disconnected or timed out"));
         return; 
     }
-   
-        vTaskDelay(1);
-        // Copie des données
-        unsigned char* dataCopy = (unsigned char*)malloc(strlen(data) + 1);
-        if (!dataCopy) {
-            Serial.println(F("Memory allocation error for websocket message copy"));
-            setPlcBroken("Memory allocation error for websocket message copy");
-            return;
-        }
-        memcpy(dataCopy, data, strlen(data));
-        bool messageAdded = false;
-        dataCopy[strlen(data)] = 0;  // Ajouter le zéro terminal
-        webSocketMessageLength = webSocketMessagesList.length();
-        
-        // Tentatives d'acquérir le mutex
-        uint8_t attempts = 0;
-        
-        while (attempts++ < MAX_MUTEX_ATTEMPTS) {
-            vTaskDelay(1);
-            if (xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-                if (webSocketMessagesList.length() < MAX_MESSAGES_PENDING) {  // Utiliser length() directement
-                    WEB_SOCKET_MESSAGE *webSocketMessage = new WEB_SOCKET_MESSAGE;
-                    if (!webSocketMessage) {  // Vérifier l'allocation
-                        xSemaphoreGive(webSocketMutex);
-                        Serial.println(F("Failed to allocate webSocketMessage"));
-                        continue;
-                    }
-        
-                    webSocketMessage->arg = arg;
-                    webSocketMessage->len = strlen(data);
-                    webSocketMessage->client = _client;
-                    webSocketMessage->data = dataCopy;
-                    webSocketMessage->timeOfOrigine = millis();
-        
-                    webSocketMessagesList.add(webSocketMessage);
-                    messageAdded = true;
-                    webSocketMessageLength++;
-                } else {
-                    Serial.println(F("Message list full"));
-                }
-                
-                xSemaphoreGive(webSocketMutex);
-                if (messageAdded) {
-                    break;
-                }
-            }
-            
-            vTaskDelay(1);
-            Serial.printf("Attempt %d to take mutex\n", attempts);
-        }
-        
-        // Si le message n'a pas été ajouté, on libère la mémoire
-        if (!messageAdded) { 
-            free(dataCopy);
-            Serial.printf("Failed to process message after %d attempts\n", attempts);
-        }
-   
 
-    if (millis() - start > 100){
-        Serial.printf("Time to add one element on the webSocketMessageList: %lu[us]\r\n", millis() - start); 
-    } 
+    long start = millis();
+    // Add yield to prevent watchdog timeout
+    vTaskDelay(1);
 
-    if (webSocketMessageLength > 1){
-        Serial.printf("%lu:: There are now %u webMessages on the list (to be processed)\r\n", millis(), webSocketMessageLength);
+    MutexGuard webSocketGuard(webSocketMutex, "webSocketMutex", __FUNCTION__);
+    if (!webSocketGuard.isAcquired()) {
+        return;
     }
 
+     //Limite la taille de la queue en enlevant les messages les plus vieux
+     uint16_t webSocketMessageLength;
+     while ((webSocketMessageLength = webSocketMessagesList.length()) > MAX_MESSAGES_PENDING) {
+         webSocketMessagesList.remove(webSocketMessagesList.front());
+         Serial.println("Oldest webSocketMessage removed because queue is full");
+     }
+   
+    // Copie des données
+    unsigned char* dataCopy = (unsigned char*)malloc(len + 1);
+    if (!dataCopy) {
+        Serial.println(F("Memory allocation error for websocket message copy"));
+        setPlcBroken("Memory allocation error for websocket message copy");
+        return;
+    }
+
+    memcpy(dataCopy, data, len);
+    dataCopy[len] = 0;  // Ajouter le zéro terminal
+    
+    WEB_SOCKET_MESSAGE *webSocketMessage = new WEB_SOCKET_MESSAGE;
+    if (!webSocketMessage) {  // Vérifier l'allocation
+        free(dataCopy);
+        Serial.println(F("Failed to allocate webSocketMessage"));
+        return;
+    }
+
+    webSocketMessage->arg = arg;
+    webSocketMessage->len = len;
+
+    webSocketMessage->client = _client;
+    webSocketMessage->data = dataCopy;
+    webSocketMessage->timeOfOrigine = millis();
+
+    webSocketMessagesList.add(webSocketMessage);
+
+    if (millis() - start > 100){
+        Serial.printf("Time to add one element on the webSocketMessageList: %lu[ms]\r\n", millis() - start); 
+    } 
+
+    if (webSocketMessagesList.length() > 1){
+        Serial.printf("%lu:: There are now %u webMessages on the list (to be processed)\r\n", millis(), webSocketMessageLength);
+    }
 } //keepWebSocketMessage
 
 bool BorneUniverselle::clientQueueIsFull() {
-     if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(50))) {
-        Serial.println(F("Failed to acquire mutex in clientQueueIsFull"));
-        return true;  // Par sécurité, on retourne true
+    if (!isClientConnected()) {
+        return false;  // Pas de client connecté
+    }
+
+    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
+    if (!guard.isAcquired()) {
+        return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
     bool isFull = true;
-    if (!isClientConnected() || client == nullptr) {
-        // Serial.println("Client is not connected or null !!!");
+    if (client == nullptr) {
+       return false;  // Pas de client connecté
     } else {
         isFull = client->queueIsFull();
         if (isFull) {
-            Serial.println("Client queue is full !!!");
+            Serial.println("Client queue is full (or disconnected) !!!");
             vTaskDelay(1);
         }
     }
 
-    xSemaphoreGive(webSocketMutex);
     return isFull;
 }
 
 void BorneUniverselle::handleWebSocketMessage() {
-      // Prendre le mutex pour vérifier la longueur
-    if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(50))) {
-        Serial.println(F("Unable to take mutex for length check"));
-        return;
-    }
-    
-    uint16_t messageCount = webSocketMessagesList.length();
-    xSemaphoreGive(webSocketMutex);
-
-    if (messageCount == 0) {
-        return;
+    // Vient de loop mais aussi de refresh
+    if (!isAllInputsReadOnce()){
+        Serial.println("handleWebSocketMessage: receive a web socket message but not all inputs are read");
     }
 
+    WEB_SOCKET_MESSAGE workingMessage;
 
-    // Vient de loop
-    while (messageCount > 0) {
-        vTaskDelay(1);
+    WEB_SOCKET_MESSAGE *webSocketMessageOrig;
 
+    while ( true) {
         if (PF8574BooleanInputNode::isInterrupt()) {
             return;
         }
 
-        // Notez que j'ai ajouté !isClientConnected() et client == nullptr dans la vérification
-        if (!isClientConnected() || client == nullptr || client->queueIsFull() ) {
-            Serial.println(F("handleWebSocketMessage: client is not connected or queue is full "));
+        if (!isClientConnected()) {
+            //Serial.println(F("handleWebSocketMessage: client is not connected"));
             return;
         }
 
-        if (!isAllInputsReadOnce()){
-            Serial.println("handleWebSocketMessage: all inputs are not read once");
-        }
+        vTaskDelay(1);
+        {   
+            MutexGuard webSocketGuard(webSocketMutex, "webSocketMutex", __FUNCTION__);
+            if (!webSocketGuard.isAcquired()) {
+                return;
+            }
 
-        if (!xSemaphoreTake(webSocketMutex, pdMS_TO_TICKS(50))) {
-            Serial.println(F("Unable to take the webSocketMutex"));
-            vTaskDelay(1);
-            continue;
-        }
+            if (!webSocketMessagesList.length()) {
+                return;
+            }
+        
+            // on extrait le 1er message de la liste
+            webSocketMessageOrig = webSocketMessagesList.front();
+            if (!webSocketMessageOrig) {
+            
+                Serial.println("handleWebSocketMessage:: webSocketMessage Null !!");
+                continue;
+            }
+        
+            workingMessage.len = webSocketMessageOrig->len;
+            workingMessage.data = (uint8_t*)malloc(webSocketMessageOrig->len + 1);
 
-        // on extrait le 1er message de la liste
-        WEB_SOCKET_MESSAGE *webSocketMessageOrig = webSocketMessagesList.front();
-        if (!webSocketMessageOrig) {
-            xSemaphoreGive(webSocketMutex);
-            Serial.println("handleWebSocketMessage:: webSocketMessage Null !!");
-            continue;
-        }
+            if (!workingMessage.data) {
+                setPlcBroken("handleWebSocketMessage: failed to allocate memory for working message");
+                return;
+            }
 
-        // Créer une copie complète pendant qu'on est sous mutex
-        WEB_SOCKET_MESSAGE *workingMessage = new WEB_SOCKET_MESSAGE;
-        // Correction: utilisez webSocketMessageOrig au lieu de message
-        workingMessage->len = webSocketMessageOrig->len;
-        workingMessage->data = (uint8_t*)malloc(webSocketMessageOrig->len + 1);
-
-        if (!workingMessage->data) {
-            delete workingMessage;
-            xSemaphoreGive(webSocketMutex);
-            continue;
-        }
-
-        // Correction: utilisez webSocketMessageOrig au lieu de message
-        memcpy(workingMessage->data, webSocketMessageOrig->data, webSocketMessageOrig->len);
-        workingMessage->data[webSocketMessageOrig->len] = 0;  // Ajouter le zéro terminal
-        workingMessage->timeOfOrigine = webSocketMessageOrig->timeOfOrigine;
-        workingMessage->client = webSocketMessageOrig->client;
-
-        // Suppression de l'original de la liste
-        webSocketMessagesList.remove(webSocketMessageOrig);
-        xSemaphoreGive(webSocketMutex);
-        messageCount--;
+            memcpy(workingMessage.data, webSocketMessageOrig->data, webSocketMessageOrig->len);
+            workingMessage.data[webSocketMessageOrig->len] = 0;  // Ajouter le zéro terminal
+            workingMessage.timeOfOrigine = webSocketMessageOrig->timeOfOrigine;
+            workingMessage.client = webSocketMessageOrig->client;
+        } // Fin du mutex
 
         uint32_t processStart = millis();
         vTaskDelay(1);
-        processMessage(workingMessage);
+        bool success = processMessage(&workingMessage);
         vTaskDelay(1);
+
+        {
+            MutexGuard webSocketProtGuard(webSocketMutex, "webSocketMutex", __FUNCTION__);
+            if (!webSocketProtGuard.isAcquired()) {
+                return;
+            }
+
+            // Suppression de l'original de la liste
+            if (success){
+                webSocketMessagesList.remove(webSocketMessageOrig);
+                //webSocketMessagesList.remove_first();
+            } else {
+                Serial.println("handleWebSocketMessage: processMessage return an error");
+            }
+        } // Fin du mutex
 
         if (millis() - processStart > 100) {
             Serial.printf("handleWebSocketMessage:: message processing duration: %lu, message: %s\r\n", 
-                millis() - processStart, workingMessage->data);
+                millis() - processStart, workingMessage.data);
         }
         
-        free(workingMessage->data);
-        workingMessage->data = nullptr;
-        delete workingMessage;
-    }
+        free(workingMessage.data);
+        workingMessage.data = nullptr;
+        checkHeartbeat();
+    } // while
 } // handleWebSocketMessage
 
-void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
+bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
+    // processMessage doit retrouner fausx si on veux garder le message dans la liste.
+
     //Serial.printf("Message data start: %.50s\n", (char*)webSocketMessage->data);
 
     JsonDocument socketDoc;
@@ -1039,11 +1021,11 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
 
     if (error) {
         char buff[256];
-        sprintf(buff, "%lu:: handleWebSocketMessage: deserializeJson() failed: ", millis());
+        sprintf(buff, "%lu:: processMessage: deserializeJson() failed: ", millis());
         strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
         Serial.println(buff);
         prepareMessage(ERROR, JSON_NOT_VALID);
-        return;
+        return true;
     }
 
     //Serial.printf("Data pointer après deserialisation: %p\n", webSocketMessage->data);
@@ -1076,11 +1058,14 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
     } else if (!socketDoc[GET_VALUE].isNull()){
             uint32_t hash = socketDoc[GET_VALUE];
             Serial.printf("%lu::BorneUniverselle::processMessage: receive a get value for node: %lu\r\n", millis(), (unsigned long)hash);
-            handleGetValue(socketDoc[GET_VALUE]);
-    //} else if (socketDoc.containsKey(ALL_STATES_REQUEST)){
+            if (!handleGetValue(socketDoc[GET_VALUE])){
+                return false;
+            }
     } else if (!socketDoc[ALL_STATES_REQUEST].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: receive get all states request"));
-            handleGetAllValues();
+            if (!handleGetAllValues()){
+                return false;
+            }
     } else  if (!socketDoc[DIRECTORY].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: receive a directory request"));
             handleDirectoryRequest(socketDoc);
@@ -1100,6 +1085,7 @@ void BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
             out1 = out1 + out2;
             prepareMessage(ERROR, out1.c_str());
     }
+    return true;
 } // processMeSSAGE
 
 // Implémentation de la méthode pour enregistrer la callback
@@ -1107,11 +1093,21 @@ void BorneUniverselle::setInitialStateLoadedCallback(std::function<void()> callb
     initialStateLoadedCallback = callback;
 }
 
-void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
+bool BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
     //serializeJsonPretty(socketDoc, Serial);
 
     const char* path = socketDoc["saveFile"][0][PATH]; // "/interface.json"
     const char* data = socketDoc["saveFile"][0][DATA]; // "le contenue du fichier à enregistrer"
+
+    if (!path || !data) {
+        Serial.println("handleSaveFile:: phath or data emply !");
+        return false;
+    }
+
+    // Validate path to prevent directory traversal
+    if (strstr(path, "..") != nullptr) {
+        return path;
+    }
 
     Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u\r\n", path, strlen(data));
 
@@ -1121,7 +1117,7 @@ void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
         file.close();
         sprintf(buff, "BorneUniverselle::handleSaveFile:: Unable to open file: %s\r\n", path);
         prepareMessage(ERROR, buff);
-        return;
+        return false;
     } 
     
     size_t bytesWritten = file.print(data);
@@ -1129,10 +1125,11 @@ void BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
     if (bytesWritten != strlen(data)){
         sprintf(buff, "BorneUniverselle::handleSaveFile:: Write error:\r\n");
         prepareMessage(ERROR, buff);
-        return;
+        return false;
     }
     sprintf(buff, "File: %s saved with success\r\n", path);
-    prepareMessage(SUCCESS, buff);  
+    prepareMessage(SUCCESS, buff); 
+    return true; 
 }
 
 void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
@@ -1160,42 +1157,58 @@ void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
     }
 }
 
-void BorneUniverselle::handleGetAllValues(){
-    notifyWebClient(true);
-    Serial.printf("%lu:: BorneUniverselle::handleGetAllValues, end\r\n", millis());
-}
-
-void BorneUniverselle::handleGetValue(uint32_t hash){
-    Node *node = findNode("handleGetValue", hash);
-    if (node == nullptr){
-        return;// node not found
+bool BorneUniverselle::handleGetAllValues(){
+    if (!isAllInputsReadOnce()){
+        Serial.printf("%lu::handleGetAllValues:: isAllInputsReadOnce is false\r\n", millis());
+        return false; // on veux garder le message
     }
 
+    return notifyWebClient(true);
+}
+
+bool BorneUniverselle::handleGetValue(uint32_t hash){
+    // La fonction doit retrourner false pour garder l'événement sur la pile
+    Node *node = findNode("handleGetValue", hash);
+    if (node == nullptr){
+        return true;// node not found, on veux supprimer ce message (de toute façon on va avoir plc broken...)
+    }
+
+    if (!isAllInputsReadOnce()){
+        Serial.println("handleGetValue: isAllInputsRead once is false");
+        return false; // on veux garder le message
+    }
 
     JsonDocument notifyDoc;
     JsonArray array = notifyDoc[NOTIFY_STATES_CHANGED].to<JsonArray>();
     JsonObject nodeObject = array.add<JsonObject>();
-    addNodeToNodeObject(node, &nodeObject);
-    if (getWifiStatus() && isClientConnected()){
-        uint32_t size = measureJson(notifyDoc);
-        char *chain = (char *)malloc(size + 10);
-        if (chain){
-            serializeJson(notifyDoc, chain, size);
-            chain[size] = 0;  // 0 chain terminated is missing !!!!
-            //Serial.println(chain);
-            if (isClientConnected() && client != nullptr){
-                //serializeJsonPretty(notifyDoc, Serial);
-                sendTextToClient(chain);  
-            }
-        } else {
-            Serial.println(F("malloc failed on notify message"));
-        }
-        
-        free(chain);
-        Serial.println(F("End handleGetValue\r\n"));
+    bool success = addNodeToNodeObject(node, &nodeObject);
+    if (!success){
+        return false; // on supprime ma requête
     }
-    checkHeartbeat();
-}
+ 
+    uint32_t size = measureJson(notifyDoc);
+    char *chain = (char *)malloc(size + 10);
+    if (chain){
+        serializeJson(notifyDoc, chain, size);
+        chain[size] = 0;  // 0 chain terminated is missing !!!!
+        //Serial.println(chain);
+   
+            //serializeJsonPretty(notifyDoc, Serial);
+        bool success =  sendTextToClient(chain); 
+        free(chain); 
+
+        if (!success){
+            Serial.println(F("Unable to send message to client"));
+            return false; // on garde le message
+        } else {
+            //Serial.println(F("handleGetAllValues: end"));
+        }     
+    } else {
+        Serial.println(F("handleGetValue:: malloc failed on notify message"));
+        return true; // on supprime le message
+    }
+    return true;
+} // handleGetValue
 
 bool BorneUniverselle::handleNodesChange(JsonDocument socketDoc){
     // On accepte tous les nodes virtuelles et les nodes output
@@ -1277,6 +1290,7 @@ bool BorneUniverselle::handleNodesChange(JsonDocument socketDoc){
         } else {
             sprintf(mess, "handleNodesChange:: Unable to find class of node with hash: %lu, classType %d", (unsigned long)hash, node->classType());
             setPlcBroken(mess);
+            return false;
         }
         yield();
     }
@@ -2349,6 +2363,12 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         if (PF8574BooleanInputNode::isInterrupt()){
             return true; 
         }
+
+        // Si on a plus de client on ne lui envoi plus rien
+        if (!isClientConnected()){
+            return false;
+        }
+
         Node *node = it->second;
         if (node->getIsChanged() || sendAllStates){
             //Serial.printf("Node %s has changed\r\n", node->getName());
@@ -2385,10 +2405,10 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
-            Serial.println(F("Refresh:: will check heartbeat and Websocket message"));
+            Serial.printf("%lu::Refresh:: will check heartbeat and Websocket message\r\n", millis());
             checkHeartbeat();
             lastCheck = millis();
-            vTaskDelay(1);
+            vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
         }
     } 
 
@@ -2397,7 +2417,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         //serializeJsonPretty(notifyDoc, Serial);
         //Serial.println();
         if (getWifiStatus() && ! clientQueueIsFull()){
-            uint16_t size = measureJson(notifyDoc);
+            size_t size = measureJson(notifyDoc) + 32;
             if (size > SOCKET_MESSAGE_MAX_SIZE){
                 char message[64];
                 strcpy(message,  "Json notify states is too long !!");
@@ -2408,26 +2428,37 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
                // Serial.printf("Document size: %u\r\n", size);
             }
 
-            char *chain = (char *)malloc(size + 10);
+            char *chain = (char *)malloc(size);
             if (chain){
-                serializeJson(notifyDoc, chain, size);
-                chain[size] = 0;  // 0 chain terminated is missing !!!!
+                size_t effectiveSize = serializeJson(notifyDoc, chain, size);
+                if (effectiveSize >= size){
+                    Serial.println("notifyWebClient:: effective size > evaluated size");
+                    free (chain);
+                    return true; // on écharge ce message car on ne peux pas le traiter
+                }
+
+                chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
                 // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
                 //serializeJsonPretty(notifyDoc, Serial);
-                Serial.println();
-                sendTextToClient(chain);
+                bool success = sendTextToClient(chain);
+
+                if (!success){
+                    Serial.println(F("notifyWebClient: Failed to send to client"));
+                    return false;
+                }
             } else {
-                Serial.println(F("malloc failed on notify message"));
+                Serial.println(F("notifyWebClient:malloc failed on notify message"));
             }
             
             free(chain);
-            Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
+            //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
         }
 
         if (millis() - start > 300){ 
-            Serial.printf("\r\n%lu:: End notifyWebClient: duration: %lu\r\n", millis(), millis() - start);
+            Serial.printf("\r\n%lu:: End notifyWebClient %s: duration: %lu\r\n", millis(), sendAllStates ? "all states": "on state", millis() - start);
         }
     }
+    //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
     return true;
 } // notifyWebClient
 
@@ -2435,7 +2466,7 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
     uint32_t hash = node->getHash();
 
     //Serial.printf("%u:: addNodeToNodeObject\r\n", millis());
-    JsonDocument descriptorDoc = node->getDescriptor();
+    //JsonDocument descriptorDoc = node->getDescriptor();
 
     (*nodeObject)[HASH] = hash;
 
@@ -2519,7 +2550,7 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
         Serial.printf("%lu:: Node notify: %s new value: %s\r\n", millis(), node->getName(), v->getValue());
     } else {
         char buff[256];
-        sprintf(buff, "notifyWebClient:: Unable to find node class from node: %s with class type: %u\r\n", node->getName(), node->classType());
+        sprintf(buff, "addNodeToJsonObject:: Unable to find node class from node: %s with class type: %u\r\n", node->getName(), node->classType());
         prepareMessage(WARNING, buff);
         setPlcBroken(buff);
         return false;
