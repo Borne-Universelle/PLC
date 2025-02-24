@@ -37,13 +37,13 @@ public:
         uint32_t currentFreeHeap = ESP.getFreeHeap();
         if (currentFreeHeap < lowestFreeHeap) {
             lowestFreeHeap = currentFreeHeap;
-            Serial.printf("New lowest free heap: %lu bytes\n", (unsigned long)lowestFreeHeap);
+            Serial.printf("%lu::New lowest free heap: %lu bytes\n", millis(), (unsigned long)lowestFreeHeap);
         }
 
         uint32_t currentFreePsram = ESP.getFreePsram();
         if (currentFreePsram < lowestFreePsram) {
             lowestFreePsram = currentFreePsram;
-            Serial.printf("New lowest free PSRAM: %lu bytes\n", (unsigned long)lowestFreePsram);
+            Serial.printf("%lu::New lowest free PSRAM: %lu bytes\n", millis(), (unsigned long)lowestFreePsram);
         }
     }
 

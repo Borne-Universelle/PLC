@@ -20,6 +20,8 @@ bool BorneUniverselle::isLastMessageFatal = false;
 bool BorneUniverselle::plcBroken = false;
 bool BorneUniverselle::clientconnected = false;
 bool BorneUniverselle::newClientConnected = false;
+uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
+uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
 
 SemaphoreHandle_t BorneUniverselle::webSocketMutex = NULL;
 SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
@@ -235,6 +237,8 @@ void BorneUniverselle::refresh(){
         Serial.println("No refresh because PLC is broken !!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             return;
     }
+
+    MemoryMonitor::trackStats();
 
     char mess[1024];
 
@@ -452,8 +456,24 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
     }
 }
 
+<<<<<<< Updated upstream
 bool BorneUniverselle::isClientConnected(){
     return clientconnected;
+=======
+bool BorneUniverselle::isClientConnected() {
+    MutexGuard webSocketGuard(webSocketMutex, "webSocketMutex", "isClientConnected");
+    if (!webSocketGuard.isAcquired()) {
+        // Si on ne peut pas acquérir le mutex, par prudence on considère
+        // qu'aucun client n'est connecté
+        return false;
+    }
+    
+    // Maintenant que nous avons le mutex, on peut accéder en toute sécurité
+    // à la variable clientconnected ainsi qu'au pointeur client
+    bool isConnected = clientconnected && (client != nullptr);
+    
+    return isConnected;
+>>>>>>> Stashed changes
 }
 
 void BorneUniverselle::sendHeartbeat(bool reset){
@@ -632,23 +652,35 @@ bool BorneUniverselle::sendMessage() {
     
     char *chain = (char *)malloc(len);
     if (!chain) {
+<<<<<<< Updated upstream
         notifMessagesList.remove(notifMessage);
+=======
+        // notifMessagesList.remove(notifMessage);
+>>>>>>> Stashed changes
         setPlcBroken("BorneUniverselle::sendMessage, failed to allocate memory for Json message");
         return false;
     }
 
     serializeJson(doc, chain, len);
+
+    bool success = sendTextToClient(chain);
     
-    if (!sendTextToClient(chain)){
-        Serial.println("SendMEssage: unable to send text to client");
-        return false;
+    if (success){
+        lastMessageTime = millis();
+        notifMessagesList.remove(notifMessage);
     } else {
+<<<<<<< Updated upstream
         Serial.printf("sendMessage: message %s send to the client\r\n", notifMessage->message);
         lastMessageTime = millis();
     }
 
     notifMessagesList.remove(notifMessage);
     
+=======
+        Serial.println("SendMessage: unable to send text to client"); 
+    }
+
+>>>>>>> Stashed changes
     free(chain);
     return true;
 }
@@ -740,6 +772,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
 
     notifMessagesList.add(notif);
 
+
     if (notifMessagesList.length() > MAX_MESSAGES_PENDING / 2) {
         Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
     }
@@ -823,7 +856,11 @@ void BorneUniverselle::handleWebSocket(void *_arg, unsigned char *_data, size_t 
     } else {
         Serial.println("handleWebSocket:: collecting more data");
     }
+<<<<<<< Updated upstream
 } // handleWebSocketMessage
+=======
+} // handleWebSocket
+>>>>>>> Stashed changes
 
 void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client) {
     if (isPlcBroken()){
@@ -930,8 +967,13 @@ void BorneUniverselle::handleWebSocketMessage() {
             return;
         }
 
+<<<<<<< Updated upstream
         if (!isClientConnected() || client == nullptr || client->queueIsFull() ) {
             //Serial.println(F("handleWebSocketMessage: client is not connected or queue is full "));
+=======
+        if (!isClientConnected()) {
+            //Serial.println(F("handleWebSocketMessage: client is not connected"));
+>>>>>>> Stashed changes
             return;
         }
 
@@ -958,8 +1000,13 @@ void BorneUniverselle::handleWebSocketMessage() {
             workingMessage.data = (uint8_t*)malloc(webSocketMessageOrig->len + 1);
 
             if (!workingMessage.data) {
+<<<<<<< Updated upstream
                 Serial.println(F("handleWebSocketMessage: failed to allocate memory for working message"));
                 continue;
+=======
+                setPlcBroken("handleWebSocketMessage: failed to allocate memory for working message");
+                return;
+>>>>>>> Stashed changes
             }
 
             memcpy(workingMessage.data, webSocketMessageOrig->data, webSocketMessageOrig->len);

@@ -44,6 +44,47 @@ void connectToNextNetwork(){
   bu->connectWifi(currentWifi);
 }
 
+void modifyLogs(){
+  while (Serial.available()){
+     Serial.read();
+  }
+
+  Serial.println("Logs");
+  Serial.println("----");
+  Serial.println("A: Activer les logs hearbeat");
+  Serial.println("B: Désactiver les logs hearbeat");
+  Serial.println("C: Activer les logs modbus");
+  Serial.println("D: Désactiver les logs modbus");
+  Serial.println("E: Moniteur de la mémoire");
+  Serial.println("-----------------------------");
+  Serial.println("Tapez sur une lettre...");
+
+  while (!Serial.available()){
+    delay(100);
+  }
+        
+  char car = Serial.read();
+  switch (car){
+    case 'A':     bu->setShowHeartbeatMessages(true);
+      break;
+
+    case 'B':     bu->setShowHeartbeatMessages(false);
+      break;
+
+    case 'C':     bu->setShowModbusMessages(true);
+      break;
+
+    case 'D':     bu->setShowModbusMessages(false);
+      break;
+
+    case 'E':     MemoryMonitor memoryMonitor;
+                  memoryMonitor.printStats("MemoryMonitor");
+      break;
+
+    default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
+  }  
+}
+
 void showHelp(){
   toolbox.clearScreen();
   Serial.println("Help");
@@ -81,6 +122,9 @@ void commandInterpretor(char car){
       break;
 
     case 'E':     bu->notifyWebClient(true);
+      break;
+
+    case 'F':     modifyLogs();
       break;
 
     case 'Z':     showHeartbeatMessages();
@@ -173,10 +217,10 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   switch (type) {
     case WS_EVT_CONNECT:
       // nouvelle connexion.. 
-      Serial.println("Connect !!!");
+      Serial.println("onWsEvent::Connect !!!");
           if (bu->isClientConnected()){
-            // tooMuchClients(client);
-            bu->closeActualConnection(client);
+             tooMuchClients(client);
+            bu->setClientConnected(false, client);
           } else {
             bu->setClientConnected(true, client);
           }
@@ -188,7 +232,8 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     break;
     
     case WS_EVT_DATA:
-      bu->keepWebSocketMessage(arg, data, len, client);
+      //bu->keepWebSocketMessage(arg, data, len, client);
+      bu->handleWebSocket(arg, data, len, client);
     break;
     
     case WS_EVT_PONG:
@@ -243,14 +288,6 @@ void setup(){
   Serial.println();Serial.println();Serial.println();
 
   Serial.println("Starting TestOnglets....");
-  
-  // Begin LittleFS
-  if (!LittleFS.begin()){
-    Serial.println("An Error has occurred while mounting LittleFS");
-    while (1){
-    }
-  } // for ever...
-  File file = LittleFS.open("/", "r");
 
   bu = new BorneUniverselle();
 
@@ -316,24 +353,21 @@ void loop() {
   bu->checkHeartbeat();
 
   if (!bu->isPlcBroken()){
-    if (!bu->clientQueueIsFull()){
       bu->refresh();
-    }
+      bu->handleWebSocketMessage();
+  }
     
-    bu->handleWebSocketMessage();
-
-    if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
-        if (bu->isAllInputsReadOnce()){
-             if (!dummyPLC->logiqueExecutor()){
-                bu->setPlcBroken("LogicalExecutor");
-             }
-             bu->notifyWebClient(); // notify only changed nodes
-        } else {
-            Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
-        }     
-     } // Queues ok
-    }
-
+  if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
+      if (bu->isAllInputsReadOnce()){
+           if (!dummyPLC->logiqueExecutor()){
+              bu->setPlcBroken("LogicalExecutor");
+           }
+           bu->notifyWebClient(); // notify only changed nodes
+      } else {
+          Serial.println("Not calling logic executor beacause PLC is not fully intialised\r\n");
+      }     
+  } // Queues ok
+  
   bu->sendMessage();
   ws.cleanupClients();
   if (millis() - start > 1500){

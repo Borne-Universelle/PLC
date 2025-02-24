@@ -5,6 +5,12 @@
     {
       "Wifi": [
         {
+          "ssid": "thiline",
+          "pwd": "Oceanne1",
+          "name": "EDMG_Thierry",
+          "dhcp": true
+        },
+        {
           "ssid": "PosadaLaHacienda",
           "pwd": "Chispas2020",
           "name": "Mexique",
@@ -42,6 +48,18 @@
   },
   "children": [
     {
+      "name": "Direct outputs",
+      "hardware": "Kincony_KC868_A8S",
+      "type": "tx-bool",
+      "children": [
+        {
+          "id": 1,
+          "name": "Buzzer",
+          "hash": 1711197005
+        }
+      ]
+    },
+    {
       "name": "Inputs",
       "hardware": "Kincony_KC868_A8S",
       "type": "PF8574_rx-bool",
@@ -49,35 +67,43 @@
       "children": [
         {
           "id": 1,
-          "hash": 645363011
+          "hash": 645363011, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 396324830
+          "hash": 396324830, 
+          "name": "id 2"
         },
         {
           "id": 3,
-          "hash": 2984797290
+          "hash": 2984797290, 
+          "name": "id 3"
         },
         {
           "id": 4,
-          "hash": 1951357668
+          "hash": 1951357668, 
+          "name": "id 4"
         },
         {
           "id": 5,
-          "hash": 3526906192
+          "hash": 3526906192, 
+          "name": "id 5"
         },
         {
           "id": 6,
-          "hash": 3822078925
+          "hash": 3822078925, 
+          "name": "id 6"
         },
         {
           "id": 7,
-          "hash": 1168588921
+          "hash": 1168588921, 
+          "name": "id 7"
         },
         {
           "id": 8,
-          "hash": 3018797200
+          "hash": 3018797200, 
+          "name": "id 8"
         }
       ]
     },
@@ -89,35 +115,43 @@
       "children": [
         {
           "id": 1,
-          "hash": 1927398708
+          "hash": 1927398708, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 4235117271
+          "hash": 4235117271, 
+          "name": "id 2"
         },
         {
           "id": 3,
-          "hash": 818201161
+          "hash": 818201161, 
+          "name": "id 3"
         },
         {
           "id": 4,
-          "hash": 973196112
+          "hash": 973196112, 
+          "name": "id 4"
         },
         {
           "id": 5,
-          "hash": 4138453966
+          "hash": 4138453966, 
+          "name": "id 5"
         },
         {
           "id": 6,
-          "hash": 2015677485
+          "hash": 2015677485, 
+          "name": "id 6"
         },
         {
           "id": 7,
-          "hash": 3029257395
+          "hash": 3029257395, 
+          "name": "TxButtonHold"
         },
         {
           "id": 8,
-          "hash": 1840176671
+          "hash": 1840176671, 
+          "name": "id 8"
         }
       ]
     },
@@ -129,11 +163,13 @@
       "children": [
         {
           "id": 1,
-          "hash": 3439210244
+          "hash": 3439210244, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 3143695860
+          "hash": 3143695860, 
+          "name": "id 2"
         }
       ]
     },
@@ -145,11 +181,13 @@
       "children": [
         {
           "id": 1,
-          "hash": 927102439
+          "hash": 927102439, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 641671070
+          "hash": 641671070, 
+          "name": "id 2"
         }
       ]
     },
@@ -161,11 +199,13 @@
       "children": [
         {
           "id": 1,
-          "hash": 3394844534
+          "hash": 3394844534, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 3676593423
+          "hash": 3676593423, 
+          "name": "id 2"
         }
       ]
     },
@@ -177,11 +217,13 @@
       "children": [
         {
           "id": 1,
-          "hash": 3409950743
+          "hash": 3409950743, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 1995822297
+          "hash": 1995822297, 
+          "name": "id 2"
         }
       ]
     },
@@ -193,11 +235,13 @@
       "children": [
         {
           "id": 1,
-          "hash": 3819210077
+          "hash": 3819210077, 
+          "name": "id 1"
         },
         {
           "id": 2,
-          "hash": 1584327059
+          "hash": 1584327059, 
+          "name": "id 2"
         }
       ]
     }
