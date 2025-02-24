@@ -2,6 +2,13 @@
   "name": "Formaca",
   "type": 2,
   "component": "hw-module",
+  "security": {
+    "passwords": {
+      "pages": {
+        "Configuration": "1111"
+      }
+    }
+  },
   "config": [
     {
       "Wifi": [
