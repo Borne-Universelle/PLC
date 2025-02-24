@@ -375,7 +375,7 @@ void loop() {
       }
     }
   } else {
-    if (!bu->isPlcBroken){
+    if (!bu->isPlcBroken()){
       Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
     }
   }
