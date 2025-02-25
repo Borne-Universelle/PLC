@@ -4852,10 +4852,25 @@ class Socket {
 	disable() {
 		// Disable interface
 		if (!this.isDisabled) {
-			for (let key in this.targets){
-				if (parseInt(key))
-					this.targets[key]("disable");
+			// Call disable on all targets, not just numeric ones
+			for (let key in this.targets) {
+				// Check if the target is a function that can handle "disable"
+				if (typeof this.targets[key] === 'function') {
+					try {
+						this.targets[key]("disable");
+					} catch (e) {
+						// Some targets might not handle the "disable" string command
+						// Silent fail for targets that don't implement the expected interface
+					}
+				}
 			}
+			
+			// Also notify all ConnectedElement instances
+			ConnectedElement.instances.forEach(instance => {
+				if (instance && typeof instance.disable === 'function') {
+					instance.disable();
+				}
+			});
 		}
 		// Update state
 		this.isDisabled = true;
@@ -4864,10 +4879,24 @@ class Socket {
 	enable() {
 		// Enable interface
 		if (this.isDisabled) {
-			for (let key in this.targets){
-				if (parseInt(key))
-					this.targets[key]("enable");
+			// Call enable on all targets, not just numeric ones
+			for (let key in this.targets) {
+				// Check if the target is a function that can handle "enable"
+				if (typeof this.targets[key] === 'function') {
+					try {
+						this.targets[key]("enable");
+					} catch (e) {
+						// Silent fail for targets that don't implement the expected interface
+					}
+				}
 			}
+			
+			// Also notify all ConnectedElement instances
+			ConnectedElement.instances.forEach(instance => {
+				if (instance && typeof instance.enable === 'function') {
+					instance.enable();
+				}
+			});
 		}
 		// Update state
 		this.isDisabled = false;
