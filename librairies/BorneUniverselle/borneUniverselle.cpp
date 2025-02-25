@@ -431,9 +431,14 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
         heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
         newClientConnected = true;
     } else {
-        if (client != nullptr){
-            client->close();
-            client = nullptr;
+        AsyncWebSocketClient* tmpClient = client;
+        client = nullptr;  // Set to null BEFORE trying to close
+        
+        if (tmpClient != nullptr) {
+            // Check if the client is still in a valid state
+            if (tmpClient->status() == WS_CONNECTED) {
+                tmpClient->close();
+            }
         }
         
         newClientConnected = false;
@@ -470,10 +475,6 @@ bool BorneUniverselle::isClientConnected() {
 }
 
 void BorneUniverselle::sendHeartbeat(bool reset){
-    if (!isClientConnected() || client == nullptr) {
-        return;
-    }
-
     if (sendTextToClient(hearbeatChain)){
         lastHeartbeatSend = millis();
         if (showHeartbeatMessages){
@@ -481,6 +482,8 @@ void BorneUniverselle::sendHeartbeat(bool reset){
         }
     } else {
         Serial.println("sendHeartbeat: unable to send text to client");
+        heartbeatReceive = false;
+        return;
     }
 
     if (reset && heartbeatReceive){
@@ -501,14 +504,9 @@ bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
 
-    if (!isClientConnected() || client == nullptr){
-        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
-        return false;
-    }
-
     if (strlen(text) > SOCKET_MESSAGE_MAX_SIZE){
         char buff[128];
-        sprintf(buff, "Try to send more than %u Kb to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
+        sprintf(buff, "Try to send more than %u bytes to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
         Serial.println(buff);
         return false;
     }
@@ -518,18 +516,30 @@ bool BorneUniverselle::sendTextToClient(char *text){
         return false;
     }
 
+    // Vérification complète de l'état du client une fois le mutex acquis
+    if (client == nullptr || !clientconnected || client->status() != WS_CONNECTED) {
+        Serial.printf("%lu:: Client not available for message sending\r\n", millis());
+        return false;
+    }
+
     // Attendre que la queue se libère avec un timeout
     while (client->queueIsFull()) {
         if (millis() - startTime > QUEUE_TIMEOUT_MS) {
             Serial.println(F("WebSocket queue full timeout - message dropped"));
             return false;
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
+        
+        vTaskDelay(pdMS_TO_TICKS(10));
+        
+        // Re-vérifier l'état du client après le délai
+        if (client == nullptr || client->status() != WS_CONNECTED) {
+            Serial.printf("%lu:: Client disconnected during queue wait\r\n", millis());
+            return false;
+        }
     }
    
     client->text(text);
-    //Serial.println("Message sent to the client");
-    return true;    
+    return true;
 }
 
 void BorneUniverselle::updateEarthbeatTimeout(){
@@ -827,10 +837,10 @@ void BorneUniverselle::handleWebSocket(void *_arg, unsigned char *_data, size_t 
     // Ajouter le fragment
     messageBuffer += String((char*)_data, _len);
 
-    // Si on a tout reçu
-    if (messageBuffer.length() >= expectedSize) {
+   // Si on a tout reçu - Correction ici
+   if (info->final && (info->index + _len) == info->len) {
         Serial.println("handleWebSocket: processing complete reassembled message");
-        keepWebSocketMessage(messageBuffer.c_str(), _arg, _len, _client);
+        keepWebSocketMessage(messageBuffer.c_str(), _arg, messageBuffer.length(), _client);
         messageBuffer = ""; // Nettoyer
     } else {
         Serial.println("handleWebSocket:: collecting more data");
@@ -904,24 +914,27 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t 
 } //keepWebSocketMessage
 
 bool BorneUniverselle::clientQueueIsFull() {
-    if (!isClientConnected()) {
-        return false;  // Pas de client connecté
-    }
-
     MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
     if (!guard.isAcquired()) {
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
-    bool isFull = true;
+    // Vérification après acquisition du mutex
     if (client == nullptr) {
-       return false;  // Pas de client connecté
-    } else {
-        isFull = client->queueIsFull();
-        if (isFull) {
-            Serial.println("Client queue is full (or disconnected) !!!");
-            vTaskDelay(1);
-        }
+        return false;  // Pas de client connecté
+    }
+    
+    // Vérifier si le client est toujours dans un état valide
+    if (client->status() != WS_CONNECTED) {
+        Serial.println(F("Client not in connected state in clientQueueIsFull"));
+        return false; 
+    }
+    
+    // Maintenant on peut vérifier la file d'attente
+    bool isFull = client->queueIsFull();
+    if (isFull) {
+        Serial.printf("%lu:: Client queue is full\n", millis());
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     return isFull;
@@ -1024,6 +1037,7 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
         sprintf(buff, "%lu:: processMessage: deserializeJson() failed: ", millis());
         strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
         Serial.println(buff);
+        Serial.printf("Raw message length: %u, raw data: %.50s\n", strlen((char *)webSocketMessage->data), (char*)webSocketMessage->data);
         prepareMessage(ERROR, JSON_NOT_VALID);
         return true;
     }
@@ -1032,16 +1046,11 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
      
     updateEarthbeatTimeout(); // n'importe que message compte comme un heartbeat reçu
     
-    //if (socketDoc.containsKey(HEARTBEAT)){
     if (!socketDoc[HEARTBEAT].isNull()){
         heartbeatReceive = true;
         lastHearbeatReceive = millis();     
         if (showHeartbeatMessages){
-            if (client == nullptr){
-                Serial.println(F("Client is null !"));
-            } else {
-                Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), (unsigned long)client->id(), socketDoc[HEARTBEAT] ? "true": "false");
-            }
+            Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), (unsigned long)client->id(), socketDoc[HEARTBEAT] ? "true": "false");   
         }
     } else if (!socketDoc[CONFIG].isNull()){
         if (!BorneUniverselle::parseConfig(socketDoc)){
