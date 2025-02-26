@@ -67,6 +67,7 @@ public:
     static String getRebootLog();
     static bool clearRebootLog();
     static void setLastErrorMessage(const char* message);
+    static void printBits(uint16_t value);
 
     // File management
     static std::vector<String> getFilteredFiles(const char* path, const char* pattern);

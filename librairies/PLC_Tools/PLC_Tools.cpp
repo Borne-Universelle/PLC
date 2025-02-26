@@ -172,3 +172,21 @@ String PLC_Tools::getResetReason(esp_reset_reason_t reason) {
         default:                 return "Unknown reason";
     }
 }
+
+void PLC_Tools::printBits(uint16_t nombre) {
+    printf("Bits de %u (0x%04X): ", nombre, nombre);
+    
+    // Parcourir chaque bit, du plus significatif au moins significatif
+    for (int i = 15; i >= 0; i--) {
+        // Extraire le bit à la position i
+        uint16_t bit = (nombre >> i) & 1;
+        printf("%u", bit);
+        
+        // Ajouter un espace tous les 4 bits pour améliorer la lisibilité
+        if (i % 4 == 0 && i > 0) {
+            printf(" ");
+        }
+    }
+    printf("\n");
+}
+    
