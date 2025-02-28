@@ -169,6 +169,7 @@ struct PERSISTANT_PARAMETERS{
 class Formaca {
 public:
     Formaca();
+    ~Formaca(); // Déclaration du destructeur
     bool logiqueExecutor();
     static void printPersistance();
 
