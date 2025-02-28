@@ -4467,9 +4467,6 @@ class PasswordManager {
 const passwordManager = new PasswordManager();
 
 // Used in hw-dynamic.js
-function getSectionLayout(orientation) {
-    return `flex-container ${orientation === 'horizontal' ? 'horizontal-layout' : 'vertical-layout'}`;
-}
 
 const getPageLayout = (orientation) => {
     switch (orientation?.toLowerCase()) {
@@ -4484,6 +4481,7 @@ const getPageLayout = (orientation) => {
 // Add new components to log here:
 const ComponentType = {
     DEBUG: 'debug',
+    NOTIFICATION: 'notification',
     HEARTBEAT: 'heartbeat',
     SOCKET: 'socket',
     CONNECTED_ELEMENT: 'connected-element',
@@ -4502,9 +4500,11 @@ const ComponentType = {
     TX_SLIDER: 'tx-slider',
     TX_STRING: 'tx-string'
 };
+
 // And here:
 const componentLabels = {
     [ComponentType.DEBUG]: ComponentType.DEBUG,
+    [ComponentType.NOTIFICATION]: ComponentType.NOTIFICATION,
     [ComponentType.HEARTBEAT]: ComponentType.HEARTBEAT,
     [ComponentType.SOCKET]: ComponentType.SOCKET,
     [ComponentType.CONNECTED_ELEMENT]: ComponentType.CONNECTED_ELEMENT,
@@ -4562,7 +4562,7 @@ class DebugDrawer extends HTMLElement {
                 }
             </style>
             
-            <sl-icon-button name="bug-fill" id="debug-toggle" style="font-size: 1.1rem;"></sl-icon-button>
+            <sl-icon-button name="bug-fill" id="debug-toggle" style="font-size: 1.1rem; opacity: 0.6;"></sl-icon-button>
             
             <sl-drawer label="Debug Settings" placement="start" class="drawer-placement-start" style="--size: 300px;" id="debug-drawer">
                 <div class="debug-container">
@@ -4642,19 +4642,25 @@ class DebugDrawer extends HTMLElement {
         const savedSettings = localStorage.getItem('debugComponents');
         Logger.log(ComponentType.DEBUG, 'Loaded saved settings:', savedSettings);
         
+        const checkboxes = this.shadowRoot.querySelectorAll('#logging-components sl-checkbox');
+        Logger.log(ComponentType.DEBUG, 'Found checkboxes for loading:', checkboxes.length);
+        
         if (savedSettings) {
             try {
                 const settings = new Set(JSON.parse(savedSettings));
-                const checkboxes = this.shadowRoot.querySelectorAll('#logging-components sl-checkbox');
-                Logger.log(ComponentType.DEBUG, 'Found checkboxes for loading:', checkboxes.length);
-                
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = settings.has(checkbox.value);
-                    // Logger.log(ComponentType.DEBUG, `Setting ${checkbox.value} to ${checkbox.checked}`);
                 });
             } catch (error) {
                 Logger.error(ComponentType.DEBUG, 'Error parsing saved settings:', error);
+                // If there's an error parsing, enable all components by default
+                checkboxes.forEach(checkbox => checkbox.checked = true);
+                this.shadowRoot.getElementById('toggle-all').checked = true;
             }
+        } else {
+            // If no saved settings exist, enable all components by default
+            checkboxes.forEach(checkbox => checkbox.checked = true);
+            this.shadowRoot.getElementById('toggle-all').checked = true;
         }
     }
 
@@ -4700,8 +4706,12 @@ class Logger {
                 this.#enabledComponents = new Set(JSON.parse(saved));
             } catch (error) {
                 Logger.error(ComponentType.DEBUG, 'Error loading enabled components:', error);
-                this.#enabledComponents = new Set();
+                // If there's an error parsing, enable all components by default
+                this.#enabledComponents = new Set(Object.values(ComponentType));
             }
+        } else {
+            // If no saved settings exist, enable all components by default
+            this.#enabledComponents = new Set(Object.values(ComponentType));
         }
     }
 
@@ -5214,16 +5224,29 @@ class ConnectedElement extends HTMLElement {
     }
 
     update(val, descriptor) {
+        // Special handling for socket-level enable/disable commands
+        // These are treated as overrides that don't change the descriptor
+        if (val === "disable") {
+            this._socketDisabled = true;
+            this._applyDisabledState();
+            return;
+        } else if (val === "enable") {
+            this._socketDisabled = false;
+            this._applyDisabledState();
+            return;
+        }
+
         if (this._descriptor.hash) {
             Logger.log(ComponentType.CONNECTED_ELEMENT, `Updating element with hash: ${this._descriptor.hash}, value:`, val, 'descriptor:', descriptor);
         }
-        
+
         if (val !== undefined) {
             this.value = val;
         }
-        
+
         if (descriptor) {
             this.descriptor = descriptor;
+            // Descriptor changes will trigger _applyDisabledState via the descriptor setter
         }
     }
 
@@ -5243,33 +5266,100 @@ class ConnectedElement extends HTMLElement {
         throw new Error("ConnectedElement interface does not implement onsubmit")
     }
 
-    disable() {
-        if (this.isConnected) {
-            const overlay = document.createElement('div');
-            overlay.classList.add('overlay');
-            
-            // Handle both shadow DOM and light DOM
-            const target = this.shadowRoot || this;
-            const container = target.querySelector('.card') || this;
-            
-            if (!container.querySelector('.overlay')) {
-                container.style.position = 'relative';
-                container.appendChild(overlay);
-            }
+    /**
+     * Internal method to determine if component should be disabled
+     * Prioritizes socket state over descriptor
+     */
+    _shouldBeDisabled() {
+        // Socket disabled state overrides descriptor
+        if (this._socketDisabled === true) {
+            return true;
+        }
+        // Otherwise use descriptor value
+        return this._descriptor.disable === true;
+    }
+
+    /**
+     * Apply the correct disabled state based on socket state and descriptor
+     */
+    _applyDisabledState() {
+        if (this._socketDisabled) {
+            // Disabled by socket - use red overlay
+            this._updateOverlayClass('overlay-red');
+        } else if (this._descriptor.disable === true) {
+            // Disabled by descriptor - use gray overlay
+            this._updateOverlayClass('overlay-gray');
+        } else {
+            // Not disabled - remove any overlay
+            this._removeDisabledOverlay();
         }
     }
 
-    enable() {
-        if (this.isConnected) {
-            // Handle both shadow DOM and light DOM
-            const target = this.shadowRoot || this;
-            const container = target.querySelector('.card') || this;
-            const overlay = container.querySelector('.overlay');
-            
-            if (overlay) {
-                overlay.remove();
-            }
+    /**
+     * Updates overlay with the appropriate class without creating duplicates
+     */
+    _updateOverlayClass(desiredClass) {
+        if (!this.isConnected) return;
+
+        const target = this.shadowRoot || this;
+        const container = target.querySelector('.card') || this;
+
+        // Ensure container has relative positioning
+        container.style.position = 'relative';
+
+        // Check if overlay already exists
+        let overlay = container.querySelector('.overlay');
+
+        if (!overlay) {
+            // Create new overlay if none exists
+            overlay = document.createElement('div');
+            overlay.classList.add('overlay');
+            container.appendChild(overlay);
         }
+
+        // Update class - remove any existing overlay classes first
+        overlay.classList.remove('overlay-red', 'overlay-gray');
+        overlay.classList.add(desiredClass);
+
+        Logger.log(ComponentType.CONNECTED_ELEMENT,
+            `Overlay updated to ${desiredClass} for: ${this._descriptor.hash || 'unknown'}`);
+    }
+
+    /**
+     * Internal method to remove the disabled overlay
+     */
+    _removeDisabledOverlay() {
+        if (!this.isConnected) return;
+
+        const target = this.shadowRoot || this;
+        const container = target.querySelector('.card') || this;
+        const overlay = container.querySelector('.overlay');
+
+        if (overlay) {
+            overlay.remove();
+            Logger.log(ComponentType.CONNECTED_ELEMENT, `Overlay removed from: ${this._descriptor.hash || 'unknown'}`);
+        }
+    }
+
+    /**
+     *  Updates component overlay state
+     */
+    updateDisabledState() {
+        this._applyDisabledState();
+    }
+
+    /**
+     * Legacy method maintained for compatibility with components TODO: remove and use instead updateDisabledState()
+     */
+    disable() {
+        this._applyDisabledState();
+    }
+
+    /**
+     * Legacy method maintained for compatibility with components TODO: remove and use instead updateDisabledState()
+     */
+    enable() {
+        this._applyDisabledState();
     }
 
     set value(val) {
@@ -5286,16 +5376,25 @@ class ConnectedElement extends HTMLElement {
     }
 
     set descriptor(val) {
+        const oldDescriptor = { ...this._descriptor };
+
         if (!this._descriptor.hash && val.hash) {
             this.socket.setTarget(val.hash, this.update);
         }
-        
+
         this._descriptor = { ...this._descriptor, ...val };
-        
+
         if (val.hash) {
             this._descriptor.hash = val.hash;
         }
-        
+
+        // Check if the disable property has changed
+        if (oldDescriptor.disable !== this._descriptor.disable) {
+            Logger.log(ComponentType.CONNECTED_ELEMENT,
+                `Disable state changed in descriptor: ${oldDescriptor.disable} -> ${this._descriptor.disable} for ${this._descriptor.hash || 'unknown'}`);
+            this._applyDisabledState();
+        }
+
         if (this.isConnected) {
             this.render();
         }
@@ -5325,6 +5424,10 @@ class ConnectedElement extends HTMLElement {
 
     connectedCallback() {
         this.render();
+
+        // Apply the correct disabled state after connection
+        this._applyDisabledState();
+
         if (this._descriptor.hash) {
             this.socket.sendMessage("get", this._descriptor.hash);
         }
@@ -5339,8 +5442,8 @@ class ConnectedElement extends HTMLElement {
     }
 }
 
-const template$h = document.createElement('template');
-template$h.innerHTML = `
+const template$e = document.createElement('template');
+template$e.innerHTML = `
     
 <style>
     .edit-controls {
@@ -5562,7 +5665,7 @@ class EditMode extends ConnectedElement {
 
         this.attachShadow({ mode: 'open' });
         
-        this.shadowRoot.appendChild(template$h.content.cloneNode(true));
+        this.shadowRoot.appendChild(template$e.content.cloneNode(true));
     }
 
     async connectedCallback() {
@@ -6193,9 +6296,9 @@ class EditMode extends ConnectedElement {
 }
 window.customElements.define('edit-mode', EditMode);
 
-const template$g = document.createElement('template');
+const template$d = document.createElement('template');
 
-template$g.innerHTML = `
+template$d.innerHTML = `
     <style>
         @import url("static/css/style.css");
         @import url("static/css/layout.css");
@@ -6266,7 +6369,6 @@ template$g.innerHTML = `
         }
     </style>
     <div class="dynamic-layout">
-        <interface-editor></interface-editor>
         <nav class="tab-navigation"></nav>
         <div class="page-content"></div>
     </div>
@@ -6286,7 +6388,7 @@ class HwDynamic extends HTMLElement {
     }
 
     connectedCallback() {
-        this.appendChild(template$g.content.cloneNode(true));
+        this.appendChild(template$d.content.cloneNode(true));
         this.loadConfigurations();
     }
 
@@ -6329,7 +6431,7 @@ class HwDynamic extends HTMLElement {
         const sectionEl = document.createElement('div');
         sectionEl.className = 'section locked';
         
-        const title = document.createElement('h3');
+        //const title = document.createElement('h3');
         title.textContent = section.SectionName + ' (Protected)';  // Added '(Protected)' to show it's locked
         
         sectionEl.appendChild(title);
@@ -6368,8 +6470,8 @@ class HwDynamic extends HTMLElement {
             return this.createLockedSection(section);
         }
     
-        // If no custom component specified or if it's hw-section, create default section
-        if (!section.component || section.component === 'hw-section') {
+        // If no custom component specified, create default section
+        if (!section.component) {
             const sectionEl = document.createElement('div');
             sectionEl.className = 'section';
             
@@ -6551,7 +6653,6 @@ class HwDynamic extends HTMLElement {
         const page = this._interface.pages[index];
         
         if (page.password) {
-          console.log("Password found:", page.password);
             if (!passwordManager.isUnlocked(`page-${page.PageName}`)) {
                 // Hide content before showing dialog
                 this.hidePageContent();
@@ -6604,7 +6705,7 @@ class HwDynamic extends HTMLElement {
         currentPage.sections.forEach(section => {
             pageContent.appendChild(this.createSection(section));
         });
-    } 
+    }
 
     render() {
         if (!this._interface || !this._config) return;
@@ -6633,14 +6734,15 @@ class HwDynamic extends HTMLElement {
 
 window.customElements.define('hw-dynamic', HwDynamic);
 
-const template$f = document.createElement('template');
+const template$c = document.createElement('template');
 
-template$f.innerHTML = `
+template$c.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
     <div class="card">
-        <div class="details row"> 
+        <div class="details row">
+           
         </div>
         <div class="children">
         </div>
@@ -6683,8 +6785,8 @@ class HwDock extends HTMLElement {
   }
 
   render(){
-      let $template = template$f.content.cloneNode(true);
-
+      let $template = template$c.content.cloneNode(true);
+      // Append children
       this.children.map((child) => {
           $template.querySelector(".children").appendChild(child);
       });
@@ -6698,49 +6800,20 @@ class HwDock extends HTMLElement {
 
 window.customElements.define('hw-dock', HwDock);
 
-// Used in hw-notification.js
-Object.defineProperty( Date.prototype,
-    'toStringDM', {value:
-            (date) => {
-                return date.getDate() + '-' + date.getMonth();
-            }
-    });
-
-Object.defineProperty( Date.prototype,
-    'toStringDMY', {value:
-            (date) => {
-                return date.getDate() + '-' + date.getMonth() +'-' + date.getFullYear();
-            }
-    });
-
-Object.defineProperty(Date.prototype, 'timeNow', {value: getCurrentTime});
-
-function getCurrentTime() {
-  let now = new Date();
-  let hour = now.getHours();
-  let minute = now.getMinutes();
-  if (minute < 10)
-      minute = "0" + minute;
-  if (hour < 10)
-      hour = "0" + hour;
-  return hour + ":" + minute;
-}
-
-const template$e = document.createElement('template');
-template$e.innerHTML = `
+const template$b = document.createElement('template');
+template$b.innerHTML = `
      <style>
        @import url("static/css/style.css")
      </style>
       
-     <div class="alert-toast">
-    </div>
+     <div class="alert-toast"></div>
 `;
 
 class HwNotification extends HTMLElement {
     constructor() {
         super();
         // Create a div element to represent the card
-        this.appendChild(template$e.content.cloneNode(true));
+        this.appendChild(template$b.content.cloneNode(true));
         this.socket = this.getAttribute('socket');
         this.url = this.getAttribute('url');
         // Bind functions
@@ -6755,17 +6828,12 @@ class HwNotification extends HTMLElement {
         window.success = this.success;
     }
 
-
-   // set socket(val){
-      //  this._socket = val
-      //  val.addTarget("notification", this.notify)
-   // }
     connectedCallback() {
         // Get the JSON URL from the "url" parameter
-        if (Socket.defaultSocket){
+        if (Socket.defaultSocket) {
             Socket.defaultSocket.setTarget("notification", this.notify);
         } else {
-            console.warn("No default socket when trying to register hw-notification");
+            Logger.warn(ComponentType.NOTIFICATION, "No default socket when trying to register hw-notification");
         }
     }
 
@@ -6775,51 +6843,72 @@ class HwNotification extends HTMLElement {
         return div.innerHTML;
     }
 
-    error(message, duration=10000){
-        let msg = {type:"error", name:"Error", desc:message};
+    error(message, duration = 10000) {
+        let msg = { type: "error", name: "Error", desc: message };
         let variant = "danger";
         let icon = "exclamation-circle";
-        msg.desc = msg.desc +  " at " + getCurrentTime();
         this.notify(msg, variant, icon, duration);
+        Logger.log(ComponentType.NOTIFICATION, "Error: ", {"msg":msg, "variant":variant, "icon":icon,});
     }
 
-    warn(message, duration=5000){
-        let msg = {type:"warning", name:"Warning", desc:message};
+    warn(message, duration = 5000) {
+        let msg = { type: "warning", name: "Warning", desc: message };
         console.info("Warning notification:\n", message);
         let variant = "warning";
         let icon = "exclamation-triangle";
         this.notify(msg, variant, icon, duration);
+        Logger.log(ComponentType.NOTIFICATION, "Warn: ", {"msg":msg, "variant":variant, "icon":icon,});
     }
 
-    success(message, duration=2000){
-        let msg = {type:"success", name:"Success", desc:message};
+    success(message, duration = 2000) {
+        let msg = { type: "success", name: "Success", desc: message };
         let variant = "success";
         let icon = "check-circle";
         this.notify(msg, variant, icon, duration);
+        Logger.log(ComponentType.NOTIFICATION, "Success: ", {"msg":msg, "variant":variant, "icon":icon,});
     }
     // Custom function to emit toast notifications
     notify(message, variant = 'primary', icon = 'info-circle', duration = 10000) {
+        // Ensure message is an object with required properties
+        if (typeof message === 'string') {
+            // Convert string messages to proper format
+            message = {
+                type: "info",
+                name: "Information",
+                desc: message
+            };
+        } else if (!message.desc) {
+            // Skip notifications with missing required fields
+            console.warn("Notification received without required name/desc fields:", message);
+            return;
+        }
+
         switch (message["type"]) {
             case "error":
             case "danger":
                 variant = "danger";
                 icon = "exclamation-circle";
                 duration = 10000;
+                Logger.log(ComponentType.NOTIFICATION, "Error: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
             case "warning":
                 variant = "warning";
                 icon = "exclamation-triangle";
-                duration = 5000;
+                duration = 10000;
+                Logger.log(ComponentType.NOTIFICATION, "Warning: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
             case "info":
             case "primary":
                 variant = "primary";
                 icon = "info-circle";
+                duration = 4000;
+                Logger.log(ComponentType.NOTIFICATION, "Info: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
             case "success":
                 variant = "success";
                 icon = "check-circle";
-                duration = 2000;
+                duration = 4000;
+                Logger.log(ComponentType.NOTIFICATION, "Success: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
         }
 
@@ -6835,124 +6924,59 @@ class HwNotification extends HTMLElement {
             `
         });
 
-      document.body.append($alert);
-      $alert.toast();
-      return
+        document.body.append($alert);
+        $alert.toast();
+        return
     }
 
-    render(){
+    render() {
     }
 
 }
 
 customElements.define('hw-notification', HwNotification);
 
-const template$d = document.createElement('template');
+/**
+ * RxTooltip Web Component
+ * 
+ * This custom element creates a tooltip that displays additional information 
+ * when clicked. It is designed to be lightweight and easily integrated with 
+ * other components that require tooltips.
+ * 
+ * Features:
+ * - Uses a small "info" icon button to trigger the tooltip
+ * - Displays a tooltip with customizable content on click
+ * - Automatically hides itself when no valid content is provided
+ * - Integrates seamlessly with other components like `rx-label`
+ * 
+ * Attributes:
+ * - tooltip-content (string): The text content to display inside the tooltip
+ * 
+ * Usage Example:
+ * 
+ * ```html
+ * <rx-tooltip tooltip-content="This is a tooltip!"></rx-tooltip>
+ * ```
+ * 
+ * Integration Example (inside another component like `rx-label`):
+ * Add in the innerHTML:
+ * * ```innerHTML
+ * <rx-tooltip></rx-tooltip>
+ * ```
+ * ```javascript
+ * import { tooltipUpdate } from "./rx-tooltip.js";
+ * 
+ * In the render function:
+ * use this if shadowRoot available:
+ * tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+ * Or use this if template available:
+ * tooltipUpdate(template.querySelector("rx-tooltip"), this._descriptor.tooltip);
+ * ```
+ */
 
-template$d.innerHTML = `
-    <style>
-        @import url("static/css/style.css");
-        @import url("static/css/layout.css");
-        .hw-section {
-            flex-wrap: wrap;
-            width: 100%;
-        }
-        .hidden {
-            visibility: hidden;
-            height: 0;
-            width: 0;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
-    <div class="hw-section">
-        <button id="toggle-visibility"><span id="buttonText">Toggle</span></button>
-        <div class="card">
-            <h2>Section title</h2>
-            <div class="details row"></div>
-            <div class="children"></div>
-        </div>
-    </div>
-`;
 
-class HwSection extends HTMLElement {
-    constructor() {
-        super();
-        this._descriptor = { name: "", type: "", component: "", children: [] };
-        this._isVisible = true;
-    }
-
-    set descriptor(val) {
-        this._descriptor = val;
-        this.render();
-    }
-
-    set value(val) {
-        this._value = val;
-        this.render();
-    }
-
-    get children() {
-        let $children = [];
-        for (let child of this._descriptor.children) {
-            if (customElements.get(child.component) === undefined) {
-                console.error(`Component ${child.component} not found`);
-                continue;
-            }
-            let $child = document.createElement("div", { is: child.component });
-            $child.innerHTML = `<${child.component}></${child.component}>`;
-            $child.firstChild.descriptor = child;
-            $children.push($child);
-        }
-        return $children;
-    }
-
-    connectedCallback() {
-        const toggleButton = this.querySelector("#toggle-visibility");
-        if (toggleButton) {
-            toggleButton.addEventListener('click', () => this.toggleVisibility());
-        }
-    }
-
-    toggleVisibility() {
-        this._isVisible = !this._isVisible;
-        this.updateVisibility();
-    }
-
-    updateVisibility() {
-        const buttonText = this.querySelector("#buttonText");
-        const card = this.querySelector('.card');
-        if (card) {
-            if (this._isVisible) {
-                card.classList.remove('hidden');
-                buttonText.textContent = "Toggle";
-            } else {
-                card.classList.add('hidden');
-                buttonText.innerHTML = this._descriptor.name.replace(/ /g, "<br>");
-            }
-        }
-    }
-
-    render() {
-        // Clean component and append template
-        while (this.firstChild) {
-            this.removeChild(this.firstChild);
-        }
-        let $template = template$d.content.cloneNode(true);
-
-        const childrenContainer = $template.querySelector(".children");
-        childrenContainer.className = getSectionLayout(this._descriptor.orientation);
-
-        this.appendChild($template);
-        // Apply the hidden class if necessary
-        this.updateVisibility();
-    }
-}
-
-window.customElements.define('hw-section', HwSection);
-
-const template$c = document.createElement('template');
-template$c.innerHTML = `
+const template$a = document.createElement('template');
+template$a.innerHTML = `
     <style>
         :host {
             display: inline-block;
@@ -6974,7 +6998,7 @@ class RxTooltip extends ConnectedElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$c.content.cloneNode(true));
+        this.shadowRoot.appendChild(template$a.content.cloneNode(true));
         this._tooltip = this.shadowRoot.querySelector('sl-tooltip');
         this._iconButton = this.shadowRoot.querySelector('sl-icon-button');
     }
@@ -7027,8 +7051,8 @@ function tooltipUpdate($tooltip, tooltipContent) {
 
 window.customElements.define('rx-tooltip', RxTooltip);
 
-const template$b = document.createElement('template');
-template$b.innerHTML = `
+const template$9 = document.createElement('template');
+template$9.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -7047,33 +7071,33 @@ class RxBool extends ConnectedElement {
     constructor() {
         super();
         this._value = false;
+        
+        // Clone template once
+        this.appendChild(template$9.content.cloneNode(true));
+        
+        // Store references
+        this.$switch = this.querySelector("sl-switch");
+        this.$label = this.querySelector(".label");
+        
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
     }
-
-
+    
     render() {
-        let $template = template$b.content.cloneNode(true);
-        let $switch = $template.querySelector("sl-switch");
-
-        tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
-
-        // 1. Set label for switch
+        // Update existing elements instead of recreating
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        
+        // Update content
         let name = this._descriptor.name[0].toUpperCase() + this._descriptor.name.slice(1);
+        this.$label.innerText = name;
+        this.$switch.checked = this._value;
+        
         const disable = this._descriptor.disable;
-        $template.querySelector(".label").innerText = name;
-        // 2. Set checked value for switch
-        $switch.checked = this._value;
         if (disable) {
             this.disable();
         } else {
             this.enable();
         }
-        // Clean component and append template
-        while (this.firstChild) {
-            this.removeChild(this.firstChild);
-        }
-        this.appendChild($template);
     }
 }
 
@@ -7096,8 +7120,8 @@ The blinking effect occurs based on the internal state and is refreshed periodic
  */
 
 
-const template$a = document.createElement('template');
-template$a.innerHTML = `
+const template$8 = document.createElement('template');
+template$8.innerHTML = `
     <style>
         .dot {
             height: 2rem;
@@ -7147,7 +7171,7 @@ class RxIndicator extends ConnectedElement {
         const inverse = this._descriptor.inverse;
         const blinkactive = this._descriptor.blink;
         const color = this._descriptor.color|| "lime";
-        let $template = template$a.content.cloneNode(true);
+        let $template = template$8.content.cloneNode(true);
         let $indicator = $template.querySelector(".dot");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -7207,7 +7231,6 @@ window.customElements.define('rx-indicator', RxIndicator);
     {
       "name": "States Routines",
       "hardware": "Kincony_KC868_A8S",
-      "component": "hw-section",
       "type": "ModbusWriteHoldingRegister",
       "address": 2,
       "children": [
@@ -7217,15 +7240,16 @@ window.customElements.define('rx-indicator', RxIndicator);
           "state": "neutral",
           "isBlinking": false,
           "component": "rx-label",
-          "hash": 1708159393
+          "hash": 1708159393,
+          "tooltip": "This is a tooltip!"
         }
       ]
     },
  */
 
 
-const template$9 = document.createElement('template');
-template$9.innerHTML = `
+const templateLabel = document.createElement('template');
+templateLabel.innerHTML = `
         <style>
             .state-tag {
                 --sl-color-neutral-0: white;
@@ -7236,35 +7260,44 @@ template$9.innerHTML = `
                 padding: 0.1rem;
                 border-radius: var(--sl-border-radius-medium);
             }
+            
             @keyframes blink {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.5; }
             }
+            
             .blinking {
                 animation: blink 1s ease-in-out infinite;
             }
+            
             .label-name {
                 font-weight: bold;
             }
         </style>
+        
         <div class="card">
             <div class="tooltip-container">
                 <span class="label-name">Current State:</span>
                 <rx-tooltip></rx-tooltip>
             </div>
-            <span id="stateTag" class="state-tag"></span>
+            <span class="state-tag"></span>
         </div>
-        `;
+    `;
 
 class RxLabel extends ConnectedElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$9.content.cloneNode(true));
+
+        // Initialize the component once
+        this.appendChild(templateLabel.content.cloneNode(true));
+
+        // Store references to DOM elements
+        this.stateTag = this.querySelector('.state-tag');
+        this.labelName = this.querySelector('.label-name');
+
+        // Bind methods
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
-        this.stateTag = this.shadowRoot.getElementById('stateTag');
-        this.labelName = this.shadowRoot.querySelector('.label-name');
     }
 
     render() {
@@ -7274,17 +7307,14 @@ class RxLabel extends ConnectedElement {
         const isBlinking = this._descriptor.isBlinking;
         const disable = this._descriptor.disable;
 
-        tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        // Update tooltip
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
+        // Update content
         this.labelName.textContent = name;
         this.stateTag.textContent = value;
 
-        if (disable) {
-            this.disable();
-        } else {
-            this.enable();
-        }
-        // Set color based on state
+        // Update state color
         switch (state) {
             case "success":
                 this.stateTag.style.color = 'var(--sl-color-success-600)';
@@ -7299,11 +7329,18 @@ class RxLabel extends ConnectedElement {
                 this.stateTag.style.color = 'var(--sl-color-neutral-0)';
         }
 
-        // Toggle blinking animation
+        // Update blinking state
         if (isBlinking) {
             this.stateTag.classList.add('blinking');
         } else {
             this.stateTag.classList.remove('blinking');
+        }
+
+        // Handle disable state
+        if (disable) {
+            this.disable();
+        } else {
+            this.enable();
         }
     }
 }
@@ -7543,8 +7580,8 @@ class GraphRenderer {
     }
 }
 
-const template$8 = document.createElement('template');
-template$8.innerHTML = `
+const template$7 = document.createElement('template');
+template$7.innerHTML = `
     <style>
         .card {
             position: relative;
@@ -7676,7 +7713,7 @@ class RxGraph extends ConnectedElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$8.content.cloneNode(true));
+        this.shadowRoot.appendChild(template$7.content.cloneNode(true));
         
         this._nodes = new Map();
         this._maxPoints = 50;
@@ -7834,7 +7871,6 @@ window.customElements.define('rx-graph', RxGraph);
    {
       "name": "Analogic Level",
       "hardware": "Kincony_KC868_A8S",
-      "component": "hw-section",
       "type": "ModbusWriteHoldingRegister",
       "address": 2,
       "children": [
@@ -7858,9 +7894,9 @@ window.customElements.define('rx-graph', RxGraph);
     },
  */
 
-const template$7 = document.createElement('template');
+const template$6 = document.createElement('template');
 
-template$7.innerHTML = `
+template$6.innerHTML = `
 <style>
     .card {
         display: flex;
@@ -8005,8 +8041,7 @@ template$7.innerHTML = `
 class RxLevelBar extends ConnectedElement {
     constructor() {
         super();
-        this.attachShadow({mode: 'open'});
-        this.shadowRoot.appendChild(template$7.content.cloneNode(true));
+        this.innerHTML = template$6.innerHTML;
         this._current = parseFloat(this.getAttribute('current'));
         this._max = parseFloat(this.getAttribute('max'));
         this._min = parseFloat(this.getAttribute('min'));
@@ -8022,26 +8057,26 @@ class RxLevelBar extends ConnectedElement {
     // ------------------ Callback Methods ------------------ //
     render() {
         const disable = this._descriptor.disable;
-        const container = this.shadowRoot.querySelector('.container');
-        const labelsContainer = this.shadowRoot.querySelector('.labels-container');
-        const barContainer = this.shadowRoot.querySelector('.bar-container');
-        const levelIndicator = this.shadowRoot.querySelector('.level-indicator');
-        const bar = this.shadowRoot.querySelector('.level-bar');
-        const title = this.shadowRoot.querySelector('.title');
+        const container = this.querySelector('.container');
+        const labelsContainer = this.querySelector('.labels-container');
+        const barContainer = this.querySelector('.bar-container');
+        const levelIndicator = this.querySelector('.level-indicator');
+        const bar = this.querySelector('.level-bar');
+        const title = this.querySelector('.title');
 
-        const alarm_high_label = this.shadowRoot.querySelector('.alarm-high-label');
-        const warning_high_label = this.shadowRoot.querySelector('.warning-high-label');
-        const warning_low_label = this.shadowRoot.querySelector('.warning-low-label');
-        const alarm_low_label = this.shadowRoot.querySelector('.alarm-low-label');
+        const alarm_high_label = this.querySelector('.alarm-high-label');
+        const warning_high_label = this.querySelector('.warning-high-label');
+        const warning_low_label = this.querySelector('.warning-low-label');
+        const alarm_low_label = this.querySelector('.alarm-low-label');
 
-        const max_label = this.shadowRoot.querySelector('.max');
-        const alarm_high_indicator = this.shadowRoot.querySelector('.alarm-high');
-        const warning_high_indicator = this.shadowRoot.querySelector('.warning-high');
-        const warning_low_indicator = this.shadowRoot.querySelector('.warning-low');
-        const alarm_low_indicator = this.shadowRoot.querySelector('.alarm-low');
-        const min_label = this.shadowRoot.querySelector('.min');
-        const current_label = this.shadowRoot.querySelector('.current');
-        const unit_label = this.shadowRoot.querySelector('.unit');
+        const max_label = this.querySelector('.max');
+        const alarm_high_indicator = this.querySelector('.alarm-high');
+        const warning_high_indicator = this.querySelector('.warning-high');
+        const warning_low_indicator = this.querySelector('.warning-low');
+        const alarm_low_indicator = this.querySelector('.alarm-low');
+        const min_label = this.querySelector('.min');
+        const current_label = this.querySelector('.current');
+        const unit_label = this.querySelector('.unit');
 
         alarm_high_indicator.style.display = 'none';
         warning_high_indicator.style.display = 'none';
@@ -8074,7 +8109,7 @@ class RxLevelBar extends ConnectedElement {
         const dangerCurrentColor = "var(--sl-color-danger-600)";
         const warningCurrentColor = "var(--sl-color-warning-600)";
 
-        tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
         title.textContent = name;
         if (disable) {
@@ -8205,8 +8240,8 @@ class RxLevelBar extends ConnectedElement {
 
 window.customElements.define('rx-level-bar', RxLevelBar);
 
-const template$6 = document.createElement('template');
-template$6.innerHTML = `
+const template$5 = document.createElement('template');
+template$5.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -8229,7 +8264,7 @@ class RxNumeric extends ConnectedElement {
 
     render() {
         const disable = this._descriptor.disable;
-        let $template = template$6.content.cloneNode(true);
+        let $template = template$5.content.cloneNode(true);
         let $input = $template.querySelector("sl-input");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -8253,8 +8288,8 @@ class RxNumeric extends ConnectedElement {
 
 window.customElements.define('rx-numeric', RxNumeric);
 
-const template$5 = document.createElement('template');
-template$5.innerHTML = `
+const template$4 = document.createElement('template');
+template$4.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -8281,12 +8316,12 @@ class TxBool extends ConnectedElement {
         //this.define(this._value)
         let hash = this._descriptor.hash;
         let value = e.target.checked;
-       // Logger.debug(ComponentType.TX_BOOL, `onclick: ${hash}:${value}`);
+        Logger.log(ComponentType.TX_BOOL, `(onclick) hash, value : ${hash}, ${value}`);
         Socket.defaultSocket.sendMessage("states", [{hash:hash, value:value}]);
     }
 
     render() {
-        let $template = template$5.content.cloneNode(true);
+        let $template = template$4.content.cloneNode(true);
         let $switch = $template.querySelector("sl-switch");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -8359,8 +8394,8 @@ window.customElements.define('tx-bool', TxBool);
  */
 
 
-const template$4 = document.createElement('template');
-template$4.innerHTML = `
+const template$3 = document.createElement('template');
+template$3.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -8384,19 +8419,19 @@ class TxButtonHold extends ConnectedElement {
 
     onmousedown(e) {
         let hash = this._descriptor.hash;
-      //  Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmousedown: ${hash}:${true}`);
+        Logger.log(ComponentType.TX_BUTTON_HOLD, `(onmousedown) hash, value : ${hash}, ${true}`);
         Socket.defaultSocket.sendMessage("states", [{hash:hash, value:true}]);
     }
     onmouseup(e) {
         let hash = this._descriptor.hash;
-       // Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmouseup: ${hash}:${false}`);
+        Logger.log(ComponentType.TX_BUTTON_HOLD, `(onmouseup) hash, value : ${hash}, ${false}`);
         Socket.defaultSocket.sendMessage("states", [{ hash: hash, value: false }]);
     }
 
     render() {
         const disable = this._descriptor.disable;
         const color = this._descriptor.color;
-        let $template = template$4.content.cloneNode(true);
+        let $template = template$3.content.cloneNode(true);
         let $button = $template.querySelector("sl-button");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -8456,33 +8491,34 @@ window.customElements.define('tx-button-hold', TxButtonHold);
  *          Each item will be displayed as a checkbox menu item.
  *          Example: ["Cut 1", "Cut 2", "Cut 3"]
  * 
- * JSON config example:
+ * JSON config and descriptor example:
     {
-      "name": "Dropdowns Routines",
-      "hardware": "Kincony_KC868_A8S",
-      "component": "hw-section",
-      "type": "ModbusWriteHoldingRegister",
-      "address": 2,
-      "children": [
-        {
-          "id": 1,
-          "name": "Cutting routines",
-          "component": "tx-dropdown",
-          "items": ["Cut 1", "Cut 2", "Cut 3"],
-          "default": "Cut 2",
-          "hash": 1708159392
-        }
-      ]
-    },
+        "hash": 1708159392,
+        "name": "Cutting routines",
+        "component": "tx-dropdown",
+        "items": ["Cut 1", "Cut 2", "Cut 3"],
+        "default": "Cut 2",
+        "tooltip": ""
+    }
  */
 
 
-const template$3 = document.createElement('template');
-template$3.innerHTML = `
-    <div class="dropdown-selection">
+const templateDropdown = document.createElement('template');
+templateDropdown.innerHTML = `
+    <style>
+        sl-dropdown {
+            width: 100%;
+        }
+
+        sl-button {
+            width: 100%;
+        }
+    </style>
+
+    <div class="card">
         <div class="tooltip-container">
             <sl-dropdown>
-                <sl-button slot="trigger" caret></sl-button>
+                <sl-button slot="trigger" caret>Select</sl-button>
                 <sl-menu class="dropdown-menu">
                 </sl-menu>
             </sl-dropdown>
@@ -8494,79 +8530,53 @@ template$3.innerHTML = `
 class TxDropdown extends ConnectedElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$3.content.cloneNode(true));
-
-        this.dropdown = this.shadowRoot.querySelector('sl-dropdown');
-        this.buttonTitle = this.shadowRoot.querySelector('sl-button');
-        this.menu = this.shadowRoot.querySelector('.dropdown-menu');
+        this._items = [];
+        this._selectedValue = null;
         
-        this.items = [];
-        this.selectedValue = null;
-
-        // Bind the event handler to the class instance
-        this.handleItemClick = this.handleItemClick.bind(this);
-    }
-
-    connectedCallback() {
-        this.updateFromDescriptor();
-        // Add event listener here, only once
-        this.menu.addEventListener('sl-select', this.handleItemClick);
+        // Clone template once during construction
+        this.appendChild(templateDropdown.content.cloneNode(true));
+        
+        // Store references to DOM elements
+        this.dropdown = this.querySelector('sl-dropdown');
+        this.button = this.querySelector('sl-button');
+        this.menu = this.querySelector('.dropdown-menu');
+        
+        // Bind methods
+        this.update = this.update.bind(this);
+        this.render = this.render.bind(this);
+        this.handleSelect = this.handleSelect.bind(this);
+        
+        // Add event listener
+        this.menu.addEventListener('sl-select', this.handleSelect);
     }
 
     disconnectedCallback() {
-        // Remove event listener when component is disconnected
-        this.menu.removeEventListener('sl-select', this.handleItemClick);
+        super.disconnectedCallback();
+        // Clean up event listener
+        this.menu.removeEventListener('sl-select', this.handleSelect);
     }
 
-    updateFromDescriptor() {
-        if (this._descriptor) {
-            this.name = this._descriptor.name || "Selection";
-            this.items = this._descriptor.items || [];
-            
-            // Check for default value in descriptor
-            if (this._descriptor.default && this.items.includes(this._descriptor.default)) {
-                this.selectedValue = this._descriptor.default;
-                this.buttonTitle.textContent = this.selectedValue;
-            } else {
-                this.buttonTitle.textContent = this.name;
-            }
-            
-            this.populateMenu();
-        }
-    }
-
-    populateMenu() {
-        this.menu.innerHTML = '';
-        this.items.forEach(item => {
-            const menuItem = document.createElement('sl-menu-item');
-            menuItem.textContent = item;
-            menuItem.value = item;
-            menuItem.type = 'checkbox';
-            menuItem.checked = item === this.selectedValue;
-            this.menu.appendChild(menuItem);
-        });
-    }
-
-    handleItemClick(event) {
+    handleSelect(event) {
         const selectedItem = event.detail.item;
         
-        if (selectedItem.value === this.selectedValue) {
-            return; // Do nothing if the same item is selected again
+        if (selectedItem.value === this._selectedValue) {
+            return;
         }
 
+        this._selectedValue = selectedItem.value;
+        this.button.textContent = this._selectedValue;
+        
+        // Update checkmarks in menu
         this.menu.querySelectorAll('sl-menu-item').forEach(item => {
-            item.checked = item === selectedItem;
+            item.checked = item.value === this._selectedValue;
         });
 
-        this.selectedValue = selectedItem.value;
-        this.buttonTitle.textContent = selectedItem.textContent;
-
         if (this._descriptor && this._descriptor.hash) {
-            let hash = this._descriptor.hash;
-            let value = selectedItem.value;
-            console.log("Sending value: ", value);
-            Socket.defaultSocket.sendMessage("states", [{ "hash": hash, "value": value }]);
+            Logger.log(ComponentType.TX_DROPDOWN, `handleSelect: ${this._descriptor.hash}: ${this._selectedValue}`);
+            Socket.defaultSocket.sendMessage("states", [{ 
+                "hash": this._descriptor.hash, 
+                "value": this._selectedValue 
+            }]);
         }
 
         this.dropdown.hide();
@@ -8574,15 +8584,51 @@ class TxDropdown extends ConnectedElement {
 
     render() {
         const disable = this._descriptor.disable;
+        
+        // Update tooltip
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
-        tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        // Update items from descriptor
+        const newItems = this._descriptor.items || [];
+        
+        // Only rebuild menu if items have changed
+        if (JSON.stringify(this._items) !== JSON.stringify(newItems)) {
+            this._items = newItems;
+            this.menu.innerHTML = '';
+            this._items.forEach(item => {
+                const menuItem = document.createElement('sl-menu-item');
+                menuItem.textContent = item;
+                menuItem.value = item;
+                menuItem.type = 'checkbox';
+                menuItem.checked = item === this._selectedValue;
+                this.menu.appendChild(menuItem);
+            });
+        }
+        
+        // Update selected value if default is provided
+        if (this._descriptor.default && 
+            this._items.includes(this._descriptor.default) && 
+            !this._selectedValue) {
+            this._selectedValue = this._descriptor.default;
+        }
 
-        this.updateFromDescriptor();
+        // Update button text
+        this.button.textContent = this._selectedValue || this._descriptor.name || "Select";
+        
+        // Update checked states
+        this.menu.querySelectorAll('sl-menu-item').forEach(item => {
+            item.checked = item.value === this._selectedValue;
+        });
+
+        // Handle disable state
         if (disable) {
             this.disable();
         } else {
             this.enable();
         }
+
+        Logger.log(ComponentType.TX_DROPDOWN, `Rendered with items:`, this._items);
+        Logger.log(ComponentType.TX_DROPDOWN, `Selected value:`, this._selectedValue);
     }
 }
 
@@ -8988,7 +9034,6 @@ class TxSlider extends ConnectedElement {
     }
 
     handleChange(event) {
-        
         const slider = event.target;
         this._value = parseFloat(slider.value);
         const hash = this._descriptor.hash;
@@ -9209,15 +9254,18 @@ window.customElements.define('tx-string', TxString);
 class InterfaceEditor extends ConnectedElement {
     constructor() {
         super();
-        this.versions = [];
-        this.maxVersions = 10;
-        
+        this.availableNodes = [];
+        this.configData = null;
+        this.interfaceData = null;
+        this.rendererDescriptors = null;
+        this.currentFile = 'interface.json'; // Fichier par défaut
+
         const template = document.createElement('template');
         template.innerHTML = `
             <style>
                 .edit-btn {
                     --sl-button-font-size-medium: 0.5rem;
-                    --sl-button-height-medium: .5rem;
+                    --sl-button-height-medium: 0.5rem;
                     --sl-button-padding-x: 0.5rem;
                 }
 
@@ -9232,6 +9280,7 @@ class InterfaceEditor extends ConnectedElement {
                     transition: all 0.3s ease;
                     backdrop-filter: blur(4px);
                     transform: scale(0.85);
+                    z-index: 1000;
                 }
 
                 .interface-edit-card:hover {
@@ -9239,32 +9288,70 @@ class InterfaceEditor extends ConnectedElement {
                     background: rgba(var(--sl-color-neutral-0-rgb), 0.8);
                     transform: scale(1);
                 }
-                
-                dialog {
-                    width: 40vw;
-                    height: 60vh;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.5);
+
+                .main-editor {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 80vw;
+                    height: 80vh;
+                    background: rgba(var(--sl-color-neutral-0-rgb), 0.95);
                     border: 1px solid var(--sl-color-neutral-300);
                     border-radius: 8px;
                     padding: 20px;
-                    resize: both;
-                    overflow: auto;
-                    min-width: 10vw;
-                    min-height: 10vh;
+                    display: flex;
+                    flex-direction: column;
+                    z-index: 9000;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+                }
+
+                .main-editor-backdrop {
                     position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 8999;
                 }
 
-                dialog::backdrop {
-                    background: rgba(0, 0, 0, 0.75);
+                .edit-tools {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 10px;
+                    flex-wrap: wrap;
                 }
 
-                dialog:hover {
-                    border-color: var(--sl-color-neutral-400);
+                .edit-tools sl-button {
+                    --sl-button-font-size-medium: 0.5rem !important;
+                    --sl-button-height-medium: 0.5rem !important;
+                    --sl-button-padding-x: 0.5rem !important;
+                    white-space: nowrap;
+                }
+
+                sl-button::part(base) {
+                    font-size: 0.5rem !important;
+                    height: 0.5rem !important;
+                    padding: 0 0.5rem !important;
+                }
+
+                .file-selector {
+                    margin-bottom: 10px;
+                }
+
+                .file-selector select {
+                    width: 250px;
+                    padding: 8px;
+                    font-size: 14px;
+                    border: 1px solid var(--sl-color-neutral-300);
+                    border-radius: 4px;
+                    background: rgba(var(--sl-color-neutral-50-rgb), 0.7);
+                    color: var(--sl-color-neutral-1000);
                 }
 
                 textarea {
-                    width: 100%;
-                    height: calc(90% - 100px);
+                    flex: 1;
                     font-family: monospace;
                     font-size: 14px;
                     padding: 10px;
@@ -9275,408 +9362,1309 @@ class InterfaceEditor extends ConnectedElement {
                     resize: none;
                 }
 
-                .version-controls {
-                    margin-bottom: 10px;
-                    display: flex;
-                    gap: 10px;
-                    align-items: center;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.8);
-                    padding: 8px;
-                    border-radius: 4px;
-                }
-
-                .version-info {
-                    color: var(--sl-color-neutral-600);
-                    font-size: 14px;
-                }
-
                 .dialog-footer {
                     margin-top: 20px;
                     display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                }
+
+                .modal-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                    background: rgba(0, 0, 0, 0.5);
+                }
+
+                .modal-dialog {
+                    width: 500px;
+                    max-width: 90vw;
+                    max-height: 80vh;
+                    background: var(--sl-color-neutral-0);
+                    border-radius: 8px;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+                    overflow-y: auto;
+                }
+
+                .modal-header {
+                    display: flex;
                     justify-content: space-between;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.8);
-                    padding: 8px;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--sl-color-neutral-200);
+                    padding-bottom: 10px;
+                }
+
+                .modal-header h3 {
+                    margin: 0;
+                }
+
+                .modal-body {
+                    flex: 1;
+                    overflow-y: auto;
+                }
+
+                .modal-footer {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    margin-top: 20px;
+                    border-top: 1px solid var(--sl-color-neutral-200);
+                    padding-top: 10px;
+                }
+
+                .form-row {
+                    margin-bottom: 15px;
+                }
+
+                .component-properties {
+                    margin-top: 15px;
+                    padding: 15px;
+                    border: 1px solid var(--sl-color-neutral-300);
                     border-radius: 4px;
                 }
 
-                .dialog-footer sl-button {
-                    margin-left: 10px;
+                .component-properties-title {
+                    margin-bottom: 10px;
+                    font-weight: bold;
                 }
 
-                sl-select {
-                    min-width: 300px;
+                .component-property {
+                    margin-bottom: 10px;
                 }
 
-                /* Custom resize handle */
-                dialog::after {
-                    content: '';
-                    position: absolute;
-                    bottom: 0;
-                    right: 0;
-                    width: 20px;
-                    height: 20px;
-                    cursor: se-resize;
-                    background: linear-gradient(
-                        135deg,
-                        transparent 50%,
-                        var(--sl-color-neutral-300) 50%
-                    );
-                    border-bottom-right-radius: 4px;
+                .hidden {
+                    display: none !important;
+                }
+
+                select {
+                    width: 100%;
+                    padding: 8px;
+                    font-size: 14px;
+                    border: 1px solid var(--sl-color-neutral-300);
+                    border-radius: 4px;
+                    background: rgba(var(--sl-color-neutral-50-rgb), 0.7);
+                    color: var(--sl-color-neutral-1000);
+                }
+
+                select:required:invalid {
+                    border-color: var(--sl-color-danger-500);
                 }
             </style>
+
             <div class="interface-edit-card">
                 <sl-button class="edit-btn" variant="primary">Edit Interface</sl-button>
             </div>
-            <dialog>
-                <div class="version-controls">
-                    <sl-button class="save-ref-btn" variant="warning">Save Reference Version</sl-button>
-                    <sl-button class="delete-version-btn" variant="danger" disabled>Delete Version</sl-button>
-                    <span class="version-info"></span>
+        `;
+
+        this.appendChild(template.content.cloneNode(true));
+    }
+
+    createInterface() {
+        this.removeExistingInterfaces();
+
+        const mainEditor = document.createElement('div');
+        mainEditor.className = 'main-editor-backdrop';
+        mainEditor.innerHTML = `
+            <div class="main-editor">
+                <div class="file-selector">
+                    <label for="json-file-select">Select JSON File:</label>
+                    <select id="json-file-select" required>
+                        <option value="interface.json">interface.json</option>
+                        <option value="config.json">config.json</option>
+                    </select>
+                </div>
+                <div class="edit-tools">
+                    <!-- Les outils seront dynamiquement gérés selon le fichier sélectionné -->
                 </div>
                 <textarea spellcheck="false"></textarea>
                 <div class="dialog-footer">
-                    <div class="version-actions">
-                        <sl-select class="version-select" placeholder="Load Version" hoist>
-                            <sl-menu>
-                                <sl-menu-item value="">Current</sl-menu-item>
-                            </sl-menu>
-                        </sl-select>
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="save-btn" variant="primary">Save</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(mainEditor);
+        this.mainEditorBackdrop = mainEditor;
+        this.mainEditor = mainEditor.querySelector('.main-editor');
+        this.textarea = mainEditor.querySelector('textarea');
+        this.editTools = this.mainEditor.querySelector('.edit-tools');
+        this.fileSelect = mainEditor.querySelector('#json-file-select');
+
+        this.fileSelect.value = this.currentFile;
+        this.updateEditorState(this.currentFile);
+
+        this.mainEditor.querySelector('.add-section-btn')?.addEventListener('click', () => this.showAddSectionDialog());
+        this.mainEditor.querySelector('.add-node-btn')?.addEventListener('click', () => this.showAddNodeDialog());
+        this.mainEditor.querySelector('.remove-node-btn')?.addEventListener('click', () => this.showRemoveNodeDialog());
+        this.mainEditor.querySelector('.remove-section-btn')?.addEventListener('click', () => this.showRemoveSectionDialog());
+        this.mainEditor.querySelector('.add-wifi-btn')?.addEventListener('click', () => this.showAddWifiDialog());
+        this.mainEditor.querySelector('.edit-wifi-btn')?.addEventListener('click', () => this.showEditWifiDialog());
+        this.mainEditor.querySelector('.remove-wifi-btn')?.addEventListener('click', () => this.showRemoveWifiDialog());
+        this.mainEditor.querySelector('.edit-node-name-btn')?.addEventListener('click', () => this.showEditNodeNameDialog());
+        this.mainEditor.querySelector('.edit-password-btn')?.addEventListener('click', () => this.showEditPasswordDialog());
+        this.mainEditor.querySelector('.cancel-btn')?.addEventListener('click', () => this.closeEditor());
+        this.mainEditor.querySelector('.save-btn')?.addEventListener('click', () => this.saveChanges());
+
+        this.mainEditorBackdrop.addEventListener('click', (event) => {
+            if (event.target === this.mainEditorBackdrop) this.closeEditor();
+        });
+
+        this.editBtn = this.querySelector('.edit-btn');
+        this.editBtn.addEventListener('click', () => this.openEditor());
+
+        this.fileSelect.addEventListener('change', (event) => {
+            this.currentFile = event.target.value;
+            this.updateEditorState(this.currentFile);
+            this.loadFileContent();
+        });
+    }
+
+    updateEditorState(file) {
+        this.updateToolsBasedOnFile(file);
+        if (file === 'config.json') {
+            this.textarea.setAttribute('readonly', 'true');
+        } else {
+            this.textarea.removeAttribute('readonly');
+        }
+    }
+
+    updateToolsBasedOnFile(file) {
+        this.editTools.innerHTML = '';
+
+        if (file === 'interface.json') {
+            this.editTools.innerHTML = `
+                <sl-button class="add-section-btn" variant="success">Add Section</sl-button>
+                <sl-button class="add-node-btn" variant="primary">Add Node to Section</sl-button>
+                <sl-button class="remove-node-btn" variant="danger">Remove Node</sl-button>
+                <sl-button class="remove-section-btn" variant="danger">Remove Section</sl-button>
+            `;
+        } else if (file === 'config.json') {
+            this.editTools.innerHTML = `
+                <sl-button class="add-wifi-btn" variant="success">Add WiFi</sl-button>
+                <sl-button class="edit-wifi-btn" variant="primary">Edit WiFi</sl-button>
+                <sl-button class="remove-wifi-btn" variant="danger">Remove WiFi</sl-button>
+                <sl-button class="edit-node-name-btn" variant="primary">Edit Node Names</sl-button>
+                <sl-button class="edit-password-btn" variant="primary">Edit Passwords</sl-button>
+            `;
+        }
+
+        this.forceButtonStyles();
+
+        this.mainEditor.querySelector('.add-section-btn')?.addEventListener('click', () => this.showAddSectionDialog());
+        this.mainEditor.querySelector('.add-node-btn')?.addEventListener('click', () => this.showAddNodeDialog());
+        this.mainEditor.querySelector('.remove-node-btn')?.addEventListener('click', () => this.showRemoveNodeDialog());
+        this.mainEditor.querySelector('.remove-section-btn')?.addEventListener('click', () => this.showRemoveSectionDialog());
+        this.mainEditor.querySelector('.add-wifi-btn')?.addEventListener('click', () => this.showAddWifiDialog());
+        this.mainEditor.querySelector('.edit-wifi-btn')?.addEventListener('click', () => this.showEditWifiDialog());
+        this.mainEditor.querySelector('.remove-wifi-btn')?.addEventListener('click', () => this.showRemoveWifiDialog());
+        this.mainEditor.querySelector('.edit-node-name-btn')?.addEventListener('click', () => this.showEditNodeNameDialog());
+        this.mainEditor.querySelector('.edit-password-btn')?.addEventListener('click', () => this.showEditPasswordDialog());
+    }
+
+    // Dialogues pour config.json avec IP fixe
+    showAddWifiDialog() {
+        if (this.currentFile !== 'config.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Add WiFi</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <sl-input class="wifi-ssid" label="SSID" required></sl-input>
                     </div>
-                    <div>
-                        <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
-                        <sl-button class="save-btn" variant="primary">Save</sl-button>
+                    <div class="form-row">
+                        <sl-input class="wifi-pwd" label="Password" type="password" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="wifi-name" label="Name" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <sl-checkbox class="wifi-dhcp">DHCP</sl-checkbox>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-ip" label="IP Address" placeholder="e.g., 192.168.1.100"></sl-input>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-subnet" label="Subnet Mask" placeholder="e.g., 255.255.255.0"></sl-input>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-gateway" label="Gateway" placeholder="e.g., 192.168.1.1"></sl-input>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-dns" label="DNS (optional)" placeholder="e.g., 8.8.8.8"></sl-input>
                     </div>
                 </div>
-            </dialog>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="add-wifi-confirm-btn" variant="success">Add WiFi</sl-button>
+                </div>
+            </div>
         `;
-        
-        this.appendChild(template.content.cloneNode(true));
-        this.initElements();
-        this.initListeners();
-        this.loadVersions();
-    }
 
-    initElements() {
-        this.dialog = this.querySelector('dialog');
-        this.textarea = this.querySelector('textarea');
-        this.versionInfo = this.querySelector('.version-info');
-        this.versionSelect = this.querySelector('.version-select');
-        this.editBtn = this.querySelector('.edit-btn');
-        this.saveVersionBtn = this.querySelector('.save-version-btn');
-        this.saveRefBtn = this.querySelector('.save-ref-btn');
-        this.cancelBtn = this.querySelector('.cancel-btn');
-        this.saveBtn = this.querySelector('.save-btn');
-        this.deleteVersionBtn = this.querySelector('.delete-version-btn');
-
-        // Verify all elements are found
-        const elements = {
-            dialog: this.dialog,
-            textarea: this.textarea,
-            versionInfo: this.versionInfo,
-            versionSelect: this.versionSelect,
-            editBtn: this.editBtn,
-            saveRefBtn: this.saveRefBtn,
-            deleteVersionBtn: this.deleteVersionBtn,
-            cancelBtn: this.cancelBtn,
-            saveBtn: this.saveBtn
-        };
-        // Check if any element is missing
-        for (const [name, element] of Object.entries(elements)) {
-            if (!element) {
-                console.error(`Missing element: ${name}`);
-            }
-        }
-    }
-
-    initListeners() {
-        if (this.editBtn) {
-            this.editBtn.addEventListener('click', () => this.openEditor());
-        }
-        if (this.saveRefBtn) {
-            this.saveRefBtn.addEventListener('click', () => this.saveRefVersion());
-        }
-        if (this.deleteVersionBtn) {
-            this.deleteVersionBtn.addEventListener('click', () => {
-                // Get currently loaded version from version info
-                const currentVersionText = this.versionInfo.textContent;
-                console.log("Current version info:", currentVersionText);
-                this.deleteVersion(currentVersionText);
-            });
-        }
-        if (this.cancelBtn) {
-            this.cancelBtn.addEventListener('click', () => this.closeEditor());
-        }
-        if (this.saveBtn) {
-            this.saveBtn.addEventListener('click', () => this.saveChanges());
-        }
-        if (this.versionSelect) {
-            this.versionSelect.addEventListener('sl-select', (event) => {
-                const selectedValue = event.detail.item.value;
-                console.log('Version selected:', selectedValue);
-                this.loadVersion(selectedValue);
-                if (this.deleteVersionBtn) {
-                    this.deleteVersionBtn.disabled = !selectedValue;
-                }
-                // Store current selection for delete operation
-                this.currentSelectedVersion = selectedValue;
-            });
-        }
-    }
-
-    async saveRefVersion() {
-        const version = {
-            content: this.textarea.value,
-            timestamp: new Date().toISOString(),
-            number: this.versions.length + 1
-        };
-    
-        try {
-            JSON.parse(version.content);
-            
-            if (this.versions.length >= this.maxVersions) {
-                window.notify({
-                    type: "warning",
-                    name: "Version Limit",
-                    desc: `Maximum ${this.maxVersions} versions reached. Delete old versions to save new ones.`
-                });
-                return;
-            }
-    
-            this.versions.push(version);
-            localStorage.setItem('interfaceVersions', JSON.stringify(this.versions));
-            this.updateVersionSelect();
-    
-            window.notify({
-                type: "success",
-                name: "Version Saved",
-                desc: `Version ${version.number} saved successfully`
-            });
-        } catch (err) {
-            window.notify({
-                type: "error",
-                name: "Version Save Failed",
-                desc: "Invalid JSON format"
-            });
-        }
-    }
-
-    deleteVersion(versionInfo) {
-        console.log("Attempting to delete version", versionInfo);
-        
-        // If no version is loaded, we can't delete
-        if (!versionInfo || versionInfo === 'Current Version') {
-            console.log("No version selected for deletion");
-            return;
-        }
-    
-        // Extract version number from version info (e.g., "Version 1 - 2024...")
-        const match = versionInfo.match(/Version (\d+)/);
-        if (!match) {
-            console.log("Could not extract version number from:", versionInfo);
-            return;
-        }
-    
-        const versionNumber = parseInt(match[1]);
-        console.log("Deleting version number:", versionNumber);
-    
-        // Find version index by number
-        const versionIndex = this.versions.findIndex(v => v.number === versionNumber);
-        if (versionIndex === -1) {
-            console.log("Version not found:", versionNumber);
-            return;
-        }
-    
-        if (confirm(`Are you sure you want to delete version ${versionNumber}?`)) {
-            // Remove the version
-            this.versions.splice(versionIndex, 1);
-            
-            // Renumber remaining versions
-            this.versions.forEach((v, i) => {
-                v.number = i + 1;
-            });
-    
-            // Save to localStorage
-            localStorage.setItem('interfaceVersions', JSON.stringify(this.versions));
-            
-            // Update the UI
-            this.updateVersionSelect();
-            this.deleteVersionBtn.disabled = true;
-            this.versionSelect.value = '';
-            
-            // Reset to current version
-            this.reloadCurrentVersion();
-            
-            window.notify({
-                type: "success",
-                name: "Version Deleted",
-                desc: `Version ${versionNumber} deleted successfully`
-            });
-        }
-    }
-
-    loadVersion(index) {
-        console.log('Loading version index:', index);
-        if (index === '' || index === undefined) {
-            // Reset to current version
-            this.reloadCurrentVersion();
-            return;
-        }
-        
-        const version = this.versions[parseInt(index)];
-        console.log('Loading version:', version);
-        if (version) {
-            this.textarea.value = version.content;
-            const date = new Date(version.timestamp).toLocaleString();
-            this.versionInfo.textContent = `Version ${version.number} - ${date}`;
-        }
-    }
-
-    async reloadCurrentVersion() {
-    try {
-        const response = await fetch('/interface.json');
-        const content = await response.text();
-        const parsedContent = JSON.parse(content);
-        this.textarea.value = JSON.stringify(parsedContent, null, 2);
-        this.versionInfo.textContent = 'Current Version';
-    } catch (err) {
-        console.error('Error loading current version:', err);
-        window.notify({
-            type: "error",
-            name: "Error",
-            desc: "Failed to load current version"
+        document.body.appendChild(modal);
+        const dhcpCheckbox = modal.querySelector('.wifi-dhcp');
+        const staticIpFields = modal.querySelectorAll('.static-ip-fields');
+        dhcpCheckbox.addEventListener('sl-change', () => {
+            staticIpFields.forEach(field => field.classList.toggle('hidden', dhcpCheckbox.checked));
         });
-    }
-}
 
-    updateVersionSelect() {
-        const menu = document.createElement('sl-menu');
-        menu.innerHTML = `<sl-menu-item value="">Current</sl-menu-item>`;
-        
-        this.versions.forEach((v, i) => {
-            const date = new Date(v.timestamp).toLocaleString();
-            const menuItem = document.createElement('sl-menu-item');
-            menuItem.value = i.toString();
-            menuItem.textContent = `Version ${v.number} - ${date}`;
-            menu.appendChild(menuItem);
+        modal.querySelector('.add-wifi-confirm-btn').addEventListener('click', () => {
+            this.addWifi(modal);
+            modal.remove();
         });
-        
-        this.versionSelect.innerHTML = '';
-        this.versionSelect.appendChild(menu);
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
     }
 
+    showEditWifiDialog() {
+        if (this.currentFile !== 'config.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Edit WiFi</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="wifi-select">Select WiFi</label>
+                        <select class="wifi-select" id="wifi-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="wifi-ssid" label="SSID" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="wifi-pwd" label="Password" type="password" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="wifi-name" label="Name" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <sl-checkbox class="wifi-dhcp">DHCP</sl-checkbox>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-ip" label="IP Address" placeholder="e.g., 192.168.1.100"></sl-input>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-subnet" label="Subnet Mask" placeholder="e.g., 255.255.255.0"></sl-input>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-gateway" label="Gateway" placeholder="e.g., 192.168.1.1"></sl-input>
+                    </div>
+                    <div class="form-row static-ip-fields hidden">
+                        <sl-input class="wifi-dns" label="DNS (optional)" placeholder="e.g., 8.8.8.8"></sl-input>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="edit-wifi-confirm-btn" variant="primary">Save Changes</sl-button>
+                </div>
+            </div>
+        `;
 
-    async loadVersions() {
-        try {
-            const stored = localStorage.getItem('interfaceVersions');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                this.versions = Array.isArray(parsed) ? parsed : [];
+        document.body.appendChild(modal);
+        const wifiSelect = modal.querySelector('.wifi-select');
+        this.populateWifiSelect(wifiSelect);
+        const dhcpCheckbox = modal.querySelector('.wifi-dhcp');
+        const staticIpFields = modal.querySelectorAll('.static-ip-fields');
+        dhcpCheckbox.addEventListener('sl-change', () => {
+            staticIpFields.forEach(field => field.classList.toggle('hidden', dhcpCheckbox.checked));
+        });
+        wifiSelect.addEventListener('change', () => this.loadWifiData(modal, wifiSelect.value));
+        this.loadWifiData(modal, wifiSelect.value);
+
+        modal.querySelector('.edit-wifi-confirm-btn').addEventListener('click', () => {
+            this.editWifi(modal, wifiSelect.value);
+            modal.remove();
+        });
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
+    }
+
+    showRemoveWifiDialog() {
+        if (this.currentFile !== 'config.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Remove WiFi</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="wifi-select">Select WiFi to Remove</label>
+                        <select class="wifi-select" id="wifi-select" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="remove-wifi-confirm-btn" variant="danger">Remove WiFi</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        const wifiSelect = modal.querySelector('.wifi-select');
+        this.populateWifiSelect(wifiSelect);
+
+        modal.querySelector('.remove-wifi-confirm-btn').addEventListener('click', () => {
+            this.removeWifi(wifiSelect.value);
+            modal.remove();
+        });
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
+    }
+
+    showEditNodeNameDialog() {
+        if (this.currentFile !== 'config.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Edit Node Names</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="node-select">Select Node</label>
+                        <select class="node-select" id="node-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="node-name" label="New Name" required></sl-input>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="edit-node-confirm-btn" variant="primary">Save Name</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        const nodeSelect = modal.querySelector('.node-select');
+        this.populateNodeSelect(nodeSelect);
+        nodeSelect.addEventListener('change', () => this.loadNodeName(modal, nodeSelect.value));
+
+        modal.querySelector('.edit-node-confirm-btn').addEventListener('click', () => {
+            this.editNodeName(nodeSelect.value, modal.querySelector('.node-name').value);
+            modal.remove();
+        });
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
+    }
+
+    showEditPasswordDialog() {
+        if (this.currentFile !== 'config.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Edit or Add Password</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="pwd-type">Password Type</label>
+                        <select class="pwd-type" id="pwd-type" required>
+                            <option value="pages">Pages</option>
+                            <option value="sections">Sections</option>
+                            <option value="components">Components</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="pwd-key">Key</label>
+                        <sl-input class="pwd-key" label="Key" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="pwd-value" label="Password" type="password" required></sl-input>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="edit-pwd-confirm-btn" variant="primary">Save Password</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        modal.querySelector('.edit-pwd-confirm-btn').addEventListener('click', () => {
+            this.editPassword(modal);
+            modal.remove();
+        });
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
+    }
+
+    // Méthodes pour gérer les actions de config.json avec IP fixe
+    addWifi(modal) {
+        const ssid = modal.querySelector('.wifi-ssid').value.trim();
+        const pwd = modal.querySelector('.wifi-pwd').value.trim();
+        const name = modal.querySelector('.wifi-name').value.trim();
+        const dhcp = modal.querySelector('.wifi-dhcp').checked;
+        const ip = modal.querySelector('.wifi-ip').value.trim();
+        const subnet = modal.querySelector('.wifi-subnet').value.trim();
+        const gateway = modal.querySelector('.wifi-gateway').value.trim();
+        const dns = modal.querySelector('.wifi-dns').value.trim();
+
+        if (!ssid || !pwd || !name) {
+            window.notify({ type: "error", name: "Validation Error", desc: "SSID, Password, and Name are required" });
+            return;
+        }
+
+        if (!dhcp && (!ip || !subnet || !gateway)) {
+            window.notify({ type: "error", name: "Validation Error", desc: "IP, Subnet, and Gateway are required when DHCP is disabled" });
+            return;
+        }
+
+        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi || [];
+        const newWifi = { ssid, pwd, name, dhcp };
+        if (!dhcp) {
+            newWifi.ip = ip;
+            newWifi.subnet = subnet;
+            newWifi.gateway = gateway;
+            if (dns) newWifi.dns = dns;
+        }
+        wifiConfig.push(newWifi);
+        if (!this.configData.config.some(c => c.Wifi)) {
+            this.configData.config.unshift({ Wifi: wifiConfig });
+        }
+        this.updateTextarea();
+        window.notify({ type: "success", name: "WiFi Added", desc: `WiFi "${name}" added successfully` });
+    }
+
+    editWifi(modal, index) {
+        const ssid = modal.querySelector('.wifi-ssid').value.trim();
+        const pwd = modal.querySelector('.wifi-pwd').value.trim();
+        const name = modal.querySelector('.wifi-name').value.trim();
+        const dhcp = modal.querySelector('.wifi-dhcp').checked;
+        const ip = modal.querySelector('.wifi-ip').value.trim();
+        const subnet = modal.querySelector('.wifi-subnet').value.trim();
+        const gateway = modal.querySelector('.wifi-gateway').value.trim();
+        const dns = modal.querySelector('.wifi-dns').value.trim();
+
+        if (!ssid || !pwd || !name) {
+            window.notify({ type: "error", name: "Validation Error", desc: "SSID, Password, and Name are required" });
+            return;
+        }
+
+        if (!dhcp && (!ip || !subnet || !gateway)) {
+            window.notify({ type: "error", name: "Validation Error", desc: "IP, Subnet, and Gateway are required when DHCP is disabled" });
+            return;
+        }
+
+        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi;
+        if (wifiConfig && wifiConfig[index]) {
+            wifiConfig[index] = { ssid, pwd, name, dhcp };
+            if (!dhcp) {
+                wifiConfig[index].ip = ip;
+                wifiConfig[index].subnet = subnet;
+                wifiConfig[index].gateway = gateway;
+                if (dns) wifiConfig[index].dns = dns;
             } else {
-                this.versions = [];
+                delete wifiConfig[index].ip;
+                delete wifiConfig[index].subnet;
+                delete wifiConfig[index].gateway;
+                delete wifiConfig[index].dns;
             }
-            this.updateVersionSelect();
-        } catch (err) {
-            console.error('Error loading versions:', err);
-            this.versions = [];
-            localStorage.removeItem('interfaceVersions');
+            this.updateTextarea();
+            window.notify({ type: "success", name: "WiFi Updated", desc: `WiFi "${name}" updated successfully` });
         }
+    }
+
+    removeWifi(index) {
+        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi;
+        if (wifiConfig && wifiConfig[index]) {
+            const name = wifiConfig[index].name;
+            wifiConfig.splice(index, 1);
+            this.updateTextarea();
+            window.notify({ type: "success", name: "WiFi Removed", desc: `WiFi "${name}" removed successfully` });
+        }
+    }
+
+    editNodeName(hash, newName) {
+        if (!newName.trim()) {
+            window.notify({ type: "error", name: "Validation Error", desc: "Node name is required" });
+            return;
+        }
+
+        const updateNodeName = (node) => {
+            if (node.hash === parseInt(hash)) {
+                node.name = newName;
+            }
+            if (node.children) {
+                node.children.forEach(updateNodeName);
+            }
+        };
+        this.configData.children.forEach(updateNodeName);
+        this.updateTextarea();
+        window.notify({ type: "success", name: "Node Updated", desc: `Node name updated to "${newName}"` });
+    }
+
+    editPassword(modal) {
+        const type = modal.querySelector('.pwd-type').value;
+        const key = modal.querySelector('.pwd-key').value.trim();
+        const value = modal.querySelector('.pwd-value').value.trim();
+
+        if (!key || !value) {
+            window.notify({ type: "error", name: "Validation Error", desc: "Key and password are required" });
+            return;
+        }
+
+        if (!this.configData.security) this.configData.security = { passwords: {} };
+        if (!this.configData.security.passwords) this.configData.security.passwords = {};
+        if (!this.configData.security.passwords[type]) this.configData.security.passwords[type] = {};
+
+        this.configData.security.passwords[type][key] = value;
+        this.updateTextarea();
+        window.notify({ type: "success", name: "Password Updated", desc: `Password for "${key}" updated successfully` });
+    }
+
+    populateWifiSelect(select) {
+        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi || [];
+        select.innerHTML = '';
+        wifiConfig.forEach((wifi, i) => {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = wifi.name || wifi.ssid;
+            select.appendChild(option);
+        });
+    }
+
+    loadWifiData(modal, index) {
+        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi || [];
+        const wifi = wifiConfig[index];
+        if (wifi) {
+            modal.querySelector('.wifi-ssid').value = wifi.ssid;
+            modal.querySelector('.wifi-pwd').value = wifi.pwd;
+            modal.querySelector('.wifi-name').value = wifi.name;
+            modal.querySelector('.wifi-dhcp').checked = wifi.dhcp;
+            const staticIpFields = modal.querySelectorAll('.static-ip-fields');
+            staticIpFields.forEach(field => field.classList.toggle('hidden', wifi.dhcp));
+            modal.querySelector('.wifi-ip').value = wifi.ip || '';
+            modal.querySelector('.wifi-subnet').value = wifi.subnet || '';
+            modal.querySelector('.wifi-gateway').value = wifi.gateway || '';
+            modal.querySelector('.wifi-dns').value = wifi.dns || '';
+        }
+    }
+
+    populateNodeSelect(select) {
+        select.innerHTML = '';
+        const nodes = this.extractNodesFromConfig(this.configData);
+        nodes.forEach(node => {
+            const option = document.createElement('option');
+            option.value = node.hash;
+            option.textContent = `${node.name} (${node.hash})`;
+            select.appendChild(option);
+        });
+    }
+
+    loadNodeName(modal, hash) {
+        const nodes = this.extractNodesFromConfig(this.configData);
+        const node = nodes.find(n => n.hash === parseInt(hash));
+        if (node) {
+            modal.querySelector('.node-name').value = node.name;
+        }
+    }
+
+    updateTextarea() {
+        this.textarea.value = JSON.stringify(this.configData, null, 2);
+    }
+
+    createAddSectionModal() {
+        if (this.currentFile !== 'interface.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Add New Section</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="page-select">Select Page</label>
+                        <select class="page-select" id="page-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <sl-input class="section-name-input" label="Section Name" required></sl-input>
+                    </div>
+                    <div class="form-row">
+                        <label for="section-orientation-select">Section Orientation</label>
+                        <select class="section-orientation-select" id="section-orientation-select" required>
+                            <option value="horizontal">Horizontal</option>
+                            <option value="vertical">Vertical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="add-section-confirm-btn" variant="success">Add Section</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('.add-section-confirm-btn').addEventListener('click', () => {
+            this.addNewSection();
+            modal.remove();
+        });
+
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+
+        this.addSectionModal = modal;
+        this.pageSelect = modal.querySelector('.page-select');
+        this.sectionNameInput = modal.querySelector('.section-name-input');
+        this.sectionOrientationSelect = modal.querySelector('.section-orientation-select');
+
+        this.updatePageSelects();
+    }
+
+    createAddNodeModal() {
+        if (this.currentFile !== 'interface.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Add Node to Section</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="node-page-select">Select Page</label>
+                        <select class="node-page-select" id="node-page-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-section-select">Select Section</label>
+                        <select class="node-section-select" id="node-section-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="component-type-select">Component Type</label>
+                        <select class="component-type-select" id="component-type-select" required>
+                            <option value="rx-label">Label (affichage)</option>
+                            <option value="rx-indicator">Indicateur (affichage)</option>
+                            <option value="rx-level-bar">Barre de niveau (affichage)</option>
+                            <option value="rx-numeric">Numérique (affichage)</option>
+                            <option value="tx-button">Bouton</option>
+                            <option value="tx-button-hold">Bouton maintenu</option>
+                            <option value="tx-bool">Interrupteur</option>
+                            <option value="tx-dropdown">Menu déroulant</option>
+                            <option value="tx-numeric">Numérique (entrée)</option>
+                            <option value="tx-slider">Curseur</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="available-nodes-select">Available Nodes</label>
+                        <select class="available-nodes-select" id="available-nodes-select" required></select>
+                    </div>
+                    <div class="component-properties">
+                        <div class="component-properties-title">Component Properties</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="add-node-confirm-btn" variant="success">Add Node</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('.add-node-confirm-btn').addEventListener('click', () => {
+            this.addNewNode();
+            modal.remove();
+        });
+
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+
+        this.addNodeModal = modal;
+        this.nodePageSelect = modal.querySelector('.node-page-select');
+        this.nodeSectionSelect = modal.querySelector('.node-section-select');
+        this.componentTypeSelect = modal.querySelector('.component-type-select');
+        this.availableNodesSelect = modal.querySelector('.available-nodes-select');
+        this.componentProperties = modal.querySelector('.component-properties');
+
+        this.nodePageSelect.addEventListener('change', () => 
+            this.updateSectionSelect(this.nodePageSelect, this.nodeSectionSelect));
+        this.componentTypeSelect.addEventListener('change', () => 
+            this.updateComponentProperties());
+
+        this.updatePageSelects();
+        this.updateAvailableNodesSelect();
+    }
+
+    createRemoveNodeModal() {
+        if (this.currentFile !== 'interface.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Remove Node</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="remove-page-select">Select Page</label>
+                        <select class="remove-page-select" id="remove-page-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="remove-section-select">Select Section</label>
+                        <select class="remove-section-select" id="remove-section-select" required></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="remove-node-select">Select Node to Remove</label>
+                        <select class="remove-node-select" id="remove-node-select" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="remove-node-confirm-btn" variant="danger">Remove Node</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('.remove-node-confirm-btn').addEventListener('click', () => {
+            this.removeSelectedNode();
+            modal.remove();
+        });
+
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+
+        this.removeNodeModal = modal;
+        this.removePageSelect = modal.querySelector('.remove-page-select');
+        this.removeSectionSelect = modal.querySelector('.remove-section-select');
+        this.removeNodeSelect = modal.querySelector('.remove-node-select');
+
+        this.removePageSelect.addEventListener('change', () => 
+            this.updateSectionSelect(this.removePageSelect, this.removeSectionSelect));
+        this.removeSectionSelect.addEventListener('change', () => 
+            this.updateNodeSelect());
+
+        this.updatePageSelects();
+    }
+
+    createRemoveSectionModal() {
+        if (this.currentFile !== 'interface.json') return;
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Remove Section</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="remove-page-select-section">Select Page</label>
+                        <select class="remove-page-select-section" id="remove-page-select-section" required></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="remove-section-select-section">Select Section to Remove</label>
+                        <select class="remove-section-select-section" id="remove-section-select-section" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="remove-section-confirm-btn" variant="danger">Remove Section</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('.remove-section-confirm-btn').addEventListener('click', () => {
+            this.removeSelectedSection();
+            modal.remove();
+        });
+
+        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+
+        this.removeSectionModal = modal;
+        this.removePageSelectSection = modal.querySelector('.remove-page-select-section');
+        this.removeSectionSelectSection = modal.querySelector('.remove-section-select-section');
+
+        this.removePageSelectSection.addEventListener('change', () => 
+            this.updateSectionSelect(this.removePageSelectSection, this.removeSectionSelectSection));
+
+        this.updatePageSelects();
+    }
+
+    removeExistingInterfaces() {
+        if (this.mainEditorBackdrop) {
+            this.mainEditorBackdrop.remove();
+            this.mainEditorBackdrop = null;
+        }
+        document.querySelectorAll('.modal-container').forEach(modal => modal.remove());
     }
 
     async openEditor() {
         try {
-            const response = await fetch('/interface.json');
-            const content = await response.text();
-            const parsedContent = JSON.parse(content);
-            this.textarea.value = JSON.stringify(parsedContent, null, 2);
-            this.versionInfo.textContent = 'Current Version';
-            this.dialog.showModal();
+            this.createInterface();
+            await this.loadFileContent();
+            await this.loadConfigData();
+            await this.loadRendererDescriptors();
+            this.forceButtonStyles();
         } catch (err) {
             console.error('Editor error:', err);
             window.notify({
                 type: "error",
                 name: "Error",
-                desc: "Failed to load interface configuration"
+                desc: `Failed to load ${this.currentFile} configuration`
+            });
+            this.removeExistingInterfaces();
+        }
+    }
+
+    async loadFileContent() {
+        try {
+            const response = await fetch(`/${this.currentFile}`);
+            const content = await response.text();
+            const parsedContent = JSON.parse(content);
+            this.textarea.value = JSON.stringify(parsedContent, null, 2);
+            if (this.currentFile === 'config.json') {
+                this.configData = parsedContent;
+            } else {
+                this.interfaceData = parsedContent;
+            }
+        } catch (err) {
+            console.error('Error loading file:', err);
+            window.notify({
+                type: "error",
+                name: "Error",
+                desc: `Failed to load ${this.currentFile}`
             });
         }
     }
 
+    forceButtonStyles() {
+        const buttons = this.mainEditor?.querySelectorAll('.edit-tools sl-button') || [];
+        buttons.forEach(button => {
+            button.style.setProperty('--sl-button-font-size-medium', '0.5rem', 'important');
+            button.style.setProperty('--sl-button-height-medium', '0.5rem', 'important');
+            button.style.setProperty('--sl-button-padding-x', '0.5rem', 'important');
+
+            const shadowRoot = button.shadowRoot;
+            if (shadowRoot) {
+                const base = shadowRoot.querySelector('.button__base');
+                if (base) {
+                    base.style.fontSize = '0.5rem';
+                    base.style.height = '0.5rem';
+                    base.style.padding = '0 0.5rem';
+                }
+            }
+        });
+    }
+
+    async loadConfigData() {
+        try {
+            const response = await fetch('/config.json');
+            if (!response.ok) throw new Error(`Failed to load configuration: ${response.status}`);
+            const data = JSON.parse(await response.text());
+            this.configData = data;
+            this.availableNodes = this.extractNodesFromConfig(data);
+            if (this.availableNodesSelect) this.updateAvailableNodesSelect();
+            return data;
+        } catch (err) {
+            console.error('Failed to load config data:', err);
+            window.notify({
+                type: "error",
+                name: "Error",
+                desc: "Failed to load configuration data"
+            });
+            return null;
+        }
+    }
+
+    async loadRendererDescriptors() {
+        try {
+            const response = await fetch('/renderers.json');
+            const data = await response.json();
+            this.rendererDescriptors = data;
+            return data;
+        } catch (err) {
+            console.error('Failed to load renderer descriptors:', err);
+            window.notify({
+                type: "warning",
+                name: "Warning",
+                desc: "Failed to load renderer descriptors, using defaults"
+            });
+            this.rendererDescriptors = {
+                "rx-label": { "name": { "type": "string", "required": true } },
+                "rx-indicator": { "name": { "type": "string", "required": true } },
+                "rx-level-bar": { "name": { "type": "string", "required": true } },
+                "rx-numeric": { "name": { "type": "string", "required": true } },
+                "tx-button": { "name": { "type": "string", "required": true } },
+                "tx-button-hold": { "name": { "type": "string", "required": true } },
+                "tx-bool": { "name": { "type": "string", "required": true } },
+                "tx-dropdown": { "name": { "type": "string", "required": true } },
+                "tx-numeric": { "name": { "type": "string", "required": true } },
+                "tx-slider": { "name": { "type": "string", "required": true } }
+            };
+            return this.rendererDescriptors;
+        }
+    }
+
+    extractNodesFromConfig(config) {
+        const nodes = [];
+        const extractNode = (node, parentInfo = {}) => {
+            if (node?.hash !== undefined) {
+                nodes.push({
+                    name: node.name || `Node_${node.hash}`,
+                    hash: node.hash,
+                    type: node.component || node.type || parentInfo.type || 'unknown'
+                });
+            }
+            if (node?.children?.length) {
+                node.children.forEach(child => extractNode(child, { type: node.type || parentInfo.type }));
+            }
+        };
+        if (config?.children?.length) {
+            config.children.forEach(section => {
+                extractNode(section);
+                if (section?.children?.length) {
+                    section.children.forEach(child => extractNode(child, { type: section.type }));
+                }
+            });
+        }
+        return [...new Map(nodes.map(node => [node.hash, node])).values()].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    updatePageSelects() {
+        if (!this.interfaceData?.pages) return;
+        const pages = this.interfaceData.pages;
+        const selects = [
+            this.pageSelect,
+            this.nodePageSelect,
+            this.removePageSelect,
+            this.removePageSelectSection
+        ].filter(Boolean);
+
+        selects.forEach(select => {
+            select.innerHTML = '';
+            pages.forEach((page, i) => {
+                const option = document.createElement('option');
+                option.value = i.toString();
+                option.textContent = page.PageName;
+                select.appendChild(option);
+            });
+            if (pages.length > 0) select.value = '0';
+        });
+    }
+
+    updateSectionSelect(pageSelect, sectionSelect) {
+        if (!sectionSelect || !this.interfaceData?.pages) return;
+        const pageIndex = parseInt(pageSelect.value);
+        if (isNaN(pageIndex) || pageIndex < 0 || pageIndex >= this.interfaceData.pages.length) return;
+
+        const page = this.interfaceData.pages[pageIndex];
+        if (!page.sections?.length) return;
+
+        sectionSelect.innerHTML = '';
+        page.sections.forEach((section, i) => {
+            const option = document.createElement('option');
+            option.value = i.toString();
+            option.textContent = section.SectionName;
+            sectionSelect.appendChild(option);
+        });
+        if (page.sections.length > 0) sectionSelect.value = '0';
+    }
+
+    updateNodeSelect() {
+        if (!this.removeNodeSelect || !this.interfaceData?.pages) return;
+        const pageIndex = parseInt(this.removePageSelect.value);
+        const sectionIndex = parseInt(this.removeSectionSelect.value);
+        if (isNaN(pageIndex) || isNaN(sectionIndex)) return;
+
+        const section = this.interfaceData.pages[pageIndex]?.sections?.[sectionIndex];
+        if (!section?.NodesList?.length) return;
+
+        this.removeNodeSelect.innerHTML = '';
+        section.NodesList.forEach((node, i) => {
+            const option = document.createElement('option');
+            option.value = i.toString();
+            option.textContent = node.name || `Node ${i + 1}`;
+            this.removeNodeSelect.appendChild(option);
+        });
+        if (section.NodesList.length > 0) this.removeNodeSelect.value = '0';
+    }
+
+    updateAvailableNodesSelect() {
+        if (!this.availableNodesSelect) return;
+        this.availableNodesSelect.innerHTML = '';
+
+        if (!this.availableNodes?.length) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '-- Aucun node disponible --';
+            option.disabled = true;
+            this.availableNodesSelect.appendChild(option);
+        } else {
+            this.availableNodes.forEach(node => {
+                const option = document.createElement('option');
+                option.value = node.hash.toString();
+                option.textContent = `${node.name} (${node.hash})`;
+                this.availableNodesSelect.appendChild(option);
+            });
+            this.availableNodesSelect.value = this.availableNodes[0].hash.toString();
+        }
+    }
+
+    updateComponentProperties() {
+        if (!this.componentProperties || !this.componentTypeSelect) return;
+        const componentType = this.componentTypeSelect.value;
+        this.componentProperties.innerHTML = '<div class="component-properties-title">Component Properties</div>';
+        this.addComponentProperty('name', 'Name', 'text', true);
+
+        if (this.rendererDescriptors?.[componentType]) {
+            Object.entries(this.rendererDescriptors[componentType]).forEach(([propName, descriptor]) => {
+                if (propName === 'name') return;
+                const type = descriptor.type === 'boolean' ? 'checkbox' : 
+                            descriptor.type === 'number' ? 'number' : 
+                            descriptor.enum ? 'select' : 
+                            descriptor.type === 'array' ? 'textarea' : 'text';
+                this.addComponentProperty(
+                    propName,
+                    descriptor.description || propName,
+                    type,
+                    descriptor.required || false,
+                    descriptor.enum?.map(value => ({ value, label: value }))
+                );
+            });
+        }
+    }
+
+    addComponentProperty(name, label, type, required, options = null) {
+        const property = document.createElement('div');
+        property.className = 'component-property';
+
+        let input;
+        if (type === 'select' && options) {
+            input = document.createElement('select');
+            input.required = required;
+            options.forEach(option => {
+                const optionEl = document.createElement('option');
+                optionEl.value = option.value;
+                optionEl.textContent = option.label;
+                input.appendChild(optionEl);
+            });
+            if (options.length > 0) input.value = options[0].value;
+        } else if (type === 'checkbox') {
+            input = document.createElement('input');
+            input.type = 'checkbox';
+        } else if (type === 'textarea') {
+            input = document.createElement('textarea');
+            input.required = required;
+            input.rows = 3;
+        } else {
+            input = document.createElement('input');
+            input.type = type;
+            input.required = required;
+        }
+
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+        labelEl.htmlFor = `${name}-${Date.now()}`;
+        input.id = labelEl.htmlFor;
+        input.name = name;
+
+        property.appendChild(labelEl);
+        property.appendChild(input);
+        this.componentProperties.appendChild(property);
+    }
+
+    showAddSectionDialog() {
+        if (this.currentFile !== 'interface.json') return;
+        this.createAddSectionModal();
+    }
+
+    showAddNodeDialog() {
+        if (this.currentFile !== 'interface.json') return;
+        this.createAddNodeModal();
+    }
+
+    showRemoveNodeDialog() {
+        if (this.currentFile !== 'interface.json') return;
+        this.createRemoveNodeModal();
+    }
+
+    showRemoveSectionDialog() {
+        if (this.currentFile !== 'interface.json') return;
+        this.createRemoveSectionModal();
+    }
+
+    addNewSection() {
+        if (!this.interfaceData?.pages) return;
+        const pageIndex = parseInt(this.pageSelect.value);
+        if (isNaN(pageIndex) || pageIndex < 0 || pageIndex >= this.interfaceData.pages.length) return;
+
+        const sectionName = this.sectionNameInput.value.trim();
+        if (!sectionName) {
+            window.notify({ type: "error", name: "Validation Error", desc: "Section name is required" });
+            return;
+        }
+
+        const orientation = this.sectionOrientationSelect.value;
+        const newSection = { SectionName: sectionName, orientation, NodesList: [] };
+        const page = this.interfaceData.pages[pageIndex];
+        page.sections = page.sections || [];
+        page.sections.push(newSection);
+        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+
+        window.notify({ type: "success", name: "Section Added", desc: `Section "${sectionName}" added successfully` });
+    }
+
+    addNewNode() {
+        if (!this.interfaceData?.pages) return;
+        const pageIndex = parseInt(this.nodePageSelect.value);
+        const sectionIndex = parseInt(this.nodeSectionSelect.value);
+        if (isNaN(pageIndex) || isNaN(sectionIndex)) return;
+
+        const componentType = this.componentTypeSelect.value;
+        const nodeHash = this.availableNodesSelect.value;
+        if (!componentType || !nodeHash) return;
+
+        const properties = this.getComponentProperties();
+        if (!properties.name?.trim()) {
+            window.notify({ type: "error", name: "Validation Error", desc: "Node name is required" });
+            return;
+        }
+
+        const newNode = { component: componentType, hash: parseInt(nodeHash), ...properties };
+        const section = this.interfaceData.pages[pageIndex].sections[sectionIndex];
+        section.NodesList = section.NodesList || [];
+        section.NodesList.push(newNode);
+        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+
+        window.notify({ type: "success", name: "Node Added", desc: `Node "${newNode.name}" added successfully` });
+    }
+
+    getComponentProperties() {
+        const properties = {};
+        this.componentProperties.querySelectorAll('input, select, textarea').forEach(input => {
+            if (input.name) {
+                if (input.type === 'checkbox') {
+                    properties[input.name] = input.checked;
+                } else if (input.tagName.toLowerCase() === 'textarea' && input.name === 'items') {
+                    properties[input.name] = input.value.split(',').map(item => item.trim()).filter(item => item);
+                } else if (input.type === 'number') {
+                    properties[input.name] = input.value ? parseFloat(input.value) : null;
+                } else {
+                    properties[input.name] = input.value;
+                }
+            }
+        });
+        return properties;
+    }
+
+    removeSelectedNode() {
+        if (!this.interfaceData?.pages) return;
+        const pageIndex = parseInt(this.removePageSelect.value);
+        const sectionIndex = parseInt(this.removeSectionSelect.value);
+        const nodeIndex = parseInt(this.removeNodeSelect.value);
+        if (isNaN(pageIndex) || isNaN(sectionIndex) || isNaN(nodeIndex)) return;
+
+        const section = this.interfaceData.pages[pageIndex].sections[sectionIndex];
+        const nodeName = section.NodesList[nodeIndex].name || `Node ${nodeIndex + 1}`;
+        section.NodesList.splice(nodeIndex, 1);
+        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+
+        window.notify({ type: "success", name: "Node Removed", desc: `Node "${nodeName}" removed successfully` });
+    }
+
+    removeSelectedSection() {
+        if (!this.interfaceData?.pages) return;
+        const pageIndex = parseInt(this.removePageSelectSection.value);
+        const sectionIndex = parseInt(this.removeSectionSelectSection.value);
+        if (isNaN(pageIndex) || isNaN(sectionIndex)) return;
+
+        const page = this.interfaceData.pages[pageIndex];
+        if (!page.sections?.[sectionIndex]) return;
+
+        const sectionName = page.sections[sectionIndex].SectionName;
+        page.sections.splice(sectionIndex, 1);
+        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+
+        window.notify({ type: "success", name: "Section Removed", desc: `Section "${sectionName}" removed successfully` });
+    }
+
     closeEditor() {
-        this.dialog.close();
-        this.versionInfo.textContent = '';
-        this.versionSelect.value = '';
+        this.removeExistingInterfaces();
     }
 
     async saveChanges() {
         try {
             const content = this.textarea.value;
-            // Validate JSON
             JSON.parse(content);
-            
-            // Check if we're using ESP32 by examining socket URL
             const isESP32 = this.socket?.url?.includes('/ws');
-            
+
             if (isESP32) {
-                // Send via WebSocket for ESP32
-                const message = {
-                    saveFile: true,
-                    path: "/interface.json",
-                    data: content
-                };
-                
-                this.socket.sendMessage("saveFile", [message]);
-                
-                window.notify({
-                    type: "success",
-                    name: "Success",
-                    desc: "Interface configuration sent to ESP32"
-                });
+                this.socket.sendMessage("saveFile", [{ path: `/${this.currentFile}`, data: content }]);
+                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} configuration sent to ESP32` });
             } else {
-                // Send via HTTP POST for development server
-                const response = await fetch('/api/save-interface', {
+                const response = await fetch(`/api/save-${this.currentFile.replace('.json', '')}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content })
+                    body: JSON.stringify({ content })
                 });
-                
                 if (!response.ok) throw new Error('Save failed');
-                
-                window.notify({
-                    type: "success",
-                    name: "Success",
-                    desc: "Interface configuration saved successfully"
-                });
+                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} configuration saved successfully` });
             }
-            
+
             this.closeEditor();
-            
-            if (this.socket) {
-                this.socket.sendMessage("allStatesRequest", true);
-            }
+            if (this.socket) this.socket.sendMessage("allStatesRequest", true);
         } catch (err) {
             console.error('Save failed:', err);
             window.notify({
                 type: "error",
                 name: "Error",
-                desc: err instanceof SyntaxError ? "Invalid JSON format" : "Failed to save changes"
+                desc: err instanceof SyntaxError ? "Invalid JSON format" : `Failed to save ${this.currentFile}`
             });
         }
     }
 
-    disconnectedCallback() {
-        if (this.dialog && this.dialog.parentNode) {
-            this.dialog.parentNode.removeChild(this.dialog);
+    connectedCallback() {
+        this.editBtn = this.querySelector('.edit-btn');
+        if (this.editBtn) {
+            this.editBtn.addEventListener('click', () => this.openEditor());
+            this.forceButtonStyles();
         }
-        // Remove all event listeners
-        this.editBtn?.removeEventListener('click', this.openEditor);
-        this.saveVersionBtn?.removeEventListener('click', this.saveVersion);
-        this.saveRefBtn?.removeEventListener('click', () => this.saveVersion(true));
-        this.cancelBtn?.removeEventListener('click', this.closeEditor);
-        this.saveBtn?.removeEventListener('click', this.saveChanges);
-        this.versionSelect?.removeEventListener('sl-change', this.loadVersion);
     }
 
-    // Required ConnectedElement overrides
-    connectedCallback() {}
+    disconnectedCallback() {
+        this.removeExistingInterfaces();
+        this.editBtn?.removeEventListener('click', this.openEditor);
+    }
+
     render() {}
     update() {}
 }
@@ -10123,230 +11111,6 @@ class ImageSection extends ConnectedElement {
 }
 
 window.customElements.define('image-section', ImageSection);
-
-let HTTP$1 = class HTTP {
-    
-    constructor() {
-        console.log("HTTPPPPPP");
-    }
-    
-    static baseURL(action) {
-        return "/api/";
-    }
-    
-    static rpc(method_name, args={}, kwargs={}, onSuccess=()=>{}) {
-        let data= JSON.stringify({method_name: method_name, args:args, kwargs:kwargs});
-        HTTP.post('rpc', data, onSuccess, ()=>{alert("FAIL");});
-        
-    }
-    
-
-    static get(url, onSuccess, onError) {
-        console.log("GET: "+ url);
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-        if(token) {
-            header.append('x-access-token', `${token}`);
-        }
-
-        fetch(url, {
-            method: 'GET',
-            headers: header
-        }).then((resp) => {
-            if(resp.ok) {
-                console.log(resp);
-                console.log(resp.body);
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error);
-                });
-            }
-        }).then((resp) => {
-            let response = resp; console.log(resp);
-            if(response && response.hasOwnProperty('token')) {
-                window.localStorage['jwtToken'] = response.token;
-            }
-            console.log(url, onSuccess);
-            onSuccess(response);
-
-        });/*.catch((e) => {
-            console.log(e)
-            console.log(e.lineNumber)
-            console.log(e.filename)
-            onError(e.message);
-        });
-
-        */
-    }
-
-    static put(url, data, onSuccess, onError) {
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-    
-        // 0.0 Authorization
-        if(token)
-            header.append('x-access-token', `${token}`);
-        // 0.1 Stringify if data is object
-        if (typeof data == "object")
-            data = JSON.stringify(data);
-        // 0.2 Header
-        header.append('Content-Type', 'application/json');
-        // 0.3 Debug print
-        console.log("PUT: "+ url);
-        console.log(JSON.parse(data));
-
-        fetch(url, {
-            method: 'PUT',
-            headers: header,
-            body: JSON.stringify(data)
-        }).then((resp) => {
-            if(resp.ok) {
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error);
-                });
-            }
-        }).then((resp) => {
-            if(resp.hasOwnProperty('token')) {
-                window.localStorage['jwtToken'] = resp.token;
-            }
-            onSuccess(resp);
-        }).catch((e) => {
-            console.log(e);
-            onError(e.message);
-        });
-    }
-
-    static post(url, data, onSuccess, onError) {
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-    
-        // 0.0 Authorization
-        if(token)
-            header.append('x-access-token', `${token}`);
-        // 0.1 Stringify if data is object
-        if (typeof data == "object")
-            data = JSON.stringify(data);
-        // 0.2 Header
-        header.append('Content-Type', 'application/json');
-        // 0.3 Debug print
-        console.log("POST: "+ url, JSON.parse(data));
-
-        fetch(url, {
-            method: 'POST',
-            headers: header,
-            body: JSON.stringify(data)
-        }).then((resp) => {
-            if(resp.ok) {
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error + resp.toString());
-                });
-            }
-        }).then((resp) => {
-            if(resp.hasOwnProperty('token')) {
-                window.localStorage['jwtToken'] = resp.token;
-            }
-            onSuccess(resp);
-        }).catch((e) => {
-            console.log(e);
-            onError(e.message);
-        });
-    }
-
-    static remove(url, onSuccess, onError) {
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-        if(token) {
-            header.append('x-access-token', `${token}`);
-        }
-
-        fetch(url, {
-            method: 'DELETE',
-            headers: header
-        }).then((resp) => {
-            if(resp.ok) {
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error);
-                });
-            }
-        }).then((resp) => {
-            onSuccess(resp);
-        }).catch((e) => {
-            onError(e.message);
-        });
-    }
-
-    static checkIfUnauthorized(res) {
-        if(res.status == 401) {
-            return true;
-        }
-        return false;
-    }
-    
-    static checkValidCode(res) {
-        if (res.status==200){
-            console.log("OK");
-            return true
-        }
-        else if (res.status==201){
-            console.log("CREATED");
-            return true
-        }
-        else if (res.status==203){
-            console.log("ACCEPTED");
-            return true
-        }
-        else if (res.status >= 200 && res.status < 300) {
-            return true;
-        }
-        return false;
-    }
-    
-    static checkRessource(res){
-        switch (res.status) {
-            case 404:
-                console.log("Ressource not found");
-                return false
-            case 301:
-                console.log("Moved permanently");
-                return false
-            case 308:
-                console.log("Permanent redirect");
-                return false
-            case 400:
-                console.log("Bad Request");
-                return false
-            case 500:
-                console.log("Internal Server Error");
-                return false
-        }
-        return true
-    }
-};
-
-window.Http = HTTP$1;
 
 // Complete Shoelace Bundle Compressed:
 // import "./build/shoelace.bundle.min.js";
