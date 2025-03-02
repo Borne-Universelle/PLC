@@ -1,4 +1,7 @@
 #pragma once
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
 class MutexGuard {
     SemaphoreHandle_t& mutex;
     const char* mutexName;
@@ -25,9 +28,6 @@ public:
             //Serial.printf("%lu:: Successfully acquired mutex %s in context: %s (Wait time: %lu ms)\n", acquiredTime, mutexName, context, acquiredTime - startTime);
         } else {
             Serial.printf("%lu:: Failed to acquire mutex %s in context: %s\n", millis(), mutexName, context);
-            // Possiblement log stack trace ou autres informations de debug
-            // Ne pas bloquer indéfiniment, mais peut-être réessayer ou gérer l'erreur différemment
-            while(true) { }
         }
     }
 
