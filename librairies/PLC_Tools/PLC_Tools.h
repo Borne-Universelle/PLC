@@ -63,7 +63,7 @@ private:
     }
 
 public:
-    static void logReboot();
+    static bool logReboot();
     static String getRebootLog();
     static bool clearRebootLog();
     static void setLastErrorMessage(const char* message);

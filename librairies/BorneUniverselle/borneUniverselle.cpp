@@ -72,7 +72,10 @@ BorneUniverselle::BorneUniverselle() :
 
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
 
-    PLC_Tools::logReboot();
+    if (!PLC_Tools::logReboot()){
+        Serial.println(F("Error: Failed to log reboot"));
+        return;
+    }
 
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
@@ -2425,44 +2428,43 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         //Serial.println("notifyWebClient: Message that will be send: \r\n" );
         //serializeJsonPretty(notifyDoc, Serial);
         //Serial.println();
-        if (getWifiStatus() && ! clientQueueIsFull()){
-            size_t size = measureJson(notifyDoc) + 32;
-            if (size > SOCKET_MESSAGE_MAX_SIZE){
-                char message[64];
-                strcpy(message,  "Json notify states is too long !!");
-                prepareMessage(ERROR, message);
-                setPlcBroken(message);
-                return false;
-            } else {
-               // Serial.printf("Document size: %u\r\n", size);
-            }
-
-            char *chain = (char *)malloc(size);
-            if (chain){
-                size_t effectiveSize = serializeJson(notifyDoc, chain, size);
-                if (effectiveSize >= size){
-                    Serial.println("notifyWebClient:: effective size > evaluated size");
-                    free (chain);
-                    return true; // on écharge ce message car on ne peux pas le traiter
-                }
-
-                chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
-                // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
-                //serializeJsonPretty(notifyDoc, Serial);
-                bool success = sendTextToClient(chain);
-
-                if (!success){
-                    Serial.println(F("notifyWebClient: Failed to send to client"));
-                    return false;
-                }
-            } else {
-                Serial.println(F("notifyWebClient:malloc failed on notify message"));
-            }
-            
-            free(chain);
-            //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
+       
+        size_t size = measureJson(notifyDoc) + 32;
+        if (size > SOCKET_MESSAGE_MAX_SIZE){
+            char message[64];
+            strcpy(message,  "Json notify states is too long !!");
+            prepareMessage(ERROR, message);
+            setPlcBroken(message);
+            return false;
+        } else {
+            // Serial.printf("Document size: %u\r\n", size);
         }
 
+        char *chain = (char *)malloc(size);
+        if (chain){
+            size_t effectiveSize = serializeJson(notifyDoc, chain, size);
+            if (effectiveSize >= size){
+                Serial.println("notifyWebClient:: effective size > evaluated size");
+                free (chain);
+                return true; // on écharge ce message car on ne peux pas le traiter
+            }
+
+            chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
+            // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
+            //serializeJsonPretty(notifyDoc, Serial);
+            bool success = sendTextToClient(chain);
+
+            if (!success){
+                Serial.println(F("notifyWebClient: Failed to send to client"));
+                return false;
+            }
+        } else {
+            Serial.println(F("notifyWebClient:malloc failed on notify message"));
+        }
+        
+        free(chain);
+        //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
+        
         if (millis() - start > 300){ 
             Serial.printf("\r\n%lu:: End notifyWebClient %s: duration: %lu\r\n", millis(), sendAllStates ? "all states": "on state", millis() - start);
         }
@@ -2565,8 +2567,43 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
         return false;
     }
 
+    if (node->descriptorCallback) {
+        Serial.printf("Node %s has a descriptor callback\r\n", node->getName());
+        addCustomDescriptor(node, nodeObject);
+    }
+
     checkHeartbeat();
     return true;
+}
+
+void BorneUniverselle::addCustomDescriptor(Node *node, JsonObject *nodeObject) {
+    // Appeler la callback pour récupérer le descripteur personnalisé
+    JsonDocument customDescriptor = node->descriptorCallback();
+    
+    // Si le document n'est pas vide, l'ajouter au nodeObject
+    if (!customDescriptor.isNull()) {
+        // Vérifier si nodeObject a déjà une clé descriptor
+        if (!(*nodeObject)[DESCRIPTOR].isNull()) {
+            // Récupérer l'objet descriptor existant
+            JsonObject existingDescriptor = (*nodeObject)[DESCRIPTOR].as<JsonObject>();
+            
+            // Fusionner le nouveau descripteur avec l'existant
+            // Copier toutes les paires clé-valeur de customDescriptor dans existingDescriptor
+            for (JsonPair p : customDescriptor.as<JsonObject>()) {
+                existingDescriptor[p.key().c_str()] = p.value();
+            }
+        } else {
+            // Si pas de descriptor existant, ajouter simplement le nouveau
+            Serial.println("No descriptor key found in nodeObject");
+            (*nodeObject)[DESCRIPTOR] = customDescriptor;
+        }
+        
+        Serial.printf("%lu:: Added custom descriptor to node: %s\r\n", millis(), node->getName());
+    } else {
+        Serial.printf("%lu:: Custom descriptor is null for node: %s\r\n", millis(), node->getName());
+    }
+
+    PLC_Tools::printJsonObject(*nodeObject);
 }
 
 void BorneUniverselle::clearInputschanged(){

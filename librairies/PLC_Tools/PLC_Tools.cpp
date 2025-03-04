@@ -65,10 +65,10 @@ std::vector<String> PLC_Tools::getFilteredFiles(const char* path, const char* pa
     return result;
 }
 
-void PLC_Tools::logReboot() {
+bool PLC_Tools::logReboot() {
     if (!LittleFS.begin()) {
         Serial.println(F("Failed to mount filesystem for reboot log"));
-        return;
+        return false;
     }
 
     JsonDocument doc;
@@ -82,6 +82,7 @@ void PLC_Tools::logReboot() {
             doc.to<JsonArray>();
         }
         file.close();
+        return false;
     } else {
         doc.to<JsonArray>();
     }
@@ -113,12 +114,13 @@ void PLC_Tools::logReboot() {
     if (!file) {
         Serial.println(F("Failed to open reboot log for writing"));
         LittleFS.end();
-        return;
+        return false;
     }
     
     serializeJson(doc, file);
     file.close();
     LittleFS.end();
+    return true;
 }// logReboot
 
 String PLC_Tools::getRebootLog() {

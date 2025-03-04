@@ -16,8 +16,6 @@
 #include "PLC_CommonTypes.h"
 #include "PLC_InterfaceMenu.h"
 #include "PLC_Tools.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "MemoryMonitor.h"  // pour du debug
 #include "MutexGuard.h"
 
@@ -300,5 +298,9 @@ class BorneUniverselle{
         String messageBuffer; // buffer pour la réception de message du web socket en plusieurs morceaux
         size_t expectedSize = 0;
         void keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client);
+
+
+    private:
+        void addCustomDescriptor(Node *Node, JsonObject *nodeObject);
 };
 #endif
