@@ -2,11 +2,10 @@
 #define BORNE_UNIVERSELLE_LIB_H
 
 #include <ESPAsyncWebServer.h>
-#include <ModbusRTU.h>
+
 #define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "ArduinoJson.h"
 
-#include <ModbusRTU.h>
 #include "MyToolBox.h"
 #include "wifimanagment.h"
 #include <map>	
@@ -14,31 +13,43 @@
 #include "Node.h"
 #include <Wire.h>
 #include <iostream>
+#include "PLC_CommonTypes.h"
+#include "PLC_InterfaceMenu.h"
+#include "PLC_Tools.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "MemoryMonitor.h"  // pour du debug
+#include "MutexGuard.h"
 
-
-//#define DESCRIPTOR_INCLUDED // permet de traiter le descriptor dans les message par le websocket
+const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
 #define OTA_URL_SIZE	            80
-//#define HEARTBEAT_DELAY         1500L
-#define HEARTBEAT_DELAY         500L
-#define HEARTHBEAT_TIMEOUT      1500L
-#define JSON_CONFIG_SIZE        4000L
-#define MESSAGE_SIZE            20000
-#define MAX_MESSAGES_PENDING    100
+//#define HEARTBEAT_DELAY           1500L
+#define HEARTBEAT_DELAY             500L
+#define HEARTHBEAT_TIMEOUT          1500L
+#define ABNORMAL_REFRESH_TIME       200
+#define JSON_CONFIG_SIZE            4000L
+#define SOCKET_MESSAGE_MAX_SIZE     20000
+#define MAX_MESSAGES_PENDING        WS_MAX_QUEUED_MESSAGES * 4
+#define INTERFACE_PATH_FILE         "/interface.json"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
 #define NAME_LENGHT                 80
+#define MAX_MESSAGE_LENGTH          200
 
 // errors messages send to js
-#define JSON_NOT_VALID              "JSON is not valid"
-#define NO_NAME_KEY                 "The key Name (project name) is not found"
-#define NO_HARDWARE_KEY_CONFIG      "The key hardware is not found in config file"
-#define NO_WIFI_KEY                 "No config.Wifi key"
-#define NO_CONFIG_KEY               "No config key"
-#define WIFI_NAME_KEY_MISSING       "Wifi name ky missing"
-#define NO_CHILDREN_KEY_CONFIG      "The key children is not found in config file"
+
+const char JSON_NOT_VALID[] PROGMEM = "JSON is not valid";
+const char NO_NAME_KEY[] PROGMEM = "The key Name (project name) is not found";
+//const char NO_HARDWARE_KEY_CONFIG[] PROGMEM = "The key hardware is not found in config file";
+//const char NO_WIFI_KEY[] PROGMEM = "No config.Wifi key";
+const char NO_CONFIG_KEY[] PROGMEM = "No config key";
+const char WIFI_NAME_KEY_MISSING[] PROGMEM = "Wifi name ky missing";
+const char NO_CHILDREN_KEY_CONFIG[] PROGMEM = "The key children is not found in config file";
+const char MODBUS_NOT_INITIALISED[] PROGMEM = "PLC want to create modbus node but Modbus not initialised";
+
 
 
 #define NB_DIGITAL_INPUTS           5
@@ -47,20 +58,15 @@
 #define NB_ANALOG_OUTPUTS           4
 #define MODBUS_ADDRESS_OFFSET       0
 #define HARDWARE_FOLDER             "/hardware"
-
-// message severity
-#define ERROR                       0
-#define WARNING                     1
-#define INFO                        2
-#define SUCCESS                     3
+#define WEB_SOCKET_MESSAGE_MAX_SIZE 10000
+#define WEB_SOCKET_MESSAGE_MAX_ENTRYS 100
 
 // Json keys
+#define PROJECT_TYPE_V0 "BorneUniverselle"
 #define HEARTBEAT       "heartbeat"
 #define TOO_MUCH_CLIENTS    "tooMuchClients"
 #define TRUE_J            "true"
 #define FALSE_J           "false"
-//#define INPUT_CHANGE    "intputChange_"  
-//#define OUTPUT_CHANGE_  "outputchange_"
 #define CONFIG          "config"
 #define DESCRIPTION     "desc"
 #define NAME            "name"
@@ -97,6 +103,7 @@
 #define TX_UINT32       "tx-uint32"
 #define TX_FLOAT        "tx-float"
 #define RX_FLOAT        "rx-float"
+#define TX_TEXT         "tx-text"
 #define I2C             "I2C"
 #define SDA             "SDA"
 #define SCL             "SCL"
@@ -106,6 +113,9 @@
 #define RX              "rx"
 #define TX              "tx" 
 #define SPEED           "speed"
+#define MODBUS          "Modbus"
+#define MODBUS_RTU      "ModbusRTU"
+#define TIMEOUT         "timeout"
 #define MODBUS_READ_COIL "ModbusReadCoil"
 #define MODBUS_WRITE_COIL "ModbusWriteCoil"
 #define MODBUS_READ_HOLDING_REGISTER    "ModbusReadHoldingRegister"
@@ -126,6 +136,12 @@
 #define GET_VALUE       "get"
 #define DESCRIPTOR      "descriptor"
 #define GET_DESCRIPTOR  "get_descriptor"
+#define SAVE_FILE       "saveFile"
+#define DIRECTORY       "directory"
+#define FILTER          "filter"
+#define PATH            "path"
+#define DATA            "data"
+#define INITIAL_STATE_LOADED    "initialStatesLoaded"
 
 struct HARDWARE_ITEM{
     uint8_t id;
@@ -143,7 +159,8 @@ struct HARDWARE_MODEL{
 struct WEB_SOCKET_MESSAGE{
     void * arg;
     uint8_t *data;
-    size_t len;
+    size_t len; // 
+    uint32_t timeOfOrigine;
     AsyncWebSocketClient *client;
 };
 
@@ -157,7 +174,7 @@ class BorneUniverselle{
 
         BorneUniverselle();
         static bool setName(const char *name, bool check = true);
-        char *getName();
+        static char *getName();
 		
         static char *getOTA_Url();
         
@@ -184,28 +201,36 @@ class BorneUniverselle{
         static void prepareMessage(uint8_t type, const char *text); // send message to web socket
         static bool getIsKinconyA8S();
         void printConfigFile();
-        void sendMessage();
-        bool isPlcBroken();
+        bool sendMessage();
+        static bool isPlcBroken();
         static void setPlcBroken(const char *context);
         void tooMuchClients(AsyncWebSocketClient *client);
-        void closeActualConnection(AsyncWebSocketClient *newClient);
         bool handleNodesChange(JsonDocument socketDoc);
+        void handleDirectoryRequest(JsonDocument socketDoc);
+        bool handleSaveFile(JsonDocument socketDoc);
         bool getIsWifiParsedOk();
-        void keepWebSocketMessage(void *arg, uint8_t *data, size_t len,  AsyncWebSocketClient *client);
+        void handleWebSocket(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client);
         void clearInputschanged(); // if no client connected
         static void refresHardwareInputs();
         bool isWebSocketMessagesListMoreThanHalf();
         bool isAllInputsReadOnce();
-        static void sendTextToClient(char *text);
-        static bool isNewClientConnected();
-        static void clearNewClientConnected();
+        static bool sendTextToClient(char *text);
+        static std::map<uint32_t, Node *> getNodesMap();
+        float getConfigVersion(){
+            return projectVersion;
+        };
+        void setShowModbusMessages(bool status);
+        bool getModbusStatusMessages();
+        void showMessage(Node *node, const char *text);
+        static void modbusMessageHandler(uint8_t severity, const char* message);
+        static void setInitialStateLoadedCallback(std::function<void()> callback);
 
-    private:
         static char name[NAME_LENGHT];
         static char ota_url[OTA_URL_SIZE];
         static uint32_t  wifiStartupTime;
         static char  currentNetworkId;
         static unsigned char nbWifiItems;
+        bool showModbusMessages = false;
 	
 		static std::map<unsigned char, WifiItem> wifiItemsMapBu;
 
@@ -229,38 +254,51 @@ class BorneUniverselle{
 
         static bool setHardware(JsonDocument doc, const char *, bool check = true);
         void sendHeartbeat(bool reset = false);
-        static bool i2cInit(JsonDocument contextDoc);
-        static bool RS485Init(JsonDocument contextDoc);
-        static bool modbusInit(JsonDocument contextDoc);
+        bool i2cInit(JsonDocument contextDoc);
+        bool RS485Init(JsonDocument contextDoc);
+        bool modbusInit(JsonDocument contextDoc);
         static void unableToFindKey(char *context, char *key);
-        bool createRxBoolNode(char *name, char *parentName, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument descriptor, bool check); // c'est ici que l'on créé les nodes !
-        bool createTxBoolNode(char *name, char *parentName, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
-        bool createVirtualNode(char *name, char *sectionName, char *type, uint32_t *hash, JsonDocument descriptor, bool check);
-        bool createModbusNode(char *nodeName, char *sectionName, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
+        bool createRxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument descriptor, bool check); // c'est ici que l'on créé les nodes !
+        bool createTxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
+        bool createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument descriptor, bool check);
+        bool createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
                                      JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
-        void modbusTask();
+        // void modbusTask();
         bool parseConfig(JsonDocument doc, bool check = true);
         static bool parseWifis(JsonDocument doc, bool check);
-        bool parseHardwares(JsonDocument doc, bool check);
+        bool parseHardwares(JsonDocument doc, bool check, float version);
         static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
         static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
         void saveParameters(JsonDocument configDoc);
-        void handleGetValue(uint32_t hash);
-        void handleGetAllValues();
+        bool handleGetValue(uint32_t hash);
+        bool handleGetAllValues();
         bool addNodeToNodeObject(Node *node, JsonObject *nodeObject);
+        bool processMessage(WEB_SOCKET_MESSAGE *webSocketMessage);
         static bool isI2CInitialised, isRs485Initialised, isModbusInitialised;
         static HardwareSerial *myRS485;
-        static ModbusRTU *modbus; 
+        MyModbus& myModbus = MyModbus::getInstance(); // singleton 
         static bool isKinconyA8S;
         static bool plcBroken;
         uint32_t clientConnectedAt;
         static bool isLastMessageFatal;
-        //std::list <WEB_SOCKET_MESSAGE *> webSocketMessagesList; 
+        static SemaphoreHandle_t webSocketMutex;
         LinkedList <WEB_SOCKET_MESSAGE *> webSocketMessagesList;
-        //static std::list <NOTIF_MESSAGE*> notifMessagesList;
+        static SemaphoreHandle_t notifMutex;
         static LinkedList <NOTIF_MESSAGE *> notifMessagesList;
         bool allInputsReadOnce = false;
         bool psRamAvailable = false;
         static bool newClientConnected;
+        float projectVersion;
+        bool noPLC_BrokenMessage = false;
+
+        static const uint8_t MAX_MUTEX_ATTEMPTS = 10;  // Nb max de tentatives pour acquérir le mutex
+
+           // Callback enregistrée
+        static std::function<void()> initialStateLoadedCallback;
+        char hearbeatChain[256];
+
+        String messageBuffer; // buffer pour la réception de message du web socket en plusieurs morceaux
+        size_t expectedSize = 0;
+        void keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client);
 };
 #endif

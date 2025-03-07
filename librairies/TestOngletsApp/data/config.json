@@ -1,0 +1,205 @@
+{
+  "name": "Borne_Universelle",
+  "type": 2,
+  "config": [
+    {
+      "Wifi": [
+        {
+          "ssid": "PosadaLaHacienda",
+          "pwd": "Chispas2020",
+          "name": "Mexique",
+          "dhcp": true
+        },
+        {
+          "ssid": "Ella",
+          "pwd": "Oceanne1",
+          "name": "EDMG_Thierry",
+          "dhcp": true
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "ota_url": "NA"
+      }
+    }
+  ],
+  "security": {
+    "passwords": {
+      "pages": {
+        "Protected Page": "1234",
+        "System": "admin123"
+      },
+      "sections": {
+        "Protected Section": "5678",
+        "Advanced Controls": "9012"
+      },
+      "components": {
+        "4029808943": "3456",
+        "4029808944": "7890"
+      }
+    }
+  },
+  "children": [
+    {
+      "name": "Inputs",
+      "hardware": "Kincony_KC868_A8S",
+      "type": "PF8574_rx-bool",
+      "address": 2,
+      "children": [
+        {
+          "id": 1,
+          "hash": 645363011
+        },
+        {
+          "id": 2,
+          "hash": 396324830
+        },
+        {
+          "id": 3,
+          "hash": 2984797290
+        },
+        {
+          "id": 4,
+          "hash": 1951357668
+        },
+        {
+          "id": 5,
+          "hash": 3526906192
+        },
+        {
+          "id": 6,
+          "hash": 3822078925
+        },
+        {
+          "id": 7,
+          "hash": 1168588921
+        },
+        {
+          "id": 8,
+          "hash": 3018797200
+        }
+      ]
+    },
+    {
+      "name": "Outputs",
+      "hardware": "Kincony_KC868_A8S",
+      "type": "PF8574_tx-bool",
+      "address": 1,
+      "children": [
+        {
+          "id": 1,
+          "hash": 1927398708
+        },
+        {
+          "id": 2,
+          "hash": 4235117271
+        },
+        {
+          "id": 3,
+          "hash": 818201161
+        },
+        {
+          "id": 4,
+          "hash": 973196112
+        },
+        {
+          "id": 5,
+          "hash": 4138453966
+        },
+        {
+          "id": 6,
+          "hash": 2015677485
+        },
+        {
+          "id": 7,
+          "hash": 3029257395
+        },
+        {
+          "id": 8,
+          "hash": 1840176671
+        }
+      ]
+    },
+    {
+      "name": "Inputs text",
+      "hardware": "virtual",
+      "component": "hw-section",
+      "type": "tx-text",
+      "children": [
+        {
+          "id": 1,
+          "hash": 3439210244
+        },
+        {
+          "id": 2,
+          "hash": 3143695860
+        }
+      ]
+    },
+    {
+      "name": "Inputs numbers",
+      "hardware": "virtual",
+      "component": "hw-section",
+      "type": "tx-uint32",
+      "children": [
+        {
+          "id": 1,
+          "hash": 927102439
+        },
+        {
+          "id": 2,
+          "hash": 641671070
+        }
+      ]
+    },
+    {
+      "name": "Inputs boolean",
+      "hardware": "virtual",
+      "component": "hw-section",
+      "type": "tx-bool",
+      "children": [
+        {
+          "id": 1,
+          "hash": 3394844534
+        },
+        {
+          "id": 2,
+          "hash": 3676593423
+        }
+      ]
+    },
+    {
+      "name": "Inputs float",
+      "hardware": "virtual",
+      "component": "hw-section",
+      "type": "tx-float",
+      "children": [
+        {
+          "id": 1,
+          "hash": 3409950743
+        },
+        {
+          "id": 2,
+          "hash": 1995822297
+        }
+      ]
+    },
+    {
+      "name": "Output float",
+      "hardware": "virtual",
+      "component": "hw-section",
+      "type": "rx-float",
+      "children": [
+        {
+          "id": 1,
+          "hash": 3819210077
+        },
+        {
+          "id": 2,
+          "hash": 1584327059
+        }
+      ]
+    }
+  ]
+}

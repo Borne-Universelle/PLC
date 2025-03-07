@@ -25,12 +25,9 @@
 #define THIERRY_GATEWAY   IPAddress(192,168,1,254)
 #define THIERRY_MASK      IPAddress(255,255,255,0)
 
-#define MATTHIEU_ADDRESS  IPAddress(192, 168, 1, 222)
-#define MATTHIEU_SSID     "gccable.ca_FBBC-5G"
-#define MATTHIEU_WIFI_PWD "hmogqjaimu"
-#define MATTHIEU_GATEWAY  IPAddress(192, 168, 1, 1)
-#define MATTHIEU_DNS      IPAddress(8, 8, 8, 8)
-#define MATTHIEU_MASK     IPAddress(255, 255, 255, 0)
+#define THIERRY_CELL_SSID	"thiline"
+#define THIERRY_CELL_WIFI_PWD  "Oceanne1"
+#define THIERRY_CELL_NAME      "Cellulaire Thierry"
 
 #define ALEXIS_SSID       "TELUSAFF7"
 #define ALEXIS_WIFI_PWD   "h6vJ96UKmUr7"
@@ -55,6 +52,10 @@
 #define NEREYDA_SSID		"Depa 72B"
 #define NEREYDA_PWD			"72B20221"
 #define NEREYDA_NAME		"NEREYDA"
+
+#define MEXIQUE_SSID		"PosadaLaHacienda"
+#define MEXIQUE_PWD			"Chispas2020"
+#define MEXIQUE_NAME		"Mexique"
 
 // By Thierry !
 // Il faut implémenter la fonction networkErase dans le programme ino:

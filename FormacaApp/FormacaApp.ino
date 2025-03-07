@@ -15,7 +15,7 @@
 
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
-#define MAIN_VERSION "Version 2.1"
+#define MAIN_VERSION "Version 2.3"
 #define OTA_STARTED "HTTP update process started"
 #define OTA_FINISHED "HTTP update process finished"
 
@@ -28,6 +28,7 @@ AsyncWebSocket ws("/ws");
 #define BEEP 2
 
 long start;
+bool memoryMonitorBool = false;
 
 void connectToNextNetwork(){  
   Serial.println("Will get next wifi network");
@@ -42,6 +43,49 @@ void connectToNextNetwork(){
       criterionOK = true;
    }
   bu->connectWifi(currentWifi);
+}
+
+void modifyLogs(){
+  while (Serial.available()){
+     Serial.read();
+  }
+
+  Serial.println("Logs");
+  Serial.println("----");
+  Serial.println("A: Activer les logs hearbeat");
+  Serial.println("B: Désactiver les logs hearbeat");
+  Serial.println("C: Activer les logs modbus");
+  Serial.println("D: Désactiver les logs modbus");
+  Serial.println("E: Moniteur de la mémoire");
+  Serial.println("-----------------------------");
+  Serial.println("Tapez sur une lettre...");
+
+  while (!Serial.available()){
+    delay(100);
+  }
+        
+  char car = Serial.read();
+  switch (car){
+    case 'A':     bu->setShowHeartbeatMessages(true);
+      break;
+
+    case 'B':     bu->setShowHeartbeatMessages(false);
+      break;
+
+    case 'C':     bu->setShowModbusMessages(true);
+      break;
+
+    case 'D':     bu->setShowModbusMessages(false);
+      break;
+
+    case 'E':     MemoryMonitor::printStats("MemoryMonitor");
+      break;
+
+    case 'G':     modifyLogs();
+      break;
+
+    default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
+  }  
 }
 
 void showHelp(){
@@ -60,13 +104,12 @@ void showHelp(){
   Serial.println("Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config");
   Serial.println("Tapez sur 'C' pour imprimer le fichier de config");
   Serial.println("Tapez sur 'D' pour envoyer un message de test");
-  Serial.println("Tapez sur 'E' pour envoyer tous les états");
-  Serial.println("Tapez sur 'Z' pour afficher les heartbeat messages");
-}
-
-void showHeartbeatMessages(){
-  Serial.println("Voullez vous montrez les messages heartbeat [Y/N] ?");
-  bu->setShowHeartbeatMessages(toolbox.yes_or_no() ? true : false);
+  Serial.println("Tapez sur 'E' pour notifier le client web");
+  Serial.println("Tapez sur 'F' pour imprimer le fichier de persistance");
+  Serial.println("Tapez sur 'G' pour afficher la mémoire de manière cyclique");
+  Serial.println("Tapez sur 'Y' pour faire un reset"),
+  Serial.println("Tapez sur 'Z' pour modifier les logs");
+  Serial.println("Tapez sur '?' pour afficher l'aide");
 }
 
 void commandInterpretor(char car){
@@ -83,7 +126,16 @@ void commandInterpretor(char car){
     case 'E':     bu->notifyWebClient(true);
       break;
 
-    case 'Z':     showHeartbeatMessages();
+    case 'F':     Formaca::printPersistance();
+      break;
+
+    case 'G':     memoryMonitorBool = true;
+
+    case 'Y':     Serial.println("ESP32 will reset");
+                  ESP.restart();
+      break;       
+
+    case 'Z':     modifyLogs();
       break;
 
     case '?':     showHelp();
@@ -116,26 +168,18 @@ void firmwareUpdate(){
   }
 }
 
-void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
-  Serial.printf("%lu:: Connected to AP successfully, SSID: %s, level: %d [dB]\r\n", millis(), WiFi.SSID().c_str(), WiFi.RSSI());
-}
-
-void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
-  bu->setWifiConnected(false);  
-  Serial.println(F("Disconnected from WiFi"));
-  //server.end();
-  if (Serial.available()){
-        commandInterpretor(Serial.read());
-  }
-  connectToNextNetwork();
-}
-
 void turnOffBuzzer(){
    pinMode(BEEP, OUTPUT); 
     digitalWrite(BEEP, false);
 }
 
-void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
+//void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+void WiFiStationConnected(){
+  Serial.printf("%lu:: Connected to AP successfully, SSID: %s, level: %d [dB]\r\n", millis(), WiFi.SSID().c_str(), WiFi.RSSI());
+}
+
+//void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){ // version 1 & 2
+void WiFiGotIP(){
   if (BorneUniverselle::getIsKinconyA8S()){
     turnOffBuzzer();
   }
@@ -151,12 +195,28 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
   }
     
   // Add service to MDNS-SD
-  MDNS.addService("http", "tcp", 80);
-  Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
-  server.begin();  // Test Thierry
-  Serial.println("Web server started !");
-  
+   MDNS.addService("http", "tcp", 80);
+   Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
+   if (!LittleFS.begin()) {
+     Serial.println(F("Erreur de montage LittleFS"));
+     return;
+   }
+   Serial.println(F("LittleFS monté avec succès"));
+ 
+   server.begin();  // Test Thierry
+   Serial.println("Web server started !");
 } // WiFiGotIP
+
+void WiFiStationDisconnected(){
+//void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  bu->setWifiConnected(false);  
+  Serial.println(F("Disconnected from WiFi"));
+  //server.end();
+  if (Serial.available()){
+        commandInterpretor(Serial.read());
+  }
+  connectToNextNetwork();
+}
 
 void update_started() {
   Serial.println(OTA_STARTED);
@@ -181,24 +241,27 @@ void tooMuchClients(AsyncWebSocketClient *client){
 }
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  char eventTypeText[100];
+ 
   switch (type) {
     case WS_EVT_CONNECT:
       // nouvelle connexion.. 
-          if (bu->isClientConnected()){
-            // tooMuchClients(client);
-            bu->closeActualConnection(client);
-          } else {
-            bu->setClientConnected(true, client);
-          }
+      Serial.println("onWsEvent::Connect !!!");
+      if (bu->isClientConnected()){
+          tooMuchClients(client);
+        bu->setClientConnected(false, client);
+      } else {
+        bu->setClientConnected(true, client);
+      }
     break;
    
     case WS_EVT_DISCONNECT: 
-           Serial.printf("%lu:: client %lu is disconnected, will remove it\r\n", millis(), client->id());
+           Serial.printf("%lu:: client %lu is disconnected, will remove it\r\n", millis(), (unsigned long)client->id());
            bu->setClientConnected(false, NULL);         
     break;
     
     case WS_EVT_DATA:
-      bu->keepWebSocketMessage(arg, data, len, client);
+      bu->handleWebSocket(arg, data, len, client);
     break;
     
     case WS_EVT_PONG:
@@ -206,33 +269,22 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     break;
       
     case WS_EVT_ERROR:
-   // AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len 
-      char eventTypeText[100];
-      char dataText[2000];
-     
-      switch (type){
-        case WS_EVT_CONNECT:  strcpy(eventTypeText, "WS_EVT_CONNECT");
-          break; 
-
-        case WS_EVT_DISCONNECT: strcpy(eventTypeText, "WS_EVT_DISCONNECT");
-          break;
-
-        case WS_EVT_PONG: strcpy(eventTypeText, "WS_EVT_PONG");strcpy(eventTypeText, "WS_EVT_PONG");
-          break;
-
-        case WS_EVT_ERROR: strcpy(eventTypeText, "WS_EVT_ERROR");
-          break;
-
-        case WS_EVT_DATA: strcpy(eventTypeText, "WS_EVT_DATA");
-          break;
-      }
-      if (len > 1999){
+       if (len > 1999){
         len = 1999;
+        Serial.println("Data too long, will be truncated");
       }
+
+      char *dataText = (char *)malloc(len + 1);
+      if (!dataText) {
+        bu->setPlcBroken("Memory allocation error for websocket message copy");
+        return;
+      }
+
       strncpy(dataText, (char *)data, len);
-      Serial.printf("%lu:: WebSocket error received from client: %lu, event type: %s, data: %s\r\n", millis(), client->id(), eventTypeText, dataText);
+      Serial.printf("%lu:: WebSocket error received from client: %lu, event type: %s, data: %s\r\n", millis(), (unsigned long)client->id(), eventTypeText, dataText);
       client->close();
-      break;
+      free(dataText);
+    break;
   } // switch
 }
 
@@ -252,15 +304,7 @@ void setup(){
 
   Serial.println();Serial.println();Serial.println();
 
-  Serial.println("Starting Ressort Formaca....");
-  
-  // Begin LittleFS
-  if (!LittleFS.begin()){
-    Serial.println("An Error has occurred while mounting LittleFS");
-    while (1){
-    }
-  } // for ever...
-  File file = LittleFS.open("/", "r");
+  Serial.println("Starting Formaca....");
 
   Serial.println("Will start BorneUniverselle library...");
   bu = new BorneUniverselle();
@@ -269,15 +313,19 @@ void setup(){
     formaca = new Formaca();
   }
 
-  //----------------------------------------------------WIFI
-      
-  //Serial.printf("Default ota url: %s\r\n", bu->getOTA_Url());
-  //WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
-  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
-  //WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP); // version 1
-  WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP); // version 2.0x
-  //WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED); // version 1
-  WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED); //version 2.0x
+  WiFi.onEvent([](arduino_event_t *event) {
+    WiFiStationConnected();
+  }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED); // Version 3.x
+
+
+  WiFi.onEvent([](arduino_event_t *event) {
+    WiFiGotIP();
+  }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+
+ 
+  WiFi.onEvent([](arduino_event_t *event) {
+    WiFiStationDisconnected();    
+  }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
 // OTA 
 //  httpUpdate.onStart(update_started);
@@ -319,29 +367,33 @@ void loop() {
   bu->checkHeartbeat();
 
   if (!bu->isPlcBroken()){
-    if (!bu->clientQueueIsFull()){
-      bu->refresh();
-    } else {
-      Serial.println("Queue is full !!!!");
-    }
-    
+    bu->refresh(); 
     bu->handleWebSocketMessage();
-
-    if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
-        if (bu->isAllInputsReadOnce()){
-             if (!formaca->logiqueExecutor()){
-                bu->setPlcBroken("LogicalExecutor");
-             }
-             bu->notifyWebClient(); // notify only changed nodes
-        } else {
-            Serial.println("Not calling logic executor beacause automate is not fully intialised");
-        }     
-     } // Queues ok
+    if (bu->isAllInputsReadOnce()){
+      if (!formaca->logiqueExecutor()){
+        bu->setPlcBroken("LogicalExecutor");
+      }
     }
+  } else {
+    if (!bu->isPlcBroken()){
+      Serial.println("Not calling logic executor beacause automate is not fully intialised\r\n");
+    }
+  }
 
-  bu->sendMessage();
+  bu->notifyWebClient(); // notify only changed nodes        
+   
+  if (!bu->sendMessage()){
+    Serial.println("Unable to send a message to the client");
+  }
+
   ws.cleanupClients();
   if (millis() - start > 1500){
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
+  }
+  
+  MemoryMonitor::trackStats();
+
+  if (memoryMonitorBool){
+    MemoryMonitor::printStats("MemoryMonitor");
   }
 }

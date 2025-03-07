@@ -6,6 +6,7 @@
 #include "borneUniverselle.h"
 #define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "ArduinoJson.h"
+#include <list>
 
 // Visual Indicator keys
 #define MAX                         "max"
@@ -30,8 +31,6 @@ class Render{
         }
 
         void addProperties(JsonDocument doc){
-            JsonArray recettes = doc["recettes"];
-
             //JsonObject items = descriptor.add<JsonArray>();
             JsonArray items = descriptor["items"].to<JsonArray>();
             for (JsonObject recette : doc["recettes"].as<JsonArray>()) {
@@ -46,10 +45,11 @@ class Render{
 
             serializeJson(doc, chain, size);
             chain[size] = 0; 
-            Serial.println("Document to send to the socket:");
-            serializeJsonPretty(doc, Serial);
+            //Serial.println("Document to send to the socket:");
+            // serializeJsonPretty(doc, Serial);
             Serial.println();
             BorneUniverselle::sendTextToClient(chain);
+            Serial.println("Render::sendJson, json send to the client");
             free(chain);
         }
 
@@ -57,6 +57,10 @@ class Render{
         Node *node;
         JsonDocument doc;
         JsonObject descriptor, states;
+};
+
+class EnableComponent{
+
 };
 
 class VisualIndicator: public Render{
@@ -91,12 +95,27 @@ class DropDown: public Render{
         */
 
         void setItems(JsonDocument doc){
-            Serial.println("Received document:");
-            serializeJsonPretty(doc, Serial);
+            Serial.println("DropDown::setItems, received document");
+            // serializeJsonPretty(doc, Serial);
             addProperties(doc);
             sendJson();
         }
         
 
 };
+/*
+class MultiEnableDisable{
+    public:
+        MultiEnableDisable(){
+        }
+
+        void addNodeToEnableList(Node *node){
+            enableList.insert(node);
+        }
+
+    private:
+         std::list<*Node> enableList;
+
+};
+*/
 #endif
