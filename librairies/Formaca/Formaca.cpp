@@ -75,13 +75,6 @@ Formaca::Formaca() {
     vStart                  = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_START);
     cancelCycle             = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CANCEL_CYCLE);
     cylinderCaptor          = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CYLINDER_CAPTOR);
-    // Initialisation des nodes virtuels miroirs
-    v_servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_SERVO_ON);
-    v_flipFlopScie = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_FLIP_FLOP_SCIE);
-    v_immediateStop = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_IMMEDIATE_STOP);
-    v_alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_ALARMS_RESET);
-
-
 
     if (BorneUniverselle::isPlcBroken()){
         Serial.flush();
@@ -89,81 +82,72 @@ Formaca::Formaca() {
         return;
     }
 
-    if (!LittleFS.begin()){
-        BorneUniverselle::setPlcBroken("Formaca::Formaca An Error has occurred while mounting LittleFS");
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    JsonDocument doc;
+    if (!persistence.readJsonFromFile(FORMACA_FILE_NAME, doc)) {
+        BorneUniverselle::setPlcBroken(persistence.getLastError());
         return;
-    } else {
-        // read and parse the json file
-        File file = LittleFS.open(CONFIG_FILE_NAME, FILE_READ);
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, file);
-        file.close();
-        if (error){
-            char buff[128];
-            sprintf(buff, "%lu:: %s file: deserializeJson() failed: ", millis(), CONFIG_FILE_NAME);
-            strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-            BorneUniverselle::setPlcBroken(buff);
-            return;
-        } else {
-            strlcpy(parameters.machineName, doc[MACHINE], sizeof(parameters.machineName));
-            parameters.overAllLenght    = doc[OVERALL__LENGHT];
-            parameters.reference        = doc[REFERENCE];
-            parameters.home             = doc[HOME];
-            parameters.parkOffset       = doc[PARK__OFFSET];
-            parameters.wasteLength      = doc[WASTE__LENGTH];
-            parameters.rightStop        = doc[RIGHT__STOP];
-        
-            uint8_t idRecette = 0;
-            for (JsonObject recette : doc[RECETTES].as<JsonArray>()) {
-                parameters.recettes[idRecette].longlength   = recette[LONG__LENGTH];
-                parameters.recettes[idRecette].angle        = recette[ANGLE];
-                parameters.recettes[idRecette].width        = recette[WIDTH__LENGTH];
-                strlcpy(parameters.recettes[idRecette].name, recette[NAME], sizeof(parameters.recettes[idRecette].name));
-                Serial.printf("Recette name: %s\r\n", parameters.recettes[idRecette].name);
-                idRecette++;
-            }
-            parameters.nbRecettes = idRecette;
-        }
-
-        if (!strcmp(parameters.machineName, MACHINE_RESP)){
-            //BorneUniverselle::setPlcBroken("Formaca::Formaca The machine name is not corresponding !");
-            Serial.printf("Machine name received: %s, machine name ref: %s\r\n", parameters.machineName,  MACHINE_RESP);
-            //return;
-        }
-        Serial.println("Persistance parameters");
-        Serial.println("----------------------");
-        Serial.printf("Home position: %lu\r\n", (unsigned long)parameters.home);
-        Serial.printf("Référence: %lu\r\n",  (unsigned long)parameters.reference);
-        Serial.printf("Longeur brute: %.2f\r\n", parameters.overAllLenght);
-        Serial.printf("Offset parque: %.2f\r\n", parameters.parkOffset);
-        Serial.printf("Longeur du rebut: %.2f\r\n", parameters.wasteLength);
-        Serial.printf("Butée droite: %.2f\r\n", parameters.rightStop);
-     
-        Serial.printf("Nb recettes: %u\r\n", parameters.nbRecettes);
-        Serial.println("Recettes");
-        Serial.println("--------");
-        for (uint8_t id = 0; id < parameters.nbRecettes; id++){
-            Serial.printf("    Name: %s\r\n", parameters.recettes[id].name);
-            Serial.printf("    Long lenght: %.2f\r\n", parameters.recettes[id].longlength);
-            Serial.printf("    Angle: %.2f\r\n", parameters.recettes[id].angle);
-            Serial.printf("    Width: %.2f\r\n", parameters.recettes[id].width);
-            Serial.println();
-        }
-
-        drompDownIndicator = new DropDown(recette);
-        visu = new VisualIndicator(nbCyclesMade);
-        flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
     }
+      
+    strlcpy(parameters.machineName, doc[MACHINE], sizeof(parameters.machineName));
+    parameters.overAllLenght    = doc[OVERALL__LENGHT];
+    parameters.reference        = doc[REFERENCE];
+    parameters.home             = doc[HOME];
+    parameters.parkOffset       = doc[PARK__OFFSET];
+    parameters.wasteLength      = doc[WASTE__LENGTH];
+    parameters.rightStop        = doc[RIGHT__STOP];
+
+    uint8_t idRecette = 0;
+    for (JsonObject recette : doc[RECETTES].as<JsonArray>()) {
+        parameters.recettes[idRecette].longlength   = recette[LONG__LENGTH];
+        parameters.recettes[idRecette].angle        = recette[ANGLE];
+        parameters.recettes[idRecette].width        = recette[WIDTH__LENGTH];
+        strlcpy(parameters.recettes[idRecette].name, recette[NAME], sizeof(parameters.recettes[idRecette].name));
+        Serial.printf("Recette name: %s\r\n", parameters.recettes[idRecette].name);
+        idRecette++;
+    }
+    parameters.nbRecettes = idRecette;      
+
+    if (!strcmp(parameters.machineName, MACHINE_RESP)){
+        //BorneUniverselle::setPlcBroken("Formaca::Formaca The machine name is not corresponding !");
+        Serial.printf("Machine name received: %s, machine name ref: %s\r\n", parameters.machineName,  MACHINE_RESP);
+        //return;
+    }
+    Serial.println("Persistance parameters");
+    Serial.println("----------------------");
+    Serial.printf("Home position: %lu\r\n", (unsigned long)parameters.home);
+    Serial.printf("Référence: %lu\r\n",  (unsigned long)parameters.reference);
+    Serial.printf("Longeur brute: %.2f\r\n", parameters.overAllLenght);
+    Serial.printf("Offset parque: %.2f\r\n", parameters.parkOffset);
+    Serial.printf("Longeur du rebut: %.2f\r\n", parameters.wasteLength);
+    Serial.printf("Butée droite: %.2f\r\n", parameters.rightStop);
+    
+    Serial.printf("Nb recettes: %u\r\n", parameters.nbRecettes);
+    Serial.println("Recettes");
+    Serial.println("--------");
+    for (uint8_t id = 0; id < parameters.nbRecettes; id++){
+        Serial.printf("    Name: %s\r\n", parameters.recettes[id].name);
+        Serial.printf("    Long lenght: %.2f\r\n", parameters.recettes[id].longlength);
+        Serial.printf("    Angle: %.2f\r\n", parameters.recettes[id].angle);
+        Serial.printf("    Width: %.2f\r\n", parameters.recettes[id].width);
+        Serial.println();
+    }
+
+    drompDownIndicator = new DropDown(recette);
+    visu = new VisualIndicator(nbCyclesMade);
+    flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
+
+    /*
+    recette->setDescriptorCallback([this]() -> JsonDocument {
+        // Ce code est executé lorsque le PLC a besoin de la valeur de ce node. Attention le document ne doit contenir que le descripteur
+        return this->getDropDownDescriptorHandler();
+    });
+    */
+    
     Serial.println("Fin du constructeur Formaca");	
 }
 
-
-
 void Formaca::setEmergencyMode(bool status){
-    running = false;
-    ejectPhase = false,
-    parkPositionPhase = false;
-    flipflopInAction = false;
 
     if (status){
         immediateStop->setValue(true);
@@ -198,7 +182,7 @@ bool Formaca::logiqueExecutor() {
         PF8574BooleanInputNode::clearInterruptFlag();
     }
 
-    if (cancelCycle->getIsChanged() && cancelCycle->getValue() && running) {
+    if ((cancelCycle->getIsChanged() && cancelCycle->getValue()) && running){
         setEmergencyMode(true);
         BorneUniverselle::prepareMessage(ERROR, "Appui sur le bouton Cancel Cycle");
     }
@@ -232,6 +216,7 @@ bool Formaca::logiqueExecutor() {
     if (homeDone->getValue() && goHome && millis() > startDelayHome + (long)position->getRefreshInterval()){
         goHome = false;
         homePos = position->getValue();
+        parameters.home = position->getValue(); // 20 février 2025
         saveMachineParameters();
         BorneUniverselle::prepareMessage(SUCCESS, "Position du home enregistrée");
         if (longLength->getValue() > 1 && longLength->getValue() < 100 && !isnan(longLength->getValue())){
@@ -389,27 +374,13 @@ bool Formaca::getIsStartCycle(){
 }
 
 void Formaca::interfaceTreatment(){
-
-    // Gestion des miroirs virtuels
-    if (v_servoOn->getIsChanged()) {
-        servoOn->setValue(v_servoOn->getValue());
-    }
-    if (v_flipFlopScie->getIsChanged()) {
-        flipFlopScie->setValue(v_flipFlopScie->getValue());
-    }
-    if (v_immediateStop->getIsChanged()) {
-        immediateStop->setValue(v_immediateStop->getValue());
-    }
-    if (v_alarmsReset->getIsChanged()) {
-        alarmsReset->setValue(v_alarmsReset->getValue());
-    }
     if (overAllLenght->getIsChanged()){
         BorneUniverselle::prepareMessage(SUCCESS, "La longeur brute a été mis à jour");
         BorneUniverselle::prepareMessage(WARNING, "Il est nécéssaire d'aller a la position park");
         parameters.overAllLenght = overAllLenght->getValue();
         saveMachineParameters();
         parkPosition = parameters.reference - convToPUU(overAllLenght->getValue() + parkOffset->getValue());
-        Serial.printf("Nouvelle position de park: %lu pulses, soit %.2f inch\r\n", (long unsigned int)parkPosition, convToInch(parkPosition));
+        Serial.printf("Nouvelle position de parque: %lu pulses, soit %.2f inch\r\n", (long unsigned int)parkPosition, convToInch(parkPosition));
         
     }
 
@@ -642,7 +613,7 @@ void Formaca::cycleSpeedChange(){
 }
 
 void Formaca::initialStateLoadedHandler(){
-    Serial.println("NEW CLIENT CONNECTED AND LOADED!!!!!!!!!!!!!!!!!!!!!!");
+    Serial.println("NEW CLIENT LOADED!!!!!!!!!!!!!!!!!!!!!!");
     JsonDocument docToSend;
     JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
     for (uint8_t id = 0; id < parameters.nbRecettes; id++){
@@ -688,7 +659,6 @@ bool Formaca::setNewRecette(char *recette){
         }
     }
 
-
     Serial.printf("Nouveau choix de recette: %s, id: %d\r\n", recette, idRecette);
     widthLength->setValue(parameters.recettes[idRecette].width);
     longLength->setValue(parameters.recettes[idRecette].longlength); // longeur final des morceaux
@@ -711,12 +681,13 @@ void Formaca::displayAlarmsAndStatus(){
     }
 
     if (status->getIsChanged()){
+        PLC_Tools::printBits(status->getValue()); // Imprime tous les bits
         servoReady          ->setValue(status->getValue() &   0b0000000000000001);
         Serial.printf("Servo ready: %s\r\n", status->getValue() &   0b0000000000000001 ? "true" : "false");
         servoActivated      ->setValue(status->getValue() &   0b0000000000000010);
         zeroSpeed           ->setValue(status->getValue() &   0b0000000000000100);
         targetSpeedRated    ->setValue(status->getValue() &   0b0000000000001000);
-        targetPositionReached ->setValue(status->getValue() &  0b0000000000010000);
+        targetPositionReached ->setValue(status->getValue() & 0b0000000000010000);
         Serial.printf("Target position reached: %s\r\n", status->getValue() &  0b0000000000010000 ? "true" : "false");
         //torqueLimitActivated->setValue(status->getValue() &  0b0000000000100000);
         servoAlarm          ->setValue(status->getValue() & 0b0000000001000000);
@@ -730,9 +701,7 @@ void Formaca::displayAlarmsAndStatus(){
         puuOverflow             ->setValue(absoluteCoordonateSystemStatus->getValue() & 0b0000000000001000);
         absoluteCoordonateNotSet ->setValue(absoluteCoordonateSystemStatus->getValue() & 0b000000000010000);
     }
-
     // Affiche les etats du drive
-    
 
     // Envoie un message au changement d'etats
     if (alarms->getIsChanged()){
@@ -825,7 +794,6 @@ float Formaca::convToInch(uint32_t puu){
 }
 
 bool Formaca::saveMachineParameters(){
-    File file = LittleFS.open(CONFIG_FILE_NAME, FILE_WRITE);
     JsonDocument doc;
     doc[MACHINE]            = MACHINE_RESP;
     doc[HOME]               = parameters.home;
@@ -845,22 +813,20 @@ bool Formaca::saveMachineParameters(){
         recette[WIDTH__LENGTH]  = parameters.recettes[id].width;
     }
 
-    serializeJson(doc, file);
-    file.close();
-    BorneUniverselle::prepareMessage(SUCCESS, "Paramètres de persistance sauvgardés");
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+  
+    if (!persistence.saveJsonToFile(FORMACA_FILE_NAME, doc)) {
+        BorneUniverselle::setPlcBroken(persistence.getLastError());
+        return false;
+    }
     return true;
-}
+} // saveMachineParameters
 
 void Formaca::printPersistance(){
-    File file = LittleFS.open(CONFIG_FILE_NAME, FILE_READ);
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-    if (error) {
-        char buff[1000];
-        sprintf(buff, "%lu:: Formaca.json: deserializeJson() failed: ", millis());
-        strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-        Serial.println(buff);
+    if (!persistence.readJsonFromFile(FORMACA_FILE_NAME, doc)) {
+        BorneUniverselle::setPlcBroken(persistence.getLastError());
         return;
     }
 
@@ -885,8 +851,21 @@ void Formaca::goToPosition(uint32_t pos){
         default: BorneUniverselle::setPlcBroken("currentPr not consistant");
     }
 
-   // Il faut delayer le trigger je pense
+   // Il faut retarder le trigger je pense. Il faut laisser le temps au plc d'envoyer les données au drive avant de démarrer le mouvement.
    triggerPending = true;
    startMovment = millis();
 }
+
+/*
+JsonDocument Formaca::getDropDownDescriptorHandler(){
+    Serial.printlm(" Formaca::getDropDownDescriptorHandler");
+    JsonDocument docToSend;
+    JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
+    for (uint8_t id = 0; id < parameters.nbRecettes; id++){
+        JsonObject recette = recettes.add<JsonObject>();
+        recette[NAME] = parameters.recettes[id].name;
+    }
+    return docToSend;
+}
+*/
 

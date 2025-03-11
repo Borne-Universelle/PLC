@@ -1,9 +1,9 @@
 #ifndef BORNE_UNIVERSELLE_LIB_H
 #define BORNE_UNIVERSELLE_LIB_H
 
+
 #include <ESPAsyncWebServer.h>
 
-#define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "ArduinoJson.h"
 
 #include "MyToolBox.h"
@@ -18,6 +18,7 @@
 #include "PLC_Tools.h"
 #include "MemoryMonitor.h"  // pour du debug
 #include "MutexGuard.h"
+#include "PLC_Persistence.h"
 
 const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
@@ -267,7 +268,7 @@ class BorneUniverselle{
         bool parseHardwares(JsonDocument doc, bool check, float version);
         static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
         static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
-        void saveParameters(JsonDocument configDoc);
+        bool saveParameters(JsonDocument configDoc);
         bool handleGetValue(uint32_t hash);
         bool handleGetAllValues();
         bool addNodeToNodeObject(Node *node, JsonObject *nodeObject);
