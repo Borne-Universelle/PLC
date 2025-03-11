@@ -61,7 +61,7 @@
 #define JOG_SPEED_READ                  4031699079
 #define AUX_FUNCTION                    2308213873
 #define TRIGGER                         748480285
-#define JOG_SPEED                       3187488644
+#define JOG_SPEED                       4031699079
 #define POSITION                        4045003206
 #define MAX_TORQUE                      3740987040
 #define TARGET_A_READ                   2843041799
@@ -78,7 +78,7 @@
 #define DO_HOME                         2206102162
 
 #define IMMEDIATE_STOP                  3505331062
-//#define ALARM_RESET                     2122812135        // relais de reset des alarms
+#define ALARM_RESET                     2122812135        // relais de reset des alarms
 #define FLIP_FLOP_SCIE                  756474627
 #define NB_CYCLES_CLEAR                 362298148
 //#define USABLE_LENGTH           396324830 // ?
@@ -90,12 +90,12 @@
 #define WIDTH_LENGTH                    1041711882
 #define LENGTH                          2736300668
 #define V_START                         824782083
-#define CANCEL_CYCLE            2539529911 
+#define CANCEL_CYCLE            824782083 
 
 // Software defines
 #define NOMINAL_TORQUE         100
 #define JOG_TORQUE              10
-#define CONFIG_FILE_NAME        "/Formaca.json"
+#define FORMACA_FILE_NAME        "/Formaca.json"
 #define SPEEDS_ARRAY_SIZE       15
 
 // drive define (like Ressort Royal)
@@ -124,12 +124,6 @@
 #define MM_PER_TURN             80.425  // mm / tours Données de Yannick
 #define INCH_PER_TURN           (MM_PER_TURN * 0.0393701)
 #define PULSES_PER_INCH         (INCH_PER_TURN * PULSES_PER_TURN)
-
-// kincony virtuals outputs defines
-#define V_SERVO_ON              1581937258  
-#define V_FLIP_FLOP_SCIE       1291836804   
-#define V_IMMEDIATE_STOP       4098079457 
-#define V_ALARMS_RESET         1771340376  
 
 
 struct RECETTE{
@@ -169,20 +163,20 @@ struct PERSISTANT_PARAMETERS{
 class Formaca {
 public:
     Formaca();
-    ~Formaca(); // Déclaration du destructeur
     bool logiqueExecutor();
     static void printPersistance();
 
     static void InterruptHandling();
     // Déclaration de la méthode non statique
     void initialStateLoadedHandler();
+    // JsonDocument getDropDownDescriptorHandler(); // C'est le handler qui sera appelé lorsque le dropdown du js enverra un get value: on va en profiter pour répondre avec le descripteuré
 
 private: 
     void displayAlarmsAndStatus();
     void driveInitialisation();
     void saveDriveParameters();
     void setCycleSpeed(uint8_t cycleSpeed);
-    bool setNewRecette(const char *recette);
+    bool setNewRecette(char *recette);
     uint32_t convToPUU(float); // converti des pouces en PUU
     float convToInch(uint32_t);
     void cycleSpeedChange(); 
@@ -204,7 +198,7 @@ private:
     // BooleanOutputNode elements
     BooleanOutputNode *buzzer, *servoOn, *alarmsReset, *fwd, *rwd, *jog, *jogFullTorque, *goToPark, *gotoRef, *calibrate, *servoReady, *servoActivated, *zeroSpeed, *targetSpeedRated, *targetPositionReached, *servoAlarm,
                       *absolutPositionLost, *batteryAlarm, *multipleTurnsOverflow, *puuOverflow, *absoluteCoordonateNotSet, *homeDone, *modbusError, *driveInitialised, *freeRun, *scier, *flipFlopScie,
-                      *absolutePositionLost, *doHome, *ejectButton, *goHomeButton, *v_servoOn, *v_flipFlopScie, *v_immediateStop, *v_alarmsReset;
+                      *absolutePositionLost, *doHome, *ejectButton, *goHomeButton;
 
     PF8574BooleanOutputNode *immediateStop;
 
