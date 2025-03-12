@@ -103,7 +103,9 @@ RessortRoyal::RessortRoyal(){
     pr2Speed                = new VirtualUint32OutputNode("pr2Speed", "debug",  &dummyHash, 0); 
 #endif
 
-    visu = new VisualIndicator(nbCyclesMade);
+    if (!BorneUniverselle::isPlcBroken()){
+        visu = new VisualIndicator(nbCyclesMade);
+    }
 
    Serial.println("Fin du constructeur de la class RessortRoyal"); 
 }
