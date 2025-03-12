@@ -2,7 +2,6 @@
 
 RessortRoyal::RessortRoyal(){
     Serial.println(CONSTR_RESSORT_ROYAL);
-
     // on récupère des pointeurs sur les nodes intéressants depuis le container
     
     //physical inputs nodes
@@ -118,7 +117,7 @@ bool RessortRoyal::logiqueExecutor(){
         PF8574BooleanInputNode::clearInterruptFlag();
     }
 
-    if ((eStopA->getValue() || eStopB->getValue()) && !immediateStop->getValue()){
+    if ((!eStopA->getValue() || !eStopB->getValue()) && !immediateStop->getValue()){
         immediateStop->setValue(true);
         BorneUniverselle::prepareMessage(WARNING, "E stop A or E stop B !!!");
     }
@@ -147,8 +146,8 @@ bool RessortRoyal::logiqueExecutor(){
     }
 #endif
 
-    if (alarmsReset->getValue() == true){
-        Serial.printf("%lu:: Alarm reset\r\n", millis());
+    if (alarmsReset->getValue() == true && alarmsReset->getIsChanged()){
+        Serial.printf("%lu:: Alarm reset depuis l'interface\r\n", millis());
         goTarget = false;
         goBack = false;
         goHome = false;
@@ -162,7 +161,7 @@ bool RessortRoyal::logiqueExecutor(){
         if (startCycle->getIsChanged() && startCycle->getValue() && firstStart){
             // First time start cycle do a home process....
             triggerPR->setValue(true); // PR 0 = home
-            //trigger->setValue(0);
+            // trigger->setValue(0); // 7 décembre 2024
             Serial.printf("%lu::Go to first home\r\n", millis());
             goHome = true;
             goTarget = goBack = false;
@@ -337,7 +336,8 @@ bool RessortRoyal::logiqueExecutor(){
 
 void RessortRoyal::displayAlarmsAndStatus(){
     // Affiche l'erreur modbus
-    if (MyModbus::getLastEvent() == Modbus::EX_SUCCESS){
+    MyModbus& myModbus = MyModbus::getInstance(); // singleton 
+    if (myModbus.getLastEvent() == Modbus::EX_SUCCESS){
         modbusError->setValue(false);
     }  else {
         modbusError->setValue(true);
