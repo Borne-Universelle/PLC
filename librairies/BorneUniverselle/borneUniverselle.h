@@ -1,25 +1,22 @@
 #ifndef BORNE_UNIVERSELLE_LIB_H
 #define BORNE_UNIVERSELLE_LIB_H
 
-#include <ESPAsyncWebServer.h>
-
 #define ARDUINOJSON_ENABLE_COMMENTS 1
-#include "ArduinoJson.h"
 
+#include <ESPAsyncWebServer.h>
+#include "ArduinoJson.h"
 #include "MyToolBox.h"
 #include "wifimanagment.h"
 #include <map>	
-#include <LittleFS.h>
 #include "Node.h"
 #include <Wire.h>
 #include <iostream>
 #include "PLC_CommonTypes.h"
 #include "PLC_InterfaceMenu.h"
 #include "PLC_Tools.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "MemoryMonitor.h"  // pour du debug
 #include "MutexGuard.h"
+#include "PLC_Persistence.h"
 
 const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
@@ -269,7 +266,7 @@ class BorneUniverselle{
         bool parseHardwares(JsonDocument doc, bool check, float version);
         static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
         static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
-        void saveParameters(JsonDocument configDoc);
+        bool saveParameters(JsonDocument configDoc);
         bool handleGetValue(uint32_t hash);
         bool handleGetAllValues();
         bool addNodeToNodeObject(Node *node, JsonObject *nodeObject);
@@ -300,5 +297,9 @@ class BorneUniverselle{
         String messageBuffer; // buffer pour la réception de message du web socket en plusieurs morceaux
         size_t expectedSize = 0;
         void keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client);
+
+
+    private:
+        void addCustomDescriptor(Node *Node, JsonObject *nodeObject);
 };
 #endif

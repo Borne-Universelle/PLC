@@ -1,11 +1,12 @@
 #ifndef NODE_H
 #define NODE_H
 
+#define ARDUINOJSON_ENABLE_COMMENTS 1
+
 #include "Arduino.h"
 #include <esp32/rom/crc.h>
 #include <PCF8574.h>
 #include "MyModbus.h"
-#define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "ArduinoJson.h"
 
 #define NAME_LENGHT                 80
@@ -87,7 +88,14 @@ class Node{
             return isShowMessage;
         }
         void showMessage(const char *text);
-        void setMode(char * text);   
+        void setMode(char * text); 
+
+         // Add callback type definition and setter
+        typedef std::function<JsonDocument()> DescriptorCallback;
+        void setDescriptorCallback(DescriptorCallback callback) {
+             descriptorCallback = callback;
+        }
+        DescriptorCallback descriptorCallback = nullptr;  
 
     protected:
         virtual bool specificRefresh() = 0;
@@ -118,10 +126,8 @@ class InputNode: public Node{
         void setRefreshInterval(uint16_t interval);
         uint32_t getRefreshInterval();
 
-    protected:
-       
-        uint32_t refreshInterval = 0;
-        
+    protected:   
+        uint32_t refreshInterval = 0;    
 };
 
 class OutputNode: public Node{
@@ -617,28 +623,38 @@ class VirtualFloatOutputNode: public FloatOutputNode{
         };
 };
 
-class VirtualTextInputNode: public TextInputNode{
-    public:
-        VirtualTextInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
-        virtual int classType() {return CLASS_VIRTUAL_TEXT_INPUT_NODE; }
-        void setValue(const char *text);      
+    class VirtualTextInputNode: public TextInputNode{
+        public:
+            VirtualTextInputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
+            virtual int classType() {return CLASS_VIRTUAL_TEXT_INPUT_NODE; }
+            void setValue(const char *text);
 
-    private:
-        char * getNewValue(){
-            return hideValue;
-        } 
-};
+            // Add callback type definition and setter
+            //typedef std::function<JsonDocument(const char*)> DescriptorCallback;
+            //void setDescriptorCallback(DescriptorCallback callback) {
+            //    descriptorCallback = callback;
+            //}
+
+        private:
+            char * getNewValue(){
+                return hideValue;
+            } 
+
+        // Add callback member
+        //DescriptorCallback descriptorCallback = nullptr;
+    };
 
 class VirtualTextOutputNode: public TextOutputNode{
      public:
         VirtualTextOutputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval);
         virtual int classType() {return CLASS_VIRTUAL_TEXT_OUTPUT_NODE; }
-
+        
     private:
         bool setNewValue(char * value){
             strcpy(hideValue, value);
             return true;
         };
+        
 };
         
 #endif

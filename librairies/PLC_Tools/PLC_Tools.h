@@ -1,10 +1,11 @@
 #pragma once
-
+#define ARDUINOJSON_ENABLE_COMMENTS 1
 #include <vector>
 #include <Arduino.h>
 #include <LittleFS.h>
 #include "ArduinoJson.h"
 #include "esp_system.h"
+#include "PLC_Persistence.h"
 
 // Json key
 #define REASON  "reason"
@@ -45,14 +46,21 @@ private:
         else if (value.is<bool>()) {
             Serial.println(value.as<bool>() ? "true" : "false");
         }
-        else if (value.is<int>()) {
-            Serial.println(value.as<int>());
+        else if (value.is<double>()) {
+            // Vérifier si c'est un entier de grande taille
+            double dValue = value.as<double>();
+            if (dValue == floor(dValue) && dValue <= UINT32_MAX && dValue >= 0) {
+                // C'est probablement un entier non signé
+                Serial.println((uint32_t)dValue);
+            } else {
+                Serial.println(dValue);
+            }
         }
         else if (value.is<float>()) {
             Serial.println(value.as<float>());
         }
-        else if (value.is<double>()) {
-            Serial.println(value.as<double>());
+        else if (value.is<int>()) {
+            Serial.println(value.as<int>());
         }
         else if (value.isNull()) {
             Serial.println("null");
@@ -63,10 +71,11 @@ private:
     }
 
 public:
-    static void logReboot();
+    static bool logReboot();
     static String getRebootLog();
     static bool clearRebootLog();
     static void setLastErrorMessage(const char* message);
+    static void printBits(uint16_t value);
 
     // File management
     static std::vector<String> getFilteredFiles(const char* path, const char* pattern);

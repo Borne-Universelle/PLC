@@ -1,101 +1,31 @@
 #include "PLC_Tools.h"
 const char* PLC_Tools::REBOOT_LOG_FILE = "/reboot_log.json";
 
-JsonDocument PLC_Tools::getFilteredFilesAsJson(const char* path, const char* pattern) {
+bool PLC_Tools::logReboot() {
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    
     JsonDocument doc;
+    bool fileExists = true;
     
-    // Obtenir la liste des fichiers
-    std::vector<String> files = getFilteredFiles(path, pattern);
-    
-    // Créer le tableau JSON
-    JsonArray directoryArray = doc["Directory"].to<JsonArray>();
-    
-    // Ajouter chaque fichier au tableau JSON
-    for(const String& fileName : files) {
-        directoryArray.add(fileName);
-    }
-    
-    return doc;
-}
-
-std::vector<String> PLC_Tools::getFilteredFiles(const char* path, const char* pattern) {
-    std::vector<String> result;
-    
-    if (!LittleFS.begin()) {
-        Serial.println(F("Failed to mount filesystem"));
-        return result;
-    }
-    
-    File root = LittleFS.open(path);
-    if (!root) {
-        Serial.printf("Failed to open directory: %s\n", path);
-        LittleFS.end();
-        return result;
-    }
-
-    if (!root.isDirectory()) {
-        Serial.printf("Not a directory: %s\n", path);
-        root.close();
-        LittleFS.end();
-        return result;
-    }
-
-    // Vérifier si on veut tous les fichiers
-    bool getAllFiles = (strcmp(pattern, "*") == 0) || (strcmp(pattern, "*.*") == 0);
-    
-    String patternStr = String(pattern);
-    if (patternStr.startsWith("*")) {
-        patternStr = patternStr.substring(1);
-    }
-
-    File file = root.openNextFile();
-    while (file) {
-        if (!file.isDirectory()) {
-            String fileName = String(file.name());
-            if (getAllFiles || fileName.endsWith(patternStr)) {
-                result.push_back(fileName);
-            }
-        }
-        file.close();
-        file = root.openNextFile();
-    }
-
-    root.close();
-    LittleFS.end();
-    return result;
-}
-
-void PLC_Tools::logReboot() {
-    if (!LittleFS.begin()) {
-        Serial.println(F("Failed to mount filesystem for reboot log"));
-        return;
-    }
-
-    JsonDocument doc;
-    
-    File file = LittleFS.open(REBOOT_LOG_FILE, "r");
-    if (file) {
-        DeserializationError error = deserializeJson(doc, file);
-        if (error) {
-            Serial.println(F("Failed to parse reboot log"));
-            doc.clear();
-            doc.to<JsonArray>();
-        }
-        file.close();
-    } else {
+    // Tenter de lire le fichier directement - une seule opération de lecture
+    if (!persistence.readJsonFromFile(REBOOT_LOG_FILE, doc)) {
+        // Si la lecture échoue, cela peut être parce que le fichier n'existe pas
+        // ou pour d'autres raisons
+        Serial.println(F("Could not read reboot log, creating new one"));
+        doc.clear();
         doc.to<JsonArray>();
+        fileExists = false;
     }
 
     JsonArray array = doc.as<JsonArray>();
     esp_reset_reason_t resetReason = esp_reset_reason();
     
-    // On ignore les redémarrages normaux (power-on et reset externe)
-    if (resetReason == ESP_RST_POWERON || resetReason == ESP_RST_EXT) {
-        file.close();
-        LittleFS.end();
-        return;
+    // On ignore les redémarrages normaux (power-on et reset externe) mais seulement
+    // si le fichier existe déjà
+    if ((resetReason == ESP_RST_POWERON || resetReason == ESP_RST_EXT) && fileExists) {
+        return true;
     }
-
+    
     // Si le tableau dépasse la taille maximale, on supprime les entrées les plus anciennes
     while (array.size() >= MAX_LOG_ENTRIES) {
         // Supprime le premier élément (le plus ancien)
@@ -109,35 +39,24 @@ void PLC_Tools::logReboot() {
     JsonObject entry = array.add<JsonObject>();
     entry["reason"] = getResetReason(resetReason);
         
-    file = LittleFS.open(REBOOT_LOG_FILE, "w");
-    if (!file) {
-        Serial.println(F("Failed to open reboot log for writing"));
-        LittleFS.end();
-        return;
+    if (persistence.saveJsonToFile(REBOOT_LOG_FILE, doc)) {
+        return true;
+    } else {
+        Serial.println(F("Failed to save reboot log"));
+        return false;
     }
-    
-    serializeJson(doc, file);
-    file.close();
-    LittleFS.end();
 }// logReboot
 
 String PLC_Tools::getRebootLog() {
-    if (!LittleFS.begin()) {
-        return "{}";
-    }
-
-    File file = LittleFS.open(REBOOT_LOG_FILE, "r");
-    if (!file) {
-        LittleFS.end();
+    Serial.printf("%lu::getRebootLog\r\n", millis());
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    
+    if (!persistence.fileExists(REBOOT_LOG_FILE)) {
         return "{}";
     }
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-    LittleFS.end();
-
-    if (error) {
+    if (!persistence.readJsonFromFile(REBOOT_LOG_FILE, doc)) {
         return "{}";
     }
 
@@ -147,13 +66,8 @@ String PLC_Tools::getRebootLog() {
 }
 
 bool PLC_Tools::clearRebootLog() {
-    if (!LittleFS.begin()) {
-        return false;
-    }
-    
-    bool success = LittleFS.remove(REBOOT_LOG_FILE);
-    LittleFS.end();
-    return success;
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    return persistence.deleteFile(REBOOT_LOG_FILE);
 }
 
 String PLC_Tools::getResetReason(esp_reset_reason_t reason) {
@@ -172,3 +86,21 @@ String PLC_Tools::getResetReason(esp_reset_reason_t reason) {
         default:                 return "Unknown reason";
     }
 }
+
+void PLC_Tools::printBits(uint16_t nombre) {
+    printf("Bits de %u (0x%04X): ", nombre, nombre);
+    
+    // Parcourir chaque bit, du plus significatif au moins significatif
+    for (int i = 15; i >= 0; i--) {
+        // Extraire le bit à la position i
+        uint16_t bit = (nombre >> i) & 1;
+        printf("%u", bit);
+        
+        // Ajouter un espace tous les 4 bits pour améliorer la lisibilité
+        if (i % 4 == 0 && i > 0) {
+            printf(" ");
+        }
+    }
+    printf("\n");
+}
+    

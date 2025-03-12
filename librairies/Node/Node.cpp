@@ -114,11 +114,11 @@ bool Node::refresh(){
     if (specificRefresh()){
         setLastRefresh(millis());
         if (millis() - startTime > 100) {
-            Serial.printf("%lu:: Node:: Refresh, warning: Long refresh time (%lu ms) for node %s\n", millis(), millis() - startTime, name);
+            Serial.printf("%lu:: Node:: Refresh, warning: Long refresh time (%lu ms) for node %s\r\n", millis(), millis() - startTime, name);
         }
         return true;
     }
-        return false;
+    return false;
 }
 
 void Node::setLastRefresh(uint32_t lastUpdate){
@@ -284,7 +284,7 @@ bool BooleanOutputNode::getValue(){
 void BooleanOutputNode::setValue(bool _value){
     //Serial.printf("BooleanOutputNode::setValue: %s\r\n", getName());
     if (_value != hideValue){
-        //Serial.printf("Will set updateNeeded to true for node %s, new value: %s\r\n", getName(), _value ? "true" : "false");
+        Serial.printf("Will set updateNeeded to true for node %s, new value: %s\r\n", getName(), _value ? "true" : "false");
         updateNeeded = true;
         hideValue = _value;
        // Serial.printf("Node %s updated\r\n", getName());
@@ -385,7 +385,6 @@ uint16_t Uint16OutputNode::getValue(){
 }
 
 void Uint16OutputNode::setValue(uint16_t _value){
-    Serial.printf("Uint16OutputNode:: setValue for node: %s: %u\r\n", getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
