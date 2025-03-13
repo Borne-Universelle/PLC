@@ -57,11 +57,7 @@
       ]
     },
     {
-<<<<<<< HEAD
-      "name": "Inputs_bool",
-=======
       "name": "Inputs Kincony",
->>>>>>> 70c1b5056a0f7de57a46a316d1557020a826b5ad
       "hardware": "Kincony_KC868_A8S",
       "component": "hw-section",
       "type": "PF8574_rx-bool",
@@ -70,31 +66,19 @@
           "id": 1,
           "name": "EStopA",
           "component": "no-show",
-<<<<<<< HEAD
-          "hash": 645363011
-=======
           "hash": 721063196
->>>>>>> 70c1b5056a0f7de57a46a316d1557020a826b5ad
         },
         {
           "id": 2,
           "name": "EStopB",
           "component": "no-show",
-<<<<<<< HEAD
-          "hash": 396324830
-=======
           "hash": 998762341
->>>>>>> 70c1b5056a0f7de57a46a316d1557020a826b5ad
         },
         {
           "id": 6,
           "name": "StartCycle",
           "component": "rx-indicator",
-<<<<<<< HEAD
-          "hash": 3822078925
-=======
           "hash": 2986050054
->>>>>>> 70c1b5056a0f7de57a46a316d1557020a826b5ad
         }
       ]
     },
