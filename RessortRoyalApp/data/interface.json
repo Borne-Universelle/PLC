@@ -1,0 +1,210 @@
+{
+    "pages": [
+        {
+            "PageName": "Page principale",
+            "sections": [
+                {
+                    "SectionName": "Opération",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                          {
+                            "name": "servoReady",
+                            "component": "rx-indicator",
+                            "hash": 1578545169
+                          },
+                          {
+                            "name": "position",
+                            "component": "rx-numeric",
+                            "hash": 4045003206,
+                            "refreshInterval": 1000
+                          },
+                          {
+                            "name": "user target",
+                            "component": "tx-numeric",
+                            "hash": 645363011
+                          },
+                          {
+                            "name": "return Pos",
+                            "component": "tx-numeric",
+                            "hash": 396324830
+                          },
+                          {
+                            "name": "number of cycles to do",
+                            "component": "tx-numeric",
+                            "hash": 3526906192
+                          },
+                          {
+                            "name": "number of cycles made",
+                            "hash": 3822078925,
+                            "component": "rx-level-bar",
+                            "isLabelAlarmWarningOn": false,
+                            "orientation": "horizontal",
+                            "barLength": "100px",
+                            "max": 100,
+                            "min": 0
+                          },
+                          {
+                            "name": "nb cycles clear",
+                            "component": "tx-button-hold",
+                            "hash": 1168588921
+                          }
+                    ]
+                },
+                {
+                    "SectionName": "Jog",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "jog",
+                            "component": "tx-bool",
+                            "hash": 627952477
+                          },
+                          {
+                            "name": "fwd",
+                            "component": "tx-button-hold",
+                            "color": "neutral",
+                            "hash": 936928435
+                          },
+                          {
+                            "name": "rwd",
+                            "component": "tx-button-hold",
+                            "color": "neutral",
+                            "hash": 2405696470
+                          }
+                    ]
+                }
+            ]
+        },
+        {
+            "PageName": "Options,reset,statut",
+            "sections": [
+                {
+                    "SectionName": "Options",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "go and back mode",
+                            "component": "tx-bool",
+                            "hash": 3029257395
+                          },
+                          {
+                            "name": "free run mode",
+                            "component": "tx-bool",
+                            "hash": 2015677485
+                          }
+                          
+                    ]
+                },
+                {
+                    "SectionName": "Reset",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "alarmsReset",
+                            "component": "tx-button-hold",
+                            "hash": 4138453966
+                          },
+                          {
+                            "name": "immediatStop",
+                            "component": "tx-bool",
+                            "hash": 973196112
+                          }
+                    ]
+                },
+                {
+                    "SectionName": "Statut",
+                    "orientation": "horizontal",
+                    "NodesList": [
+                        {
+                            "name": "servoReady",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 1578545169
+                          },
+                          {
+                            "name": "Start Cycle input",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 2986050054
+                        },
+                        {
+                            "name": "homeDone",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 3171404866
+                          },
+                          {
+                            "name": "modbusError",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 460376054
+                          },
+                          {
+                            "name": "servoActivated",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 1878960780
+                          },
+                          {
+                            "name": "zeroSpeed",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 3381240120
+                          },
+                          {
+                            "name": "targetSpeedRated",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 204382134
+                          },
+                          {
+                            "name": "AtTarget",
+                            "component": "rx-indicator",
+                            "color": "green",
+                            "hash": 2857997314
+                          },
+                          {
+                            "name": "servoAlarm",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 1036420395
+                          },
+                          {
+                            "name": "absolutPositionLost",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 1845100150
+                          },
+                          {
+                            "name": "batteryAlarm",
+                            "component": "rx-indicator",
+                            "color": "red",
+                            "hash": 1229514833
+                          }
+                    ]
+                }
+            ]
+        },
+        {
+            "PageName": "Ajustement vitesses",
+            "sections": [
+                {
+                    "SectionName": "Vitesses",
+                    "orientation": "vertical",
+                    "NodesList": [
+                        {
+                            "name": "vjog speed",
+                            "component": "tx-numeric",
+                            "hash": 2984797290
+                          },
+                          {
+                            "name": "vcycle speed",
+                            "component": "tx-numeric",
+                            "hash": 1951357668
+                          }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "ressort_royal",
-  "type": "Project",
+  "type": 2,
   "component": "hw-module",
   "config": [
     {
