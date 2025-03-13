@@ -6,6 +6,12 @@
     {
       "Wifi": [
         {
+          "ssid": "PosadaLaHacienda",
+          "pwd": "Chispas2020",
+          "name": "Mexique",
+          "dhcp": true
+        },
+        {
           "name": "ressort_royal_3",
           "ssid": "ressort_royal_3",
           "pwd": "Hugo_333",
@@ -40,12 +46,12 @@
           "id": 1,
           "name": "Buzzer",
           "component": "tx-bool",
-          "hash": 291612745
+          "hash": 1711197005
         }
       ]
     },
     {
-      "name": "Inputs",
+      "name": "Inputs_bool",
       "hardware": "Kincony_KC868_A8S",
       "component": "hw-section",
       "type": "PF8574_rx-bool",
@@ -53,20 +59,20 @@
         {
           "id": 1,
           "name": "EStopA",
-         "component": "no-show",
-          "hash": 3037871547
+          "component": "no-show",
+          "hash": 645363011
         },
         {
           "id": 2,
           "name": "EStopB",
           "component": "no-show",
-          "hash": 2230986534
+          "hash": 396324830
         },
         {
           "id": 6,
           "name": "StartCycle",
           "component": "rx-indicator",
-          "hash": 2799774631
+          "hash": 3822078925
         }
       ]
     },
@@ -80,37 +86,37 @@
           "id": 1,
           "name": "servoOn",
           "component": "tx-bool",
-          "hash": 814574035
+          "hash": 1927398708
         },
         {
           "id": 2,
           "name": "triggerPR",
           "component": "tx-button-hold",
-          "hash": 2889704882
+          "hash": 4235117271
         },
         {
           "id": 4,
           "name": "immediatStop",
           "component": "tx-bool",
-          "hash": 685018269
+          "hash": 973196112
         },
         {
           "id": 5,
           "name": "alarmsReset",
           "component": "tx-button-hold",
-          "hash": 6472957
+          "hash": 4138453966
         },
         {
           "id": 6,
           "name": "free run",
           "component": "tx-bool",
-          "hash": 1256861844
+          "hash": 2015677485
         },
         {
           "id": 7,
           "name": "go and back",
           "component": "tx-bool",
-          "hash": 688403912
+          "hash": 3029257395
         }
       ]
     },
@@ -124,25 +130,25 @@
           "id": 1,
           "name": "jog",
           "component": "tx-bool",
-          "hash": 3917490492
+          "hash": 627952477
         },
         {
           "id": 2,
           "name": "fwd",
           "component": "tx-button-hold",
-          "hash": 3697777386
+          "hash": 936928435
         },
         {
           "id": 3,
           "name": "rwd",
           "component": "tx-button-hold",
-          "hash": 1143003751
+          "hash": 2405696470
         },
         {
           "id": 4,
           "name": "Full torque",
           "component": "tx-bool",
-          "hash": 2578051090
+          "hash": 313736047
         }
       ]
     },
@@ -156,85 +162,85 @@
           "id": 1,
           "name": "servoReady",
           "component": "rx-indicator",
-          "hash": 2621527064
+          "hash": 1578545169
         },
         {
           "id": 2,
           "name": "servoActivated",
           "component": "rx-indicator",
-          "hash": 1631903391
+          "hash": 1878960780
         },
         {
           "id": 3,
           "name": "zeroSpeed",
           "component": "no-show",
-          "hash": 367886937
+          "hash": 3381240120
         },
         {
           "id": 4,
           "name": "targetSpeedRated",
           "component": "no-show",
-          "hash": 2641471820
+          "hash": 204382134
         },
         {
           "id": 5,
           "name": "AtTarget",
           "component": "no-show",
-          "hash": 1587245951
+          "hash": 2857997314
         },
         {
           "id": 7,
           "name": "servoAlarm",
           "component": "rx-indicator",
-          "hash": 2114280809
+          "hash": 1036420395
         },
         {
           "id": 9,
           "name": "absolutPositionLost",
           "component": "no-show",
-          "hash": 3102308124
+          "hash": 1845100150
         },
         {
           "id": 10,
           "name": "batteryAlarm",
           "component": "no-show",
-          "hash": 3279613467
+          "hash": 1229514833
         },
         {
           "id": 11,
           "name": "multipleTurnsOverflow",
           "component": "no-show",
-          "hash": 1686859766
+          "hash": 4013941733
         },
         {
           "id": 12,
           "name": "puuOverflow",
           "component": "no-show",
-          "hash": 2918759982
+          "hash": 3738696056
         },
         {
           "id": 13,
           "name": "absoluteCoordonateNotSet",
           "component": "no-show",
-          "hash": 3208586081
+          "hash": 2023813836
         },
         {
           "id": 14,
           "name": "homeDone",
           "component": "rx-indicator",
-          "hash": 365447618
+          "hash": 3171404866
         },
         {
           "id": 15,
           "name": "modbusError",
           "component_comment": "rx-indicator",
-          "hash": 2051383628
+          "hash": 460376054
         },
         {
           "id": 16,
           "name": "driveInitialised",
           "component": "rx-indicator",
-          "hash": 124264916
+          "hash": 714661227
         }
       ]
     },
@@ -248,36 +254,36 @@
           "id": 1,
           "name": "user target",
           "component": "tx-numeric",
-          "hash": 789972827
+          "hash": 645363011
         },
         {
           "id": 2,
           "name": "return Pos",
           "component": "tx-numeric",
-          "hash": 121915655
+          "hash": 396324830
         },
         {
           "id": 3,
           "name": "vjog speed",
           "component": "tx-numeric",
-          "hash": 553984527
+          "hash": 2984797290
         },
         {
           "id": 4,
           "name": "vcycle speed",
           "component": "tx-numeric",
-          "hash": 2842387093
+          "hash": 1951357668
         },
         {
           "id": 5,
           "name": "number of cycles to do",
           "component": "tx-numeric",
-          "hash": 1571975517 
+          "hash": 3526906192
         },
         {
           "id": 6,
           "name": "number of cycles made",
-          "hash": 1589627430,
+          "hash": 3822078925,
           "component": "rx-level-bar",
           "isLabelAlarmWarningOn": false,
           "orientation": "horizontal",
@@ -289,7 +295,7 @@
           "id": 7,
           "name": "nb cycles clear",
           "component": "tx-button-hold",
-          "hash": 4235215967
+          "hash": 1168588921
         }
       ]
     },
@@ -304,35 +310,35 @@
           "id": 1,
           "name": "status",
           "component": "rx-numeric",
-          "hash": 377854433,
-          "refreshInterval":1000
+          "hash": 4137233651,
+          "refreshInterval": 1000
         },
         {
           "id": 2,
           "name": "absolute coordonate system status",
           "component": "no-show",
-          "hash": 3997433423,
-          "refreshInterval":0
+          "hash": 4098304980,
+          "refreshInterval": 0
         },
         {
           "id": 3,
           "name": "alarms",
           "component": "rx-numeric",
-          "hash": 4256228255
+          "hash": 4126332617
         },
         {
           "id": 4,
           "name": "trigger read",
           "component": "rx-numeric",
           "component_comment": "no-show",
-          "hash": 398410701
+          "hash": 4059768218
         },
         {
           "id": 5,
           "name": "jog speed read",
           "component_comment": "rx-numeric",
           "component": "no-show",
-          "hash": 3519725700
+          "hash": 4031699079
         }
       ]
     },
@@ -348,25 +354,25 @@
           "id": 1,
           "name": "aux_function",
           "component": "rx-numeric",
-          "hash": 2007447512
+          "hash": 2308213873
         },
         {
           "id": 2,
           "name": "trigger",
           "component": "tx-numeric",
-          "hash": 1429083291
+          "hash": 748480285
         },
         {
           "id": 4,
           "name": "jog speed",
           "component": "rx-numeric",
-          "hash": 2800637332
+          "hash": 3187488644
         },
         {
           "id": 5,
           "name": "maxTorque",
           "component": "rx-numeric",
-          "hash": 1466629405
+          "hash": 3740987040
         }
       ]
     },
@@ -381,14 +387,14 @@
           "id": 1,
           "name": "position",
           "component": "rx-numeric",
-          "hash": 2286761184,
+          "hash": 4045003206,
           "refreshInterval": 1000
         },
         {
           "id": 2,
           "name": "torque",
           "component": "rx-numeric",
-          "hash": 1932120116,
+          "hash": 1761329095,
           "refreshInterval": 1000
         },
         {
@@ -396,21 +402,21 @@
           "name": "targetGoRead",
           "component_comment": "rx-numeric",
           "component": "no-show",
-          "hash": 3815151997 
+          "hash": 2843041799
         },
         {
           "id": 4,
           "name": "targetBackRead",
           "component_comment": "rx-numeric",
           "component": "no-show",
-          "hash": 2567602691
+          "hash": 2152625540
         },
         {
           "id": 5,
           "name": "PR1 speed read",
           "component_comment": "rx-numeric",
           "component": "no-show",
-          "hash": 1944577862
+          "hash": 1103145540
         }
       ]
     },
@@ -426,25 +432,25 @@
           "id": 1,
           "name": "targetGo",
           "component": "rx-numeric",
-          "hash": 591585897 
+          "hash": 2532989225
         },
         {
           "id": 2,
           "name": "targetBack",
           "component": "rx-numeric",
-          "hash": 4013394785
+          "hash": 3432736329
         },
         {
           "id": 3,
           "name": "PR1 speed",
           "component": "rx-numeric",
-          "hash": 3831064525
+          "hash": 1282109782
         },
         {
           "id": 4,
           "name": "PR2 speed",
           "component": "rx-numeric",
-          "hash": 762150080
+          "hash": 2019104905
         }
       ]
     }
