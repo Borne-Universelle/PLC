@@ -1,6 +1,5 @@
 #include "BorneUniverselle.h"
 
-
 bool BorneUniverselle::otaPending;
 char  BorneUniverselle::ota_url[OTA_URL_SIZE];
 std::map<unsigned char, WifiItem> BorneUniverselle::wifiItemsMapBu;
@@ -29,33 +28,10 @@ SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
 // Initialisation de la callback à nullptr
 std::function<void()> BorneUniverselle::initialStateLoadedCallback = nullptr;
 
-
-// Definition of static member with custom destructor
-LinkedList<NOTIF_MESSAGE*> BorneUniverselle::notifMessagesList([](NOTIF_MESSAGE *m) {
-    //Serial.printf("Lambda destructor called for message: %p\n", (void*)m);
-    if (m) {
-        if (m->message) {
-            free(m->message);         // Libération de la mémoire allouée dynamiquement
-            m->message = nullptr;     // Éviter les pointeurs dangling
-        }
-        delete m;                     // Suppression de l'objet
-    }
-});
-
 std::map<uint32_t, Node *> BorneUniverselle::nodesMap;
+std::list<NotifMessagePtr> BorneUniverselle::notifMessagesList;
 
-BorneUniverselle::BorneUniverselle() : 
-    webSocketMessagesList(LinkedList<WEB_SOCKET_MESSAGE *>([](WEB_SOCKET_MESSAGE *c){ 
-        if (c) {
-            if (c->data) {
-                free(c->data);
-                c->data = nullptr;
-            }
-            delete c;
-        }
-    }))
-// : webSocketMessagesList(LinkedList<WEB_SOCKET_MESSAGE *>([](WEB_SOCKET_MESSAGE *c){ delete  c; }))
- {
+BorneUniverselle::BorneUniverselle(){
     Serial.println(BORNE_UNIVERSELLE_VERSION); 
     webSocketMutex = xSemaphoreCreateMutex();
 
@@ -72,7 +48,10 @@ BorneUniverselle::BorneUniverselle() :
 
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
 
-    PLC_Tools::logReboot();
+    if (!PLC_Tools::logReboot()){
+        setPlcBroken("Failed to log reboot");
+        return;
+    }
 
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
@@ -81,6 +60,10 @@ BorneUniverselle::BorneUniverselle() :
     Serial.println();
     Serial.println(F("BorneUniverselle constructor"));
    
+    if (!PLC_Tools::printDiagnosticFile()){
+        setPlcBroken("Failed to print diagnostic file");
+        return;
+    }
 
     if (psramInit()){
         Serial.println(F("PSRAM is available !!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
@@ -89,42 +72,24 @@ BorneUniverselle::BorneUniverselle() :
          Serial.println(F("PSRAM is not available !"));
     }
 
-    if (!LittleFS.begin()) {
-        Serial.println(F("Error: Failed to mount LittleFS file system"));
-        setPlcBroken("Failed to mount LittleFS");
-        return;
-    }
-
-    File file = LittleFS.open("/config.json", FILE_READ);
- 
-    if (!file){
-        Serial.println(F("Config file open error"));
-        return;
-    }
-
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    Serial.printf("PLC_Persistence initial busy state: %s\n", persistence.isBusy() ? "true" : "false");
+    
+    // Utiliser PLC_Persistence pour lire le fichier JSON
     JsonDocument configDoc;
-    DeserializationError error = deserializeJson(configDoc, file);
-    file.close();
-
-    char buff[256];
-
-    if (error) {
-        sprintf(buff, "%lu:: config file: deserializeJson() failed: ", millis());
-        strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-        setPlcBroken(buff);
+    if (!persistence.readJsonFromFile("/config.json", configDoc)) {
+        setPlcBroken(persistence.getLastError());
         return;
-        } else {// json error¸
-        
-           // if (configDoc.containsKey(CONFIG)){
-            if (configDoc[CONFIG].is<JsonArray>()){
-                if (!parseConfig(configDoc, false)){
-                    setPlcBroken("The config file is not good");
-                   return;
-                }
-            } else {
-                unableToFindKey((char *)"config.json file",(char *)TOSTRING(CONFIG) );
-            }
+    }
+
+    if (configDoc[CONFIG].is<JsonArray>()){
+        if (!parseConfig(configDoc, false)){
+            setPlcBroken("The config file doesn't contain the key config");
+            return;
         }
+    } else {
+        unableToFindKey((char *)"config.json file",(char *)TOSTRING(CONFIG) );
+    }
  
     nbTimeouts = 0;
 
@@ -134,14 +99,13 @@ BorneUniverselle::BorneUniverselle() :
         PLC_InterfaceMenu* menuInterface = new PLC_InterfaceMenu();
         Serial.println("Will parse the interface file");
         if (!menuInterface->parseFile(INTERFACE_PATH_FILE)){
+            char buff[128];
             sprintf(buff, "Unable to parse the interface file with the path: %s\r\n", INTERFACE_PATH_FILE);
             delete menuInterface;
             setPlcBroken(buff);
         } else {
             Serial.println("Interface file parsed with success");
         }
-
-
 
         Serial.println("Loop on nodes to set node name from the interface file");
         for (const MenuNode& menuNode : *menuInterface) {  
@@ -152,6 +116,7 @@ BorneUniverselle::BorneUniverselle() :
                     Serial.printf("Node name set: %s\r\n", node->getName());
                 } else {
                     String fullName = String(menuNode.sectionName.c_str()) + "/" + String(menuNode.name.c_str());
+                    char buff[128];
                     sprintf(buff, "Unable to set node name: %s \r\n", fullName.c_str());
                     setPlcBroken(buff);
                 }
@@ -172,8 +137,8 @@ BorneUniverselle::BorneUniverselle() :
 	doc[HEARTBEAT] 	= TRUE_J;
   	serializeJson(doc, hearbeatChain);
 
-    PLC_Tools tools;
-    auto files = tools.getFilteredFiles("/", "*.*");
+    auto files = persistence.getFilteredFiles("/", "*.*");
+
     Serial.println("List of files in the root directory:");
     for (const String& fileName : files) {
         Serial.println(fileName);  // Affiche juste le nom du fichier
@@ -239,10 +204,8 @@ void BorneUniverselle::refresh(){
     }
 
     //Serial.println("Refresh");
+    PLC_Tools::manageWiFiBasedOnMemory();
 
-    MemoryMonitor::trackStats();
-
-    char mess[1024];
 
     uint32_t start = millis();
     uint32_t lastCheck = millis();
@@ -257,7 +220,8 @@ void BorneUniverselle::refresh(){
         if (node->getMode() == INPUT_MODE){
             InputNode *inputNode = (InputNode *)node;
             if (millis() - inputNode->getLastRefresh() < inputNode->getRefreshInterval()){
-                sprintf(mess, "On saute le node %s\r\n", node->getName());
+                char mess[256];
+                snprintf(mess, sizeof(mess), "On saute le node %s\r\n", node->getName());
                 showMessage(node, mess);
                 continue;
             } 
@@ -275,9 +239,9 @@ void BorneUniverselle::refresh(){
         myModbus.setShowMessages(false);
 
         if (!e){
-            char mess[1024];
             hash = node->getHash();
-            sprintf(mess, "refresh:: error on refresh node: %s with hash: %lu:", node->getName(), (long unsigned)hash);
+            char mess[256];
+            snprintf(mess, sizeof(mess), "Refresh:: error on refresh node: %s with hash: %lu:", node->getName(), (long unsigned)hash);
             prepareMessage(WARNING, mess);
         }
 
@@ -402,17 +366,16 @@ void BorneUniverselle::setOTA_url(const char *url){
 	//saveParameters();
 }
 
-void BorneUniverselle::saveParameters(JsonDocument configDoc){
-    File file = LittleFS.open("/config.json", FILE_WRITE);
-    if (!file) {
-        Serial.println(F("Error opening file for writing"));
-        return;
+bool BorneUniverselle::saveParameters(JsonDocument configDoc) {
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    if (persistence.saveJsonToFile("/config.json", configDoc)) {
+        Serial.println(F("Config file saved with success"));
+        return true;
+    } else {
+        Serial.println(F("Error saving config file"));
+        Serial.println(persistence.getLastError());
+        return false;
     }
-
-    serializeJson(configDoc, file);
-    
-   // Serial.printf("config file saved: %s \r\n", serializeJson(configDoc, file) ? "with succes" : "WITH ERROR");
-   Serial.println(F("Config file saved with success"));
 }
 
 void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_client) {
@@ -431,13 +394,18 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
         heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
         newClientConnected = true;
     } else {
-        if (client != nullptr){
-            client->close();
-            client = nullptr;
+        AsyncWebSocketClient* tmpClient = client;
+        client = nullptr;  // Set to null BEFORE trying to close
+        
+        if (tmpClient != nullptr) {
+            // Check if the client is still in a valid state
+            if (tmpClient->status() == WS_CONNECTED) {
+                tmpClient->close();
+            }
         }
         
         newClientConnected = false;
-        webSocketMessagesList.free();
+        webSocketMessagesList.clear();
         Serial.println("setClientConnected:: after a client disconnection, the list webSocketMessagesList is cleared");
     }
 
@@ -449,7 +417,7 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
 
     // Nettoyage des notifications
     if (!status) {
-        notifMessagesList.free();
+        notifMessagesList.clear();
         Serial.println("setClientConnected:: after a client disconnection, the list notifMessagesList is cleared");
     }
 }
@@ -470,10 +438,6 @@ bool BorneUniverselle::isClientConnected() {
 }
 
 void BorneUniverselle::sendHeartbeat(bool reset){
-    if (!isClientConnected() || client == nullptr) {
-        return;
-    }
-
     if (sendTextToClient(hearbeatChain)){
         lastHeartbeatSend = millis();
         if (showHeartbeatMessages){
@@ -481,6 +445,8 @@ void BorneUniverselle::sendHeartbeat(bool reset){
         }
     } else {
         Serial.println("sendHeartbeat: unable to send text to client");
+        heartbeatReceive = false;
+        return;
     }
 
     if (reset && heartbeatReceive){
@@ -501,14 +467,9 @@ bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
 
-    if (!isClientConnected() || client == nullptr){
-        Serial.printf("%lu:: BorneUniverselle::sendTextToClient, no client connected !\r\n", millis());
-        return false;
-    }
-
     if (strlen(text) > SOCKET_MESSAGE_MAX_SIZE){
         char buff[128];
-        sprintf(buff, "Try to send more than %u Kb to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
+        sprintf(buff, "Try to send more than %u bytes to the web socket\r\n", SOCKET_MESSAGE_MAX_SIZE);
         Serial.println(buff);
         return false;
     }
@@ -518,18 +479,30 @@ bool BorneUniverselle::sendTextToClient(char *text){
         return false;
     }
 
+    // Vérification complète de l'état du client une fois le mutex acquis
+    if (client == nullptr || !clientconnected || client->status() != WS_CONNECTED) {
+        Serial.printf("%lu:: Client not available for message sending\r\n", millis());
+        return false;
+    }
+
     // Attendre que la queue se libère avec un timeout
     while (client->queueIsFull()) {
         if (millis() - startTime > QUEUE_TIMEOUT_MS) {
             Serial.println(F("WebSocket queue full timeout - message dropped"));
             return false;
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
+        
+        vTaskDelay(pdMS_TO_TICKS(10));
+        
+        // Re-vérifier l'état du client après le délai
+        if (client == nullptr || client->status() != WS_CONNECTED) {
+            Serial.printf("%lu:: Client disconnected during queue wait\r\n", millis());
+            return false;
+        }
     }
    
     client->text(text);
-    //Serial.println("Message sent to the client");
-    return true;    
+    return true;
 }
 
 void BorneUniverselle::updateEarthbeatTimeout(){
@@ -575,12 +548,11 @@ void BorneUniverselle::setShowHeartbeatMessages(bool status){
 }
 
 bool BorneUniverselle::sendMessage() { 
-    static uint32_t lastMessageTime = 0;
-    if (ESP.getFreeHeap() < 4096) {
-       setPlcBroken(" BorneUniverselle::sendMessage, low memory...");
-        return false;
+    if (!isClientConnected() || notifMessagesList.empty()) {
+        return true;
     }
-
+    
+    static uint32_t lastMessageTime = 0;
     const uint32_t MIN_MESSAGE_INTERVAL = 500; // 500ms minimum entre messages
     
     // Vérifier si assez de temps s'est écoulé depuis le dernier message
@@ -588,30 +560,28 @@ bool BorneUniverselle::sendMessage() {
         return true; // On reportera l'envoi au prochain appel
     }
 
-   
-
      // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
     MutexGuard guard(notifMutex, "notifMutex", __FUNCTION__);
     if (!guard.isAcquired()) {
+        setPlcBroken("sendMessage: unable to acquire the mutex");
         return false;
     }
-    
-    if (!isClientConnected() || notifMessagesList.isEmpty()) {
+
+    if (notifMessagesList.empty()) {
         return true;
     }
-
-    NOTIF_MESSAGE *notifMessage = notifMessagesList.front();
+    NOTIF_MESSAGE *notifMessage = notifMessagesList.front().get();
 
     if (!notifMessage) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid notification message"));
-        notifMessagesList.remove(notifMessage);
+        notifMessagesList.pop_front();
         return false;
     }
 
         // Vérification supplémentaire du message
     if (!notifMessage->message) {
         Serial.println(F("BorneUniverselle::sendMessage, invalid message content"));
-        notifMessagesList.remove(notifMessage);
+        notifMessagesList.pop_front();
         return false;
     }
 
@@ -656,7 +626,7 @@ bool BorneUniverselle::sendMessage() {
     
     if (success){
         lastMessageTime = millis();
-        notifMessagesList.remove(notifMessage);
+        notifMessagesList.pop_front();
     } else {
         Serial.println("SendMessage: unable to send text to client"); 
     }
@@ -717,43 +687,34 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
         return;
     }
 
-    if (notifMessagesList.length() >= MAX_MESSAGES_PENDING) {
+    if (notifMessagesList.size() >= MAX_MESSAGES_PENDING) {
         Serial.println(F("Notification queue full, dropping oldest message"));
         notifMessagesList.remove(notifMessagesList.front());
-    }
-
-    NOTIF_MESSAGE *notif = new NOTIF_MESSAGE;
-    if (!notif) {
-        Serial.println(F("malloc failed for notif message structure"));
-        return;
     }
 
     // Calcul de la longueur finale
     size_t messageLength = strlen(text);
     size_t finalLength = messageLength < MAX_MESSAGE_LENGTH ? messageLength : MAX_MESSAGE_LENGTH - 1;
 
+    auto notif = std::unique_ptr<NOTIF_MESSAGE, NotifMessageDeleter>(new NOTIF_MESSAGE());
     notif->message = static_cast<char*>(malloc(finalLength + 1));
     if (!notif->message) {
-        delete notif;
-        Serial.println(F("Failed to allocate message buffer"));
         return;
     }
 
-    // Configuration du message
     notif->severity = type;
     strncpy(notif->message, text, finalLength);
     notif->message[finalLength] = '\0';
+    notifMessagesList.push_back(std::move(notif));
 
     // Logging si le message a été tronqué
     if (messageLength > MAX_MESSAGE_LENGTH) {
         Serial.printf("Message truncated from %u to %u characters\n", messageLength, MAX_MESSAGE_LENGTH);
     }
 
-    notifMessagesList.add(notif);
 
-
-    if (notifMessagesList.length() > MAX_MESSAGES_PENDING / 2) {
-        Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.length(), MAX_MESSAGES_PENDING);
+    if (notifMessagesList.size() > MAX_MESSAGES_PENDING / 2) {
+        Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.size(), MAX_MESSAGES_PENDING);
     }
         
 }
@@ -789,7 +750,7 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
-    bool isMoreThanHalf = webSocketMessagesList.length() > MAX_MESSAGES_PENDING / 2;
+    bool isMoreThanHalf = webSocketMessagesList.size() > MAX_MESSAGES_PENDING / 2;
 
     if (isMoreThanHalf) {
         Serial.println(F("isWebSocketMessagesList greater than half capacity"));
@@ -827,10 +788,10 @@ void BorneUniverselle::handleWebSocket(void *_arg, unsigned char *_data, size_t 
     // Ajouter le fragment
     messageBuffer += String((char*)_data, _len);
 
-    // Si on a tout reçu
-    if (messageBuffer.length() >= expectedSize) {
+   // Si on a tout reçu - Correction ici
+   if (info->final && (info->index + _len) == info->len) {
         Serial.println("handleWebSocket: processing complete reassembled message");
-        keepWebSocketMessage(messageBuffer.c_str(), _arg, _len, _client);
+        keepWebSocketMessage(messageBuffer.c_str(), _arg, messageBuffer.length(), _client);
         messageBuffer = ""; // Nettoyer
     } else {
         Serial.println("handleWebSocket:: collecting more data");
@@ -862,7 +823,7 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t 
 
      //Limite la taille de la queue en enlevant les messages les plus vieux
      uint16_t webSocketMessageLength;
-     while ((webSocketMessageLength = webSocketMessagesList.length()) > MAX_MESSAGES_PENDING) {
+     while ((webSocketMessageLength = webSocketMessagesList.size()) > MAX_MESSAGES_PENDING) {
          webSocketMessagesList.remove(webSocketMessagesList.front());
          Serial.println("Oldest webSocketMessage removed because queue is full");
      }
@@ -877,51 +838,46 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t 
 
     memcpy(dataCopy, data, len);
     dataCopy[len] = 0;  // Ajouter le zéro terminal
-    
-    WEB_SOCKET_MESSAGE *webSocketMessage = new WEB_SOCKET_MESSAGE;
-    if (!webSocketMessage) {  // Vérifier l'allocation
-        free(dataCopy);
-        Serial.println(F("Failed to allocate webSocketMessage"));
-        return;
-    }
 
+    auto webSocketMessage = std::unique_ptr<WEB_SOCKET_MESSAGE, WebSocketMessageDeleter>(new WEB_SOCKET_MESSAGE());
     webSocketMessage->arg = arg;
     webSocketMessage->len = len;
-
     webSocketMessage->client = _client;
     webSocketMessage->data = dataCopy;
     webSocketMessage->timeOfOrigine = millis();
-
-    webSocketMessagesList.add(webSocketMessage);
+    webSocketMessagesList.push_back(std::move(webSocketMessage));
 
     if (millis() - start > 100){
         Serial.printf("Time to add one element on the webSocketMessageList: %lu[ms]\r\n", millis() - start); 
     } 
 
-    if (webSocketMessagesList.length() > 1){
+    if (webSocketMessagesList.size() > 1){
         Serial.printf("%lu:: There are now %u webMessages on the list (to be processed)\r\n", millis(), webSocketMessageLength);
     }
 } //keepWebSocketMessage
 
 bool BorneUniverselle::clientQueueIsFull() {
-    if (!isClientConnected()) {
-        return false;  // Pas de client connecté
-    }
-
     MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
     if (!guard.isAcquired()) {
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
-    bool isFull = true;
+    // Vérification après acquisition du mutex
     if (client == nullptr) {
-       return false;  // Pas de client connecté
-    } else {
-        isFull = client->queueIsFull();
-        if (isFull) {
-            Serial.println("Client queue is full (or disconnected) !!!");
-            vTaskDelay(1);
-        }
+        return false;  // Pas de client connecté
+    }
+    
+    // Vérifier si le client est toujours dans un état valide
+    if (client->status() != WS_CONNECTED) {
+        Serial.println(F("Client not in connected state in clientQueueIsFull"));
+        return false; 
+    }
+    
+    // Maintenant on peut vérifier la file d'attente
+    bool isFull = client->queueIsFull();
+    if (isFull) {
+        Serial.printf("%lu:: Client queue is full\n", millis());
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     return isFull;
@@ -954,12 +910,16 @@ void BorneUniverselle::handleWebSocketMessage() {
                 return;
             }
 
-            if (!webSocketMessagesList.length()) {
+            if (!webSocketMessagesList.size()) {
                 return;
             }
         
             // on extrait le 1er message de la liste
-            webSocketMessageOrig = webSocketMessagesList.front();
+            if (webSocketMessagesList.empty()) {
+                return;
+            }
+            webSocketMessageOrig = webSocketMessagesList.front().get();
+
             if (!webSocketMessageOrig) {
             
                 Serial.println("handleWebSocketMessage:: webSocketMessage Null !!");
@@ -993,7 +953,7 @@ void BorneUniverselle::handleWebSocketMessage() {
 
             // Suppression de l'original de la liste
             if (success){
-                webSocketMessagesList.remove(webSocketMessageOrig);
+                webSocketMessagesList.pop_front();
                 //webSocketMessagesList.remove_first();
             } else {
                 Serial.println("handleWebSocketMessage: processMessage return an error");
@@ -1024,6 +984,7 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
         sprintf(buff, "%lu:: processMessage: deserializeJson() failed: ", millis());
         strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
         Serial.println(buff);
+        Serial.printf("Raw message length: %u, raw data: %.50s\n", strlen((char *)webSocketMessage->data), (char*)webSocketMessage->data);
         prepareMessage(ERROR, JSON_NOT_VALID);
         return true;
     }
@@ -1032,16 +993,11 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
      
     updateEarthbeatTimeout(); // n'importe que message compte comme un heartbeat reçu
     
-    //if (socketDoc.containsKey(HEARTBEAT)){
     if (!socketDoc[HEARTBEAT].isNull()){
         heartbeatReceive = true;
         lastHearbeatReceive = millis();     
         if (showHeartbeatMessages){
-            if (client == nullptr){
-                Serial.println(F("Client is null !"));
-            } else {
-                Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), (unsigned long)client->id(), socketDoc[HEARTBEAT] ? "true": "false");
-            }
+            Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), (unsigned long)client->id(), socketDoc[HEARTBEAT] ? "true": "false");   
         }
     } else if (!socketDoc[CONFIG].isNull()){
         if (!BorneUniverselle::parseConfig(socketDoc)){
@@ -1093,43 +1049,31 @@ void BorneUniverselle::setInitialStateLoadedCallback(std::function<void()> callb
     initialStateLoadedCallback = callback;
 }
 
-bool BorneUniverselle::handleSaveFile(JsonDocument socketDoc){
-    //serializeJsonPretty(socketDoc, Serial);
-
+bool BorneUniverselle::handleSaveFile(JsonDocument socketDoc) {
     const char* path = socketDoc["saveFile"][0][PATH]; // "/interface.json"
-    const char* data = socketDoc["saveFile"][0][DATA]; // "le contenue du fichier à enregistrer"
+    const char* data = socketDoc["saveFile"][0][DATA]; // "le contenu du fichier à enregistrer"
 
     if (!path || !data) {
-        Serial.println("handleSaveFile:: phath or data emply !");
+        Serial.println("handleSaveFile:: path or data empty!");
         return false;
     }
 
-    // Validate path to prevent directory traversal
-    if (strstr(path, "..") != nullptr) {
-        return path;
-    }
-
-    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, date lenght: %u\r\n", path, strlen(data));
-
-    File file = LittleFS.open(path, FILE_WRITE);
-    char buff[256]; 
-    if (!file || file.size() == 0){ 
-        file.close();
-        sprintf(buff, "BorneUniverselle::handleSaveFile:: Unable to open file: %s\r\n", path);
-        prepareMessage(ERROR, buff);
-        return false;
-    } 
+    // Valider le chemin (cette validation est maintenant intégrée dans PLC_Persistence)
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
     
-    size_t bytesWritten = file.print(data);
-    file.close();
-    if (bytesWritten != strlen(data)){
-        sprintf(buff, "BorneUniverselle::handleSaveFile:: Write error:\r\n");
+    Serial.printf("BorneUniverselle::handleSaveFile: path: %s, data length: %u\r\n", path, strlen(data));
+
+    if (persistence.saveToFile(path, data)) {
+        char buff[256];
+        sprintf(buff, "File: %s saved with success\r\n", path);
+        prepareMessage(SUCCESS, buff);
+        return true;
+    } else {
+        char buff[256]; 
+        sprintf(buff, "BorneUniverselle::handleSaveFile:: %s\r\n", persistence.getLastError());
         prepareMessage(ERROR, buff);
         return false;
     }
-    sprintf(buff, "File: %s saved with success\r\n", path);
-    prepareMessage(SUCCESS, buff); 
-    return true; 
 }
 
 void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
@@ -1140,7 +1084,8 @@ void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
     }
 
     String filter = socketDoc[FILTER];
-    JsonDocument doc = PLC_Tools::getFilteredFilesAsJson("/", "*.json");
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    JsonDocument doc = persistence.getFilteredFilesAsJson("/", filter.c_str());
     serializeJson(doc, Serial);
     uint32_t size = measureJson(doc);
     char *chain = (char *)malloc(size + 10);
@@ -1336,6 +1281,19 @@ bool BorneUniverselle::parseConfig( JsonDocument doc,bool check){
     } else {
         prepareMessage(ERROR, "The key type is not found");
         status = false;
+    }
+
+    if (status && !check) {
+        PLC_Persistence& persistence = PLC_Persistence::getInstance();
+        
+        if (persistence.fileExists("/config.json")) {
+            if (persistence.createBackup("/config.json")) {
+                Serial.println(F("Created backup of config.json before applying changes"));
+            } else {
+                Serial.println(F("Warning: Failed to create backup of config.json"));
+                // Continuer malgré l'échec de la sauvegarde
+            }
+        }
     }
 
     if (status){
@@ -1630,31 +1588,17 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
 
         // check if corresponding json file exist
         sprintf(fileName, "%s/%s.json", HARDWARE_FOLDER, hardware);
-        File file = LittleFS.open(fileName, FILE_READ);
+        JsonDocument nodesDoc; // The hardware document
+        PLC_Persistence& persistence = PLC_Persistence::getInstance();
+        if (!persistence.readJsonFromFile(fileName, nodesDoc)) {
+            setPlcBroken(persistence.getLastError());
+            return false;
+        }
 
         if (strstr(fileName, "A8S") && !isKinconyA8S){
             Serial.println(F("Card is an Kincony A8S, pin 2 must be set after go ip"));
             isKinconyA8S = true;
         } 
- 
-        if (!file || file.size() == 0){ 
-            sprintf(buff, "parseHardwares:: Unable to open file: %s\r\n", fileName);
-            prepareMessage(ERROR, buff);
-            return false;
-        }
-
-        //Serial.printf("File : %s read with success, size: %d\r\n", fileName, file.size());
-
-        JsonDocument nodesDoc; // The hardware document
-        DeserializationError error = deserializeJson(nodesDoc, file);
-
-        if (error) {
-            sprintf(buff, "parseHardwares: file %s: deserializeJson() failed: ", fileName);
-            strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-            prepareMessage(ERROR, buff);
-            return false;
-        }
-
 
         if (nodesDoc[HARDWARE].isNull()){
             sprintf(buff,"parseHardwares:: Key: %s not found", HARDWARE);
@@ -1969,9 +1913,16 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint1
     *hash = node->getHash();
 
    if (!check){
-         nodesMap.insert(std::make_pair(node->getHash(), node));
-    }
-    
+        auto result = nodesMap.insert(std::make_pair(node->getHash(), node));
+        if (!result.second) {
+            // L'insertion a échoué car le hash existe déjà
+            char errMsg[128];
+            sprintf(errMsg, "Hash collision detected for node %s, hash: %lu", 
+                    node->getName(), (unsigned long)node->getHash());
+            setPlcBroken(errMsg);
+            // Vous pourriez aussi appeler setPlcBroken ici
+        }
+    }  
     return true;
 }
 
@@ -2352,7 +2303,6 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     uint32_t lastCheck = millis();
     //Serial.printf("%u:: start notifyWebClient\r\n", millis());
     bool hasTosend = false;
-    //char mess[1024];
     //Serial.println("Notify web client");
    
     JsonDocument notifyDoc;
@@ -2416,44 +2366,43 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         //Serial.println("notifyWebClient: Message that will be send: \r\n" );
         //serializeJsonPretty(notifyDoc, Serial);
         //Serial.println();
-        if (getWifiStatus() && ! clientQueueIsFull()){
-            size_t size = measureJson(notifyDoc) + 32;
-            if (size > SOCKET_MESSAGE_MAX_SIZE){
-                char message[64];
-                strcpy(message,  "Json notify states is too long !!");
-                prepareMessage(ERROR, message);
-                setPlcBroken(message);
-                return false;
-            } else {
-               // Serial.printf("Document size: %u\r\n", size);
-            }
-
-            char *chain = (char *)malloc(size);
-            if (chain){
-                size_t effectiveSize = serializeJson(notifyDoc, chain, size);
-                if (effectiveSize >= size){
-                    Serial.println("notifyWebClient:: effective size > evaluated size");
-                    free (chain);
-                    return true; // on écharge ce message car on ne peux pas le traiter
-                }
-
-                chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
-                // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
-                //serializeJsonPretty(notifyDoc, Serial);
-                bool success = sendTextToClient(chain);
-
-                if (!success){
-                    Serial.println(F("notifyWebClient: Failed to send to client"));
-                    return false;
-                }
-            } else {
-                Serial.println(F("notifyWebClient:malloc failed on notify message"));
-            }
-            
-            free(chain);
-            //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
+       
+        size_t size = measureJson(notifyDoc) + 32;
+        if (size > SOCKET_MESSAGE_MAX_SIZE){
+            char message[64];
+            strcpy(message,  "Json notify states is too long !!");
+            prepareMessage(ERROR, message);
+            setPlcBroken(message);
+            return false;
+        } else {
+            // Serial.printf("Document size: %u\r\n", size);
         }
 
+        char *chain = (char *)malloc(size);
+        if (chain){
+            size_t effectiveSize = serializeJson(notifyDoc, chain, size);
+            if (effectiveSize >= size){
+                Serial.println("notifyWebClient:: effective size > evaluated size");
+                free (chain);
+                return true; // on écharge ce message car on ne peux pas le traiter
+            }
+
+            chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
+            // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
+            //serializeJsonPretty(notifyDoc, Serial);
+            bool success = sendTextToClient(chain);
+
+            if (!success){
+                Serial.println(F("notifyWebClient: Failed to send to client"));
+                return false;
+            }
+        } else {
+            Serial.println(F("notifyWebClient:malloc failed on notify message"));
+        }
+        
+        free(chain);
+        //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
+        
         if (millis() - start > 300){ 
             Serial.printf("\r\n%lu:: End notifyWebClient %s: duration: %lu\r\n", millis(), sendAllStates ? "all states": "on state", millis() - start);
         }
@@ -2464,9 +2413,8 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
 
 bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
     uint32_t hash = node->getHash();
+    //Serial.printf("addNodeToNodeObject: node: %s, hash: %lu\r\n", node->getName(), hash);
 
-    //Serial.printf("%u:: addNodeToNodeObject\r\n", millis());
-    //JsonDocument descriptorDoc = node->getDescriptor();
 
     (*nodeObject)[HASH] = hash;
 
@@ -2556,8 +2504,54 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
         return false;
     }
 
+    if (node->descriptorCallback) {
+        Serial.printf("Node %s with hash %lu has a descriptor callback\r\n", node->getName(), (long unsigned int)node->getHash());
+        addCustomDescriptor(node, nodeObject);
+    }
+
     checkHeartbeat();
     return true;
+}
+
+void BorneUniverselle::addCustomDescriptor(Node *node, JsonObject *nodeObject) {
+    //Serial.printf("has from node: %lu, hash from nodeObject: %lu\r\n", (long unsigned int)node->getHash(), (*nodeObject)[HASH].as<uint32_t>());
+    // Appeler la callback pour récupérer le descripteur personnalisé
+    JsonDocument customDescriptor = node->descriptorCallback();
+    
+    // Si le document n'est pas vide, l'ajouter au nodeObject
+    if (!customDescriptor.isNull()) {
+
+        if (!customDescriptor[VALUE].isNull()) {
+            // Supprimer la clé hash du descripteur personnalisé
+            Serial.println("Custom descriptor contains a key 'value', will superside it with nodeObject value");
+            (*nodeObject)[VALUE] = customDescriptor[VALUE];
+            // Supprimer la clé "value" du descripteur pour éviter la duplication
+            customDescriptor.remove("value");
+        
+        }
+        // Vérifier si nodeObject a déjà une clé descriptor
+        if (!(*nodeObject)[DESCRIPTOR].isNull()) {
+            // Récupérer l'objet descriptor existant
+            JsonObject existingDescriptor = (*nodeObject)[DESCRIPTOR].as<JsonObject>();
+            // Fusionner le nouveau descripteur avec l'existant
+            // Copier toutes les paires clé-valeur de customDescriptor dans existingDescriptor
+            for (JsonPair p : customDescriptor.as<JsonObject>()) {
+                existingDescriptor[p.key().c_str()] = p.value();
+            }
+        } else {
+            // Si pas de descriptor existant, ajouter simplement le nouveau
+            Serial.println("No descriptor key found in nodeObject, will add custom descriptor");
+            (*nodeObject)[DESCRIPTOR] = customDescriptor;
+        }
+        
+        // Serial.printf("%lu:: Added custom descriptor to node: %s, with hash: %lu\r\n", millis(), node->getName(), (long unsigned int)node->getHash());
+    } else {
+        Serial.printf("%lu:: Custom descriptor is null for node: %s\r\n", millis(), node->getName());
+    }
+
+    //Serial.printf("After descriptorcallback from node: %lu, hash from nodeObject: %lu\r\n", (long unsigned int)node->getHash(), (*nodeObject)[HASH].as<uint32_t>());
+
+    PLC_Tools::printJsonObject(*nodeObject);
 }
 
 void BorneUniverselle::clearInputschanged(){
@@ -2589,37 +2583,17 @@ Node *BorneUniverselle::findNode(const char *context, uint32_t hash){
 }
 
 void BorneUniverselle::printConfigFile(){
-    // Cela ce peut que le PLC n'a pas démarré et n'a pas monté le system de fichier..
-
-    // Begin LittleFS
-  if (!LittleFS.begin()){
-    Serial.println("An Error has occurred while mounting LittleFS");
-    while (1){
-    }
-  } // for ever...
-
-
-    File file = LittleFS.open("/config.json", FILE_READ);
- 
-    if (!file){
-        Serial.println("Config file open error");
-        return;
-    }
-
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    
     JsonDocument configDoc;
-    DeserializationError error = deserializeJson(configDoc, file);
-    file.close();
-
-    if (error) {
-        char buff[1000];
-        sprintf(buff, "%lu:: config file: deserializeJson() failed: ", millis());
-        strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
-        Serial.println(buff);
-        return;
+    if (!persistence.readJsonFromFile("/config.json", configDoc)) {
+      Serial.printf("Config file open error: %s\n", persistence.getLastError());
+      setPlcBroken(persistence.getLastError());
+      return;
     }
-
+    
     serializeJsonPretty(configDoc, Serial);
-}
+  }
 
 std::map<uint32_t, Node *> BorneUniverselle::getNodesMap(){
     return nodesMap;

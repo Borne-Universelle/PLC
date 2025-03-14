@@ -1,25 +1,24 @@
 #ifndef BORNE_UNIVERSELLE_LIB_H
 #define BORNE_UNIVERSELLE_LIB_H
 
-#include <ESPAsyncWebServer.h>
-
 #define ARDUINOJSON_ENABLE_COMMENTS 1
-#include "ArduinoJson.h"
 
+#include <ESPAsyncWebServer.h>
+#include "ArduinoJson.h"
 #include "MyToolBox.h"
 #include "wifimanagment.h"
-#include <map>	
-#include <LittleFS.h>
+#include <map>
+#include <list>
+#include <memory>
 #include "Node.h"
 #include <Wire.h>
 #include <iostream>
 #include "PLC_CommonTypes.h"
 #include "PLC_InterfaceMenu.h"
 #include "PLC_Tools.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "MemoryMonitor.h"  // pour du debug
 #include "MutexGuard.h"
+#include "PLC_Persistence.h"
 
 const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
@@ -169,9 +168,37 @@ struct NOTIF_MESSAGE{
     char *message;
 };
 
+// Suppresseur personnalisé pour NOTIF_MESSAGE
+struct NotifMessageDeleter {
+    void operator()(NOTIF_MESSAGE* m) const {
+        if (m) {
+            if (m->message) {
+                free(m->message);
+                m->message = nullptr;
+            }
+            delete m;
+        }
+    }
+};
+
+// Suppresseur personnalisé pour WEB_SOCKET_MESSAGE
+struct WebSocketMessageDeleter {
+    void operator()(WEB_SOCKET_MESSAGE* c) const {
+        if (c) {
+            if (c->data) {
+                free(c->data);
+                c->data = nullptr;
+            }
+            delete c;
+        }
+    }
+};
+
+using NotifMessagePtr = std::unique_ptr<NOTIF_MESSAGE, NotifMessageDeleter>;
+using WebSocketMessagePtr = std::unique_ptr<WEB_SOCKET_MESSAGE, WebSocketMessageDeleter>;
+
 class BorneUniverselle{
 	public:
-
         BorneUniverselle();
         static bool setName(const char *name, bool check = true);
         static char *getName();
@@ -269,7 +296,7 @@ class BorneUniverselle{
         bool parseHardwares(JsonDocument doc, bool check, float version);
         static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
         static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
-        void saveParameters(JsonDocument configDoc);
+        bool saveParameters(JsonDocument configDoc);
         bool handleGetValue(uint32_t hash);
         bool handleGetAllValues();
         bool addNodeToNodeObject(Node *node, JsonObject *nodeObject);
@@ -282,9 +309,9 @@ class BorneUniverselle{
         uint32_t clientConnectedAt;
         static bool isLastMessageFatal;
         static SemaphoreHandle_t webSocketMutex;
-        LinkedList <WEB_SOCKET_MESSAGE *> webSocketMessagesList;
+        static std::list<NotifMessagePtr> notifMessagesList;
+        std::list<WebSocketMessagePtr> webSocketMessagesList;
         static SemaphoreHandle_t notifMutex;
-        static LinkedList <NOTIF_MESSAGE *> notifMessagesList;
         bool allInputsReadOnce = false;
         bool psRamAvailable = false;
         static bool newClientConnected;
@@ -300,5 +327,9 @@ class BorneUniverselle{
         String messageBuffer; // buffer pour la réception de message du web socket en plusieurs morceaux
         size_t expectedSize = 0;
         void keepWebSocketMessage(const char *data, void *arg, size_t len, AsyncWebSocketClient *_client);
+
+
+    private:
+        void addCustomDescriptor(Node *Node, JsonObject *nodeObject);
 };
 #endif

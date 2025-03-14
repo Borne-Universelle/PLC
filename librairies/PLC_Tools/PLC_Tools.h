@@ -1,72 +1,42 @@
 #pragma once
-
+#define ARDUINOJSON_ENABLE_COMMENTS 1
 #include <vector>
 #include <Arduino.h>
 #include <LittleFS.h>
 #include "ArduinoJson.h"
 #include "esp_system.h"
+#include "PLC_Persistence.h"
+#include "borneUniverselle.h"
 
 // Json key
 #define REASON  "reason"
+
+#define DIAGNOSTIC_FILE          "/diagnostic.txt"  // Chemin du fichier de diagnostic
+#define MEMORY_CHECK_INTERVAL   5000
+#define MEMORY_THRESHOLD_LOW    100000
+#define MEMORY_TRESHOLD_WITH_CLIENT 50000
 
 using namespace ArduinoJson;
 
 class PLC_Tools {
 
 private:
+    static bool wifiDisconnectedForMemory;
+    static uint32_t wifiDisconnectionTime;
+    static uint32_t disconnectionCount;
+
     // Json On ne peur pas metttre les 2 fonctions dans le cpp
-    static void printJsonValue(const JsonVariant &value, int indent = 0) {
-        String indentStr = "";
-        for (int i = 0; i < indent; i++) {
-            indentStr += "  ";
-        }
-    
-        if (value.is<JsonObject>()) {
-            JsonObject obj = value.as<JsonObject>();
-            Serial.println(indentStr + "{");
-            for (JsonPair p : obj) {
-                Serial.print(indentStr + "  \"" + p.key().c_str() + "\": ");
-                printJsonValue(p.value(), indent + 1);
-            }
-            Serial.println(indentStr + "}");
-        }
-        else if (value.is<JsonArray>()) {
-            JsonArray arr = value.as<JsonArray>();
-            Serial.println(indentStr + "[");
-            for (JsonVariant v : arr) {
-                Serial.print(indentStr + "  ");
-                printJsonValue(v, indent + 1);
-            }
-            Serial.println(indentStr + "]");
-        }
-        else if (value.is<const char*>()) {
-            Serial.println("\"" + String(value.as<const char*>()) + "\"");
-        }
-        else if (value.is<bool>()) {
-            Serial.println(value.as<bool>() ? "true" : "false");
-        }
-        else if (value.is<int>()) {
-            Serial.println(value.as<int>());
-        }
-        else if (value.is<float>()) {
-            Serial.println(value.as<float>());
-        }
-        else if (value.is<double>()) {
-            Serial.println(value.as<double>());
-        }
-        else if (value.isNull()) {
-            Serial.println("null");
-        }
-        else {
-            Serial.println("unknown type");
-        }
-    }
+    static void printJsonValue(const JsonVariant &value, int indent = 0);
 
 public:
-    static void logReboot();
+    static bool logReboot();
     static String getRebootLog();
     static bool clearRebootLog();
     static void setLastErrorMessage(const char* message);
+    static void printBits(uint16_t value);
+    void static logDiagnostic(const char* message);
+    void static manageWiFiBasedOnMemory();
+    bool static printDiagnosticFile();
 
     // File management
     static std::vector<String> getFilteredFiles(const char* path, const char* pattern);
