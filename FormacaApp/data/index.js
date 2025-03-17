@@ -8262,6 +8262,16 @@ class RxNumeric extends ConnectedElement {
         this.render = this.render.bind(this);
     }
 
+    formatNumber(number, digits) {
+        // If it's an integer, return it as is
+        if (Number.isInteger(number)) {
+            return number.toString();
+        }
+        
+        // Otherwise, format with specified decimal places
+        return number.toFixed(digits);
+    }
+
     render() {
         const disable = this._descriptor.disable;
         let $template = template$5.content.cloneNode(true);
@@ -8271,13 +8281,26 @@ class RxNumeric extends ConnectedElement {
 
         // 1. Set label for switch
         $template.querySelector(".label").innerText = this._descriptor.name;
-        // 2. Set the float value with two decimal places
-        $input.value = this._value ? parseFloat(this._value).toFixed(2) : '0.00';
+        
+        // Get the number of decimal places from descriptor, default to 2
+        const nbDigitsAp = this._descriptor.nb_digits_ap !== undefined ? 
+            this._descriptor.nb_digits_ap : 2;
+        
+        // Format the numeric value
+        let displayValue = '0';
+        if (this._value) {
+            const number = parseFloat(this._value);
+            displayValue = this.formatNumber(number, nbDigitsAp);
+        }
+        
+        $input.value = displayValue;
+
         // Clean component and append template
         while (this.firstChild) {
             this.removeChild(this.firstChild);
         }
         this.appendChild($template);
+        
         if (disable) {
             this.disable();
         } else {
@@ -8472,37 +8495,6 @@ class TxButtonHold extends ConnectedElement {
 
 window.customElements.define('tx-button-hold', TxButtonHold);
 
-/**
- * TxDropdown Component
- * 
- * This component creates a customizable dropdown menu using Shoelace elements.
- * It's designed to allow users to select from a list of predefined options,
- * with the ability to update a remote state via a socket connection upon selection.
- * The component updates its state and sends a message through a Socket
- * connection whenever a new item is selected. It also maintains the selected
- * state visually using checkboxes.
- * 
- * Configuration Parameters:
- * - name: String that appears as the default text on the dropdown button
- *         and serves as a label for the dropdown.
- *         Example: "Routines de découpage"
- * 
- * - items: Array of strings representing the selectable options in the dropdown.
- *          Each item will be displayed as a checkbox menu item.
- *          Example: ["Cut 1", "Cut 2", "Cut 3"]
- * 
- * JSON config and descriptor example:
-    {
-        "hash": 1708159392,
-        "name": "Cutting routines",
-        "component": "tx-dropdown",
-        "items": ["Cut 1", "Cut 2", "Cut 3"],
-        "default": "Cut 2",
-        "tooltip": ""
-    }
- */
-
-
 const templateDropdown = document.createElement('template');
 templateDropdown.innerHTML = `
     <style>
@@ -8528,6 +8520,9 @@ templateDropdown.innerHTML = `
 `;
 
 class TxDropdown extends ConnectedElement {
+    // Cache statique pour persister les valeurs sélectionnées par hash
+    static selectedValues = new Map();
+
     constructor() {
         super();
         this._items = [];
@@ -8550,9 +8545,21 @@ class TxDropdown extends ConnectedElement {
         this.menu.addEventListener('sl-select', this.handleSelect);
     }
 
+    connectedCallback() {
+        super.connectedCallback();
+        // Restaurer la valeur sélectionnée depuis le cache si elle existe
+        if (this._descriptor?.hash) {
+            const cachedValue = TxDropdown.selectedValues.get(this._descriptor.hash);
+            if (cachedValue && this._descriptor.items?.includes(cachedValue)) {
+                this._selectedValue = cachedValue;
+            }
+        }
+        this.render(); // Rendre immédiatement avec la valeur restaurée ou par défaut
+    }
+
     disconnectedCallback() {
         super.disconnectedCallback();
-        // Clean up event listener
+        // Nettoyer l’écouteur d’événement
         this.menu.removeEventListener('sl-select', this.handleSelect);
     }
 
@@ -8566,13 +8573,17 @@ class TxDropdown extends ConnectedElement {
         this._selectedValue = selectedItem.value;
         this.button.textContent = this._selectedValue;
         
-        // Update checkmarks in menu
+        // Mettre à jour les coches dans le menu
         this.menu.querySelectorAll('sl-menu-item').forEach(item => {
             item.checked = item.value === this._selectedValue;
         });
 
-        if (this._descriptor && this._descriptor.hash) {
-            Logger.log(ComponentType.TX_DROPDOWN, `handleSelect: ${this._descriptor.hash}: ${this._selectedValue}`);
+        // Persister la valeur sélectionnée dans le cache
+        if (this._descriptor?.hash) {
+            TxDropdown.selectedValues.set(this._descriptor.hash, this._selectedValue);
+            Logger.log(ComponentType.TX_DROPDOWN, `Persisted selected value for hash ${this._descriptor.hash}: ${this._selectedValue}`);
+            
+            // Envoyer la mise à jour à l’ESP32
             Socket.defaultSocket.sendMessage("states", [{ 
                 "hash": this._descriptor.hash, 
                 "value": this._selectedValue 
@@ -8582,45 +8593,83 @@ class TxDropdown extends ConnectedElement {
         this.dropdown.hide();
     }
 
+    update(val, descriptor) {
+        // Gestion des commandes socket enable/disable
+        if (val === "disable") {
+            this._socketDisabled = true;
+            this._applyDisabledState();
+            return;
+        } else if (val === "enable") {
+            this._socketDisabled = false;
+            this._applyDisabledState();
+            return;
+        }
+
+        // Mise à jour de la valeur sélectionnée si fournie
+        if (val !== undefined && this._descriptor.items?.includes(val)) {
+            this._selectedValue = val;
+            if (this._descriptor?.hash) {
+                TxDropdown.selectedValues.set(this._descriptor.hash, this._selectedValue);
+            }
+        }
+
+        // Mise à jour du descripteur si fourni
+        if (descriptor) {
+            this.descriptor = descriptor;
+        }
+
+        if (this.isConnected) {
+            this.render();
+        }
+    }
+
     render() {
         const disable = this._descriptor.disable;
         
-        // Update tooltip
+        // Mettre à jour le tooltip
         tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
-        // Update items from descriptor
+        // Utiliser les items statiques du descripteur
         const newItems = this._descriptor.items || [];
         
-        // Only rebuild menu if items have changed
+        // Reconstruire le menu si les items ont changé
         if (JSON.stringify(this._items) !== JSON.stringify(newItems)) {
             this._items = newItems;
             this.menu.innerHTML = '';
-            this._items.forEach(item => {
-                const menuItem = document.createElement('sl-menu-item');
-                menuItem.textContent = item;
-                menuItem.value = item;
-                menuItem.type = 'checkbox';
-                menuItem.checked = item === this._selectedValue;
-                this.menu.appendChild(menuItem);
-            });
+            if (this._items.length === 0) {
+                const placeholder = document.createElement('sl-menu-item');
+                placeholder.textContent = "No items available";
+                placeholder.disabled = true;
+                this.menu.appendChild(placeholder);
+            } else {
+                this._items.forEach(item => {
+                    const menuItem = document.createElement('sl-menu-item');
+                    menuItem.textContent = item;
+                    menuItem.value = item;
+                    menuItem.type = 'checkbox';
+                    menuItem.checked = item === this._selectedValue;
+                    this.menu.appendChild(menuItem);
+                });
+            }
         }
         
-        // Update selected value if default is provided
-        if (this._descriptor.default && 
-            this._items.includes(this._descriptor.default) && 
-            !this._selectedValue) {
+        // Définir la valeur par défaut si aucune sélection n’existe
+        if (!this._selectedValue && this._descriptor.default && this._items.includes(this._descriptor.default)) {
             this._selectedValue = this._descriptor.default;
+            if (this._descriptor?.hash) {
+                TxDropdown.selectedValues.set(this._descriptor.hash, this._selectedValue);
+            }
         }
 
-        // Update button text
+        // Mettre à jour le texte du bouton
         this.button.textContent = this._selectedValue || this._descriptor.name || "Select";
         
-        // Update checked states
+        // Mettre à jour les coches
         this.menu.querySelectorAll('sl-menu-item').forEach(item => {
             item.checked = item.value === this._selectedValue;
         });
 
-        // Handle disable state
+        // Gérer l’état désactivé
         if (disable) {
             this.disable();
         } else {
@@ -9259,6 +9308,7 @@ class InterfaceEditor extends ConnectedElement {
         this.interfaceData = null;
         this.rendererDescriptors = null;
         this.currentFile = 'interface.json'; // Fichier par défaut
+        this.jsonFiles = ['interface.json', 'config.json']; // Liste initiale
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -9270,16 +9320,14 @@ class InterfaceEditor extends ConnectedElement {
                 }
 
                 .interface-edit-card {
-                    position: fixed;
-                    top: 10px;
-                    right: 10px;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.3);
-                    padding: 4px;
-                    border-radius: 4px;
-                    opacity: 0.2;
+                    padding: 1px;
+                    opacity: 0.6;
                     transition: all 0.3s ease;
                     backdrop-filter: blur(4px);
                     transform: scale(0.85);
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
                     z-index: 1000;
                 }
 
@@ -9328,16 +9376,21 @@ class InterfaceEditor extends ConnectedElement {
                     --sl-button-height-medium: 0.5rem !important;
                     --sl-button-padding-x: 0.5rem !important;
                     white-space: nowrap;
+                    width: auto !important;
                 }
 
                 sl-button::part(base) {
                     font-size: 0.5rem !important;
                     height: 0.5rem !important;
                     padding: 0 0.5rem !important;
+                    width: auto !important;
                 }
 
                 .file-selector {
                     margin-bottom: 10px;
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
                 }
 
                 .file-selector select {
@@ -9348,6 +9401,10 @@ class InterfaceEditor extends ConnectedElement {
                     border-radius: 4px;
                     background: rgba(var(--sl-color-neutral-50-rgb), 0.7);
                     color: var(--sl-color-neutral-1000);
+                }
+
+                .file-selector sl-button {
+                    width: auto !important;
                 }
 
                 textarea {
@@ -9367,6 +9424,10 @@ class InterfaceEditor extends ConnectedElement {
                     display: flex;
                     justify-content: flex-end;
                     gap: 10px;
+                }
+
+                .dialog-footer sl-button {
+                    width: auto !important;
                 }
 
                 .modal-container {
@@ -9462,11 +9523,35 @@ class InterfaceEditor extends ConnectedElement {
             </style>
 
             <div class="interface-edit-card">
-                <sl-button class="edit-btn" variant="primary">Edit Interface</sl-button>
+                <sl-icon-button name="pencil" class="edit-btn" style="font-size: 1.1rem;"></sl-icon-button>
             </div>
         `;
 
         this.appendChild(template.content.cloneNode(true));
+    }
+
+    async fetchJsonFiles() {
+        try {
+            const isESP32 = this.socket?.url?.includes('/ws');
+            let files = [];
+
+            if (isESP32) {
+                const response = await fetch('/fs/list');
+                if (!response.ok) throw new Error('No file listing endpoint');
+                const data = await response.json();
+                files = data.files.filter(f => f.endsWith('.json'));
+            }
+
+            this.jsonFiles = files.length > 0 ? files : ['interface.json', 'config.json'];
+            if (!this.jsonFiles.includes(this.currentFile)) {
+                this.currentFile = this.jsonFiles[0];
+            }
+            return this.jsonFiles;
+        } catch (err) {
+            console.warn('Falling back to default files:', err);
+            this.jsonFiles = ['interface.json', 'config.json'];
+            return this.jsonFiles;
+        }
     }
 
     createInterface() {
@@ -9478,13 +9563,12 @@ class InterfaceEditor extends ConnectedElement {
             <div class="main-editor">
                 <div class="file-selector">
                     <label for="json-file-select">Select JSON File:</label>
-                    <select id="json-file-select" required>
-                        <option value="interface.json">interface.json</option>
-                        <option value="config.json">config.json</option>
-                    </select>
+                    <select id="json-file-select" required></select>
+                    <sl-button class="upload-btn" variant="default">Upload JSON</sl-button>
+                    <sl-button class="download-btn" variant="default">Download JSON</sl-button>
+                    <input type="file" id="json-upload" accept=".json" style="display: none;">
                 </div>
                 <div class="edit-tools">
-                    <!-- Les outils seront dynamiquement gérés selon le fichier sélectionné -->
                 </div>
                 <textarea spellcheck="false"></textarea>
                 <div class="dialog-footer">
@@ -9498,23 +9582,22 @@ class InterfaceEditor extends ConnectedElement {
         this.mainEditorBackdrop = mainEditor;
         this.mainEditor = mainEditor.querySelector('.main-editor');
         this.textarea = mainEditor.querySelector('textarea');
-        this.editTools = this.mainEditor.querySelector('.edit-tools');
+        this.editTools = mainEditor.querySelector('.edit-tools');
         this.fileSelect = mainEditor.querySelector('#json-file-select');
+        this.uploadBtn = mainEditor.querySelector('.upload-btn');
+        this.downloadBtn = mainEditor.querySelector('.download-btn');
+        this.fileInput = mainEditor.querySelector('#json-upload');
+        this.cancelBtn = mainEditor.querySelector('.cancel-btn');
+        this.saveBtn = mainEditor.querySelector('.save-btn');
 
-        this.fileSelect.value = this.currentFile;
+        this.populateFileSelector();
         this.updateEditorState(this.currentFile);
 
-        this.mainEditor.querySelector('.add-section-btn')?.addEventListener('click', () => this.showAddSectionDialog());
-        this.mainEditor.querySelector('.add-node-btn')?.addEventListener('click', () => this.showAddNodeDialog());
-        this.mainEditor.querySelector('.remove-node-btn')?.addEventListener('click', () => this.showRemoveNodeDialog());
-        this.mainEditor.querySelector('.remove-section-btn')?.addEventListener('click', () => this.showRemoveSectionDialog());
-        this.mainEditor.querySelector('.add-wifi-btn')?.addEventListener('click', () => this.showAddWifiDialog());
-        this.mainEditor.querySelector('.edit-wifi-btn')?.addEventListener('click', () => this.showEditWifiDialog());
-        this.mainEditor.querySelector('.remove-wifi-btn')?.addEventListener('click', () => this.showRemoveWifiDialog());
-        this.mainEditor.querySelector('.edit-node-name-btn')?.addEventListener('click', () => this.showEditNodeNameDialog());
-        this.mainEditor.querySelector('.edit-password-btn')?.addEventListener('click', () => this.showEditPasswordDialog());
-        this.mainEditor.querySelector('.cancel-btn')?.addEventListener('click', () => this.closeEditor());
-        this.mainEditor.querySelector('.save-btn')?.addEventListener('click', () => this.saveChanges());
+        this.uploadBtn.addEventListener('click', () => this.fileInput.click());
+        this.fileInput.addEventListener('change', () => this.uploadFile());
+        this.downloadBtn.addEventListener('click', () => this.downloadFile());
+        this.cancelBtn.addEventListener('click', () => this.closeEditor());
+        this.saveBtn.addEventListener('click', () => this.saveChanges());
 
         this.mainEditorBackdrop.addEventListener('click', (event) => {
             if (event.target === this.mainEditorBackdrop) this.closeEditor();
@@ -9528,6 +9611,86 @@ class InterfaceEditor extends ConnectedElement {
             this.updateEditorState(this.currentFile);
             this.loadFileContent();
         });
+    }
+
+    async uploadFile() {
+        const file = this.fileInput.files[0];
+        if (!file || !file.name.endsWith('.json')) {
+            window.notify({ type: "error", name: "Error", desc: "Please select a .json file" });
+            console.log('Fichier invalide ou non sélectionné:', file);
+            return;
+        }
+        console.log('Fichier sélectionné:', file.name, 'Taille:', file.size);
+    
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const content = e.target.result;
+            console.log('1. Contenu brut lu par FileReader:', content);
+    
+            try {
+                // Étape 1 : Vérification du JSON
+                console.log('2. Tentative de parsing JSON...');
+                const parsedJson = JSON.parse(content);
+                console.log('3. JSON parsé avec succès:', parsedJson);
+    
+                // Étape 2 : Mise à jour de l'interface (sans upload serveur)
+                window.notify({ type: "success", name: "Success", desc: `${file.name} loaded locally` });
+                console.log('4. Mise à jour des fichiers JSON locaux...');
+                if (!this.jsonFiles.includes(file.name)) {
+                    this.jsonFiles.push(file.name); // Ajouter le fichier à la liste locale
+                }
+                this.populateFileSelector();
+                this.currentFile = file.name;
+                this.fileSelect.value = file.name;
+    
+                if (!this.mainEditorBackdrop || !this.textarea) {
+                    console.log('5. Éditeur non existant, création...');
+                    this.createInterface();
+                }
+                this.textarea.value = content;
+                console.log('6. Textarea mis à jour avec:', this.textarea.value);
+                this.updateEditorState(this.currentFile);
+                console.log('7. État de l\'éditeur mis à jour pour:', this.currentFile);
+            } catch (err) {
+                window.notify({ type: "error", name: "Error", desc: "Invalid JSON format" });
+                console.error('Erreur détectée:', err.message);
+                console.error('Détails de l\'erreur:', err);
+            }
+        };
+        reader.onerror = (e) => {
+            window.notify({ type: "error", name: "Error", desc: "Erreur lors de la lecture du fichier" });
+            console.error('Erreur de FileReader:', e);
+        };
+        console.log('Lecture du fichier en cours...');
+        reader.readAsText(file);
+    }
+
+    downloadFile() {
+        const content = this.textarea.value;
+        try {
+            JSON.parse(content);
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = this.currentFile;
+            a.click();
+            URL.revokeObjectURL(url);
+            window.notify({ type: "success", name: "Success", desc: `${this.currentFile} downloaded` });
+        } catch (err) {
+            window.notify({ type: "error", name: "Error", desc: "Invalid JSON format" });
+        }
+    }
+
+    populateFileSelector() {
+        this.fileSelect.innerHTML = '';
+        this.jsonFiles.forEach(file => {
+            const option = document.createElement('option');
+            option.value = file;
+            option.textContent = file;
+            this.fileSelect.appendChild(option);
+        });
+        this.fileSelect.value = this.currentFile;
     }
 
     updateEditorState(file) {
@@ -9572,663 +9735,29 @@ class InterfaceEditor extends ConnectedElement {
         this.mainEditor.querySelector('.edit-password-btn')?.addEventListener('click', () => this.showEditPasswordDialog());
     }
 
-    // Dialogues pour config.json avec IP fixe
-    showAddWifiDialog() {
-        if (this.currentFile !== 'config.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Add WiFi</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <sl-input class="wifi-ssid" label="SSID" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="wifi-pwd" label="Password" type="password" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="wifi-name" label="Name" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-checkbox class="wifi-dhcp">DHCP</sl-checkbox>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-ip" label="IP Address" placeholder="e.g., 192.168.1.100"></sl-input>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-subnet" label="Subnet Mask" placeholder="e.g., 255.255.255.0"></sl-input>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-gateway" label="Gateway" placeholder="e.g., 192.168.1.1"></sl-input>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-dns" label="DNS (optional)" placeholder="e.g., 8.8.8.8"></sl-input>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="add-wifi-confirm-btn" variant="success">Add WiFi</sl-button>
-                </div>
-            </div>
-        `;
+    forceButtonStyles() {
+        const buttons = this.mainEditor?.querySelectorAll('.edit-tools sl-button, .file-selector sl-button, .dialog-footer sl-button') || [];
+        buttons.forEach(button => {
+            button.style.setProperty('--sl-button-font-size-medium', '0.5rem', 'important');
+            button.style.setProperty('--sl-button-height-medium', '0.5rem', 'important');
+            button.style.setProperty('--sl-button-padding-x', '0.5rem', 'important');
 
-        document.body.appendChild(modal);
-        const dhcpCheckbox = modal.querySelector('.wifi-dhcp');
-        const staticIpFields = modal.querySelectorAll('.static-ip-fields');
-        dhcpCheckbox.addEventListener('sl-change', () => {
-            staticIpFields.forEach(field => field.classList.toggle('hidden', dhcpCheckbox.checked));
-        });
-
-        modal.querySelector('.add-wifi-confirm-btn').addEventListener('click', () => {
-            this.addWifi(modal);
-            modal.remove();
-        });
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
-    }
-
-    showEditWifiDialog() {
-        if (this.currentFile !== 'config.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Edit WiFi</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="wifi-select">Select WiFi</label>
-                        <select class="wifi-select" id="wifi-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="wifi-ssid" label="SSID" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="wifi-pwd" label="Password" type="password" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="wifi-name" label="Name" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-checkbox class="wifi-dhcp">DHCP</sl-checkbox>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-ip" label="IP Address" placeholder="e.g., 192.168.1.100"></sl-input>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-subnet" label="Subnet Mask" placeholder="e.g., 255.255.255.0"></sl-input>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-gateway" label="Gateway" placeholder="e.g., 192.168.1.1"></sl-input>
-                    </div>
-                    <div class="form-row static-ip-fields hidden">
-                        <sl-input class="wifi-dns" label="DNS (optional)" placeholder="e.g., 8.8.8.8"></sl-input>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="edit-wifi-confirm-btn" variant="primary">Save Changes</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-        const wifiSelect = modal.querySelector('.wifi-select');
-        this.populateWifiSelect(wifiSelect);
-        const dhcpCheckbox = modal.querySelector('.wifi-dhcp');
-        const staticIpFields = modal.querySelectorAll('.static-ip-fields');
-        dhcpCheckbox.addEventListener('sl-change', () => {
-            staticIpFields.forEach(field => field.classList.toggle('hidden', dhcpCheckbox.checked));
-        });
-        wifiSelect.addEventListener('change', () => this.loadWifiData(modal, wifiSelect.value));
-        this.loadWifiData(modal, wifiSelect.value);
-
-        modal.querySelector('.edit-wifi-confirm-btn').addEventListener('click', () => {
-            this.editWifi(modal, wifiSelect.value);
-            modal.remove();
-        });
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
-    }
-
-    showRemoveWifiDialog() {
-        if (this.currentFile !== 'config.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Remove WiFi</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="wifi-select">Select WiFi to Remove</label>
-                        <select class="wifi-select" id="wifi-select" required></select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="remove-wifi-confirm-btn" variant="danger">Remove WiFi</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-        const wifiSelect = modal.querySelector('.wifi-select');
-        this.populateWifiSelect(wifiSelect);
-
-        modal.querySelector('.remove-wifi-confirm-btn').addEventListener('click', () => {
-            this.removeWifi(wifiSelect.value);
-            modal.remove();
-        });
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
-    }
-
-    showEditNodeNameDialog() {
-        if (this.currentFile !== 'config.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Edit Node Names</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="node-select">Select Node</label>
-                        <select class="node-select" id="node-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="node-name" label="New Name" required></sl-input>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="edit-node-confirm-btn" variant="primary">Save Name</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-        const nodeSelect = modal.querySelector('.node-select');
-        this.populateNodeSelect(nodeSelect);
-        nodeSelect.addEventListener('change', () => this.loadNodeName(modal, nodeSelect.value));
-
-        modal.querySelector('.edit-node-confirm-btn').addEventListener('click', () => {
-            this.editNodeName(nodeSelect.value, modal.querySelector('.node-name').value);
-            modal.remove();
-        });
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
-    }
-
-    showEditPasswordDialog() {
-        if (this.currentFile !== 'config.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Edit or Add Password</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="pwd-type">Password Type</label>
-                        <select class="pwd-type" id="pwd-type" required>
-                            <option value="pages">Pages</option>
-                            <option value="sections">Sections</option>
-                            <option value="components">Components</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="pwd-key">Key</label>
-                        <sl-input class="pwd-key" label="Key" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="pwd-value" label="Password" type="password" required></sl-input>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="edit-pwd-confirm-btn" variant="primary">Save Password</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-        modal.querySelector('.edit-pwd-confirm-btn').addEventListener('click', () => {
-            this.editPassword(modal);
-            modal.remove();
-        });
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
-    }
-
-    // Méthodes pour gérer les actions de config.json avec IP fixe
-    addWifi(modal) {
-        const ssid = modal.querySelector('.wifi-ssid').value.trim();
-        const pwd = modal.querySelector('.wifi-pwd').value.trim();
-        const name = modal.querySelector('.wifi-name').value.trim();
-        const dhcp = modal.querySelector('.wifi-dhcp').checked;
-        const ip = modal.querySelector('.wifi-ip').value.trim();
-        const subnet = modal.querySelector('.wifi-subnet').value.trim();
-        const gateway = modal.querySelector('.wifi-gateway').value.trim();
-        const dns = modal.querySelector('.wifi-dns').value.trim();
-
-        if (!ssid || !pwd || !name) {
-            window.notify({ type: "error", name: "Validation Error", desc: "SSID, Password, and Name are required" });
-            return;
-        }
-
-        if (!dhcp && (!ip || !subnet || !gateway)) {
-            window.notify({ type: "error", name: "Validation Error", desc: "IP, Subnet, and Gateway are required when DHCP is disabled" });
-            return;
-        }
-
-        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi || [];
-        const newWifi = { ssid, pwd, name, dhcp };
-        if (!dhcp) {
-            newWifi.ip = ip;
-            newWifi.subnet = subnet;
-            newWifi.gateway = gateway;
-            if (dns) newWifi.dns = dns;
-        }
-        wifiConfig.push(newWifi);
-        if (!this.configData.config.some(c => c.Wifi)) {
-            this.configData.config.unshift({ Wifi: wifiConfig });
-        }
-        this.updateTextarea();
-        window.notify({ type: "success", name: "WiFi Added", desc: `WiFi "${name}" added successfully` });
-    }
-
-    editWifi(modal, index) {
-        const ssid = modal.querySelector('.wifi-ssid').value.trim();
-        const pwd = modal.querySelector('.wifi-pwd').value.trim();
-        const name = modal.querySelector('.wifi-name').value.trim();
-        const dhcp = modal.querySelector('.wifi-dhcp').checked;
-        const ip = modal.querySelector('.wifi-ip').value.trim();
-        const subnet = modal.querySelector('.wifi-subnet').value.trim();
-        const gateway = modal.querySelector('.wifi-gateway').value.trim();
-        const dns = modal.querySelector('.wifi-dns').value.trim();
-
-        if (!ssid || !pwd || !name) {
-            window.notify({ type: "error", name: "Validation Error", desc: "SSID, Password, and Name are required" });
-            return;
-        }
-
-        if (!dhcp && (!ip || !subnet || !gateway)) {
-            window.notify({ type: "error", name: "Validation Error", desc: "IP, Subnet, and Gateway are required when DHCP is disabled" });
-            return;
-        }
-
-        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi;
-        if (wifiConfig && wifiConfig[index]) {
-            wifiConfig[index] = { ssid, pwd, name, dhcp };
-            if (!dhcp) {
-                wifiConfig[index].ip = ip;
-                wifiConfig[index].subnet = subnet;
-                wifiConfig[index].gateway = gateway;
-                if (dns) wifiConfig[index].dns = dns;
-            } else {
-                delete wifiConfig[index].ip;
-                delete wifiConfig[index].subnet;
-                delete wifiConfig[index].gateway;
-                delete wifiConfig[index].dns;
+            const shadowRoot = button.shadowRoot;
+            if (shadowRoot) {
+                const base = shadowRoot.querySelector('.button__base');
+                if (base) {
+                    base.style.fontSize = '0.5rem';
+                    base.style.height = '0.5rem';
+                    base.style.padding = '0 0.5rem';
+                    base.style.width = 'auto';
+                }
             }
-            this.updateTextarea();
-            window.notify({ type: "success", name: "WiFi Updated", desc: `WiFi "${name}" updated successfully` });
-        }
-    }
-
-    removeWifi(index) {
-        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi;
-        if (wifiConfig && wifiConfig[index]) {
-            const name = wifiConfig[index].name;
-            wifiConfig.splice(index, 1);
-            this.updateTextarea();
-            window.notify({ type: "success", name: "WiFi Removed", desc: `WiFi "${name}" removed successfully` });
-        }
-    }
-
-    editNodeName(hash, newName) {
-        if (!newName.trim()) {
-            window.notify({ type: "error", name: "Validation Error", desc: "Node name is required" });
-            return;
-        }
-
-        const updateNodeName = (node) => {
-            if (node.hash === parseInt(hash)) {
-                node.name = newName;
-            }
-            if (node.children) {
-                node.children.forEach(updateNodeName);
-            }
-        };
-        this.configData.children.forEach(updateNodeName);
-        this.updateTextarea();
-        window.notify({ type: "success", name: "Node Updated", desc: `Node name updated to "${newName}"` });
-    }
-
-    editPassword(modal) {
-        const type = modal.querySelector('.pwd-type').value;
-        const key = modal.querySelector('.pwd-key').value.trim();
-        const value = modal.querySelector('.pwd-value').value.trim();
-
-        if (!key || !value) {
-            window.notify({ type: "error", name: "Validation Error", desc: "Key and password are required" });
-            return;
-        }
-
-        if (!this.configData.security) this.configData.security = { passwords: {} };
-        if (!this.configData.security.passwords) this.configData.security.passwords = {};
-        if (!this.configData.security.passwords[type]) this.configData.security.passwords[type] = {};
-
-        this.configData.security.passwords[type][key] = value;
-        this.updateTextarea();
-        window.notify({ type: "success", name: "Password Updated", desc: `Password for "${key}" updated successfully` });
-    }
-
-    populateWifiSelect(select) {
-        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi || [];
-        select.innerHTML = '';
-        wifiConfig.forEach((wifi, i) => {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = wifi.name || wifi.ssid;
-            select.appendChild(option);
         });
-    }
-
-    loadWifiData(modal, index) {
-        const wifiConfig = this.configData.config.find(c => c.Wifi)?.Wifi || [];
-        const wifi = wifiConfig[index];
-        if (wifi) {
-            modal.querySelector('.wifi-ssid').value = wifi.ssid;
-            modal.querySelector('.wifi-pwd').value = wifi.pwd;
-            modal.querySelector('.wifi-name').value = wifi.name;
-            modal.querySelector('.wifi-dhcp').checked = wifi.dhcp;
-            const staticIpFields = modal.querySelectorAll('.static-ip-fields');
-            staticIpFields.forEach(field => field.classList.toggle('hidden', wifi.dhcp));
-            modal.querySelector('.wifi-ip').value = wifi.ip || '';
-            modal.querySelector('.wifi-subnet').value = wifi.subnet || '';
-            modal.querySelector('.wifi-gateway').value = wifi.gateway || '';
-            modal.querySelector('.wifi-dns').value = wifi.dns || '';
-        }
-    }
-
-    populateNodeSelect(select) {
-        select.innerHTML = '';
-        const nodes = this.extractNodesFromConfig(this.configData);
-        nodes.forEach(node => {
-            const option = document.createElement('option');
-            option.value = node.hash;
-            option.textContent = `${node.name} (${node.hash})`;
-            select.appendChild(option);
-        });
-    }
-
-    loadNodeName(modal, hash) {
-        const nodes = this.extractNodesFromConfig(this.configData);
-        const node = nodes.find(n => n.hash === parseInt(hash));
-        if (node) {
-            modal.querySelector('.node-name').value = node.name;
-        }
-    }
-
-    updateTextarea() {
-        this.textarea.value = JSON.stringify(this.configData, null, 2);
-    }
-
-    createAddSectionModal() {
-        if (this.currentFile !== 'interface.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Add New Section</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="page-select">Select Page</label>
-                        <select class="page-select" id="page-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <sl-input class="section-name-input" label="Section Name" required></sl-input>
-                    </div>
-                    <div class="form-row">
-                        <label for="section-orientation-select">Section Orientation</label>
-                        <select class="section-orientation-select" id="section-orientation-select" required>
-                            <option value="horizontal">Horizontal</option>
-                            <option value="vertical">Vertical</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="add-section-confirm-btn" variant="success">Add Section</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        modal.querySelector('.add-section-confirm-btn').addEventListener('click', () => {
-            this.addNewSection();
-            modal.remove();
-        });
-
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) modal.remove();
-        });
-
-        this.addSectionModal = modal;
-        this.pageSelect = modal.querySelector('.page-select');
-        this.sectionNameInput = modal.querySelector('.section-name-input');
-        this.sectionOrientationSelect = modal.querySelector('.section-orientation-select');
-
-        this.updatePageSelects();
-    }
-
-    createAddNodeModal() {
-        if (this.currentFile !== 'interface.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Add Node to Section</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="node-page-select">Select Page</label>
-                        <select class="node-page-select" id="node-page-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <label for="node-section-select">Select Section</label>
-                        <select class="node-section-select" id="node-section-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <label for="component-type-select">Component Type</label>
-                        <select class="component-type-select" id="component-type-select" required>
-                            <option value="rx-label">Label (affichage)</option>
-                            <option value="rx-indicator">Indicateur (affichage)</option>
-                            <option value="rx-level-bar">Barre de niveau (affichage)</option>
-                            <option value="rx-numeric">Numérique (affichage)</option>
-                            <option value="tx-button">Bouton</option>
-                            <option value="tx-button-hold">Bouton maintenu</option>
-                            <option value="tx-bool">Interrupteur</option>
-                            <option value="tx-dropdown">Menu déroulant</option>
-                            <option value="tx-numeric">Numérique (entrée)</option>
-                            <option value="tx-slider">Curseur</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="available-nodes-select">Available Nodes</label>
-                        <select class="available-nodes-select" id="available-nodes-select" required></select>
-                    </div>
-                    <div class="component-properties">
-                        <div class="component-properties-title">Component Properties</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="add-node-confirm-btn" variant="success">Add Node</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        modal.querySelector('.add-node-confirm-btn').addEventListener('click', () => {
-            this.addNewNode();
-            modal.remove();
-        });
-
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) modal.remove();
-        });
-
-        this.addNodeModal = modal;
-        this.nodePageSelect = modal.querySelector('.node-page-select');
-        this.nodeSectionSelect = modal.querySelector('.node-section-select');
-        this.componentTypeSelect = modal.querySelector('.component-type-select');
-        this.availableNodesSelect = modal.querySelector('.available-nodes-select');
-        this.componentProperties = modal.querySelector('.component-properties');
-
-        this.nodePageSelect.addEventListener('change', () => 
-            this.updateSectionSelect(this.nodePageSelect, this.nodeSectionSelect));
-        this.componentTypeSelect.addEventListener('change', () => 
-            this.updateComponentProperties());
-
-        this.updatePageSelects();
-        this.updateAvailableNodesSelect();
-    }
-
-    createRemoveNodeModal() {
-        if (this.currentFile !== 'interface.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Remove Node</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="remove-page-select">Select Page</label>
-                        <select class="remove-page-select" id="remove-page-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <label for="remove-section-select">Select Section</label>
-                        <select class="remove-section-select" id="remove-section-select" required></select>
-                    </div>
-                    <div class="form-row">
-                        <label for="remove-node-select">Select Node to Remove</label>
-                        <select class="remove-node-select" id="remove-node-select" required></select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="remove-node-confirm-btn" variant="danger">Remove Node</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        modal.querySelector('.remove-node-confirm-btn').addEventListener('click', () => {
-            this.removeSelectedNode();
-            modal.remove();
-        });
-
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) modal.remove();
-        });
-
-        this.removeNodeModal = modal;
-        this.removePageSelect = modal.querySelector('.remove-page-select');
-        this.removeSectionSelect = modal.querySelector('.remove-section-select');
-        this.removeNodeSelect = modal.querySelector('.remove-node-select');
-
-        this.removePageSelect.addEventListener('change', () => 
-            this.updateSectionSelect(this.removePageSelect, this.removeSectionSelect));
-        this.removeSectionSelect.addEventListener('change', () => 
-            this.updateNodeSelect());
-
-        this.updatePageSelects();
-    }
-
-    createRemoveSectionModal() {
-        if (this.currentFile !== 'interface.json') return;
-        const modal = document.createElement('div');
-        modal.className = 'modal-container';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-header">
-                    <h3>Remove Section</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label for="remove-page-select-section">Select Page</label>
-                        <select class="remove-page-select-section" id="remove-page-select-section" required></select>
-                    </div>
-                    <div class="form-row">
-                        <label for="remove-section-select-section">Select Section to Remove</label>
-                        <select class="remove-section-select-section" id="remove-section-select-section" required></select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <sl-button class="dialog-cancel-btn" variant="default">Cancel</sl-button>
-                    <sl-button class="remove-section-confirm-btn" variant="danger">Remove Section</sl-button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        modal.querySelector('.remove-section-confirm-btn').addEventListener('click', () => {
-            this.removeSelectedSection();
-            modal.remove();
-        });
-
-        modal.querySelector('.dialog-cancel-btn').addEventListener('click', () => modal.remove());
-
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) modal.remove();
-        });
-
-        this.removeSectionModal = modal;
-        this.removePageSelectSection = modal.querySelector('.remove-page-select-section');
-        this.removeSectionSelectSection = modal.querySelector('.remove-section-select-section');
-
-        this.removePageSelectSection.addEventListener('change', () => 
-            this.updateSectionSelect(this.removePageSelectSection, this.removeSectionSelectSection));
-
-        this.updatePageSelects();
-    }
-
-    removeExistingInterfaces() {
-        if (this.mainEditorBackdrop) {
-            this.mainEditorBackdrop.remove();
-            this.mainEditorBackdrop = null;
-        }
-        document.querySelectorAll('.modal-container').forEach(modal => modal.remove());
     }
 
     async openEditor() {
         try {
+            await this.fetchJsonFiles();
             this.createInterface();
             await this.loadFileContent();
             await this.loadConfigData();
@@ -10253,7 +9782,7 @@ class InterfaceEditor extends ConnectedElement {
             this.textarea.value = JSON.stringify(parsedContent, null, 2);
             if (this.currentFile === 'config.json') {
                 this.configData = parsedContent;
-            } else {
+            } else if (this.currentFile === 'interface.json') {
                 this.interfaceData = parsedContent;
             }
         } catch (err) {
@@ -10266,359 +9795,12 @@ class InterfaceEditor extends ConnectedElement {
         }
     }
 
-    forceButtonStyles() {
-        const buttons = this.mainEditor?.querySelectorAll('.edit-tools sl-button') || [];
-        buttons.forEach(button => {
-            button.style.setProperty('--sl-button-font-size-medium', '0.5rem', 'important');
-            button.style.setProperty('--sl-button-height-medium', '0.5rem', 'important');
-            button.style.setProperty('--sl-button-padding-x', '0.5rem', 'important');
-
-            const shadowRoot = button.shadowRoot;
-            if (shadowRoot) {
-                const base = shadowRoot.querySelector('.button__base');
-                if (base) {
-                    base.style.fontSize = '0.5rem';
-                    base.style.height = '0.5rem';
-                    base.style.padding = '0 0.5rem';
-                }
-            }
-        });
-    }
-
-    async loadConfigData() {
-        try {
-            const response = await fetch('/config.json');
-            if (!response.ok) throw new Error(`Failed to load configuration: ${response.status}`);
-            const data = JSON.parse(await response.text());
-            this.configData = data;
-            this.availableNodes = this.extractNodesFromConfig(data);
-            if (this.availableNodesSelect) this.updateAvailableNodesSelect();
-            return data;
-        } catch (err) {
-            console.error('Failed to load config data:', err);
-            window.notify({
-                type: "error",
-                name: "Error",
-                desc: "Failed to load configuration data"
-            });
-            return null;
-        }
-    }
-
-    async loadRendererDescriptors() {
-        try {
-            const response = await fetch('/renderers.json');
-            const data = await response.json();
-            this.rendererDescriptors = data;
-            return data;
-        } catch (err) {
-            console.error('Failed to load renderer descriptors:', err);
-            window.notify({
-                type: "warning",
-                name: "Warning",
-                desc: "Failed to load renderer descriptors, using defaults"
-            });
-            this.rendererDescriptors = {
-                "rx-label": { "name": { "type": "string", "required": true } },
-                "rx-indicator": { "name": { "type": "string", "required": true } },
-                "rx-level-bar": { "name": { "type": "string", "required": true } },
-                "rx-numeric": { "name": { "type": "string", "required": true } },
-                "tx-button": { "name": { "type": "string", "required": true } },
-                "tx-button-hold": { "name": { "type": "string", "required": true } },
-                "tx-bool": { "name": { "type": "string", "required": true } },
-                "tx-dropdown": { "name": { "type": "string", "required": true } },
-                "tx-numeric": { "name": { "type": "string", "required": true } },
-                "tx-slider": { "name": { "type": "string", "required": true } }
-            };
-            return this.rendererDescriptors;
-        }
-    }
-
-    extractNodesFromConfig(config) {
-        const nodes = [];
-        const extractNode = (node, parentInfo = {}) => {
-            if (node?.hash !== undefined) {
-                nodes.push({
-                    name: node.name || `Node_${node.hash}`,
-                    hash: node.hash,
-                    type: node.component || node.type || parentInfo.type || 'unknown'
-                });
-            }
-            if (node?.children?.length) {
-                node.children.forEach(child => extractNode(child, { type: node.type || parentInfo.type }));
-            }
-        };
-        if (config?.children?.length) {
-            config.children.forEach(section => {
-                extractNode(section);
-                if (section?.children?.length) {
-                    section.children.forEach(child => extractNode(child, { type: section.type }));
-                }
-            });
-        }
-        return [...new Map(nodes.map(node => [node.hash, node])).values()].sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    updatePageSelects() {
-        if (!this.interfaceData?.pages) return;
-        const pages = this.interfaceData.pages;
-        const selects = [
-            this.pageSelect,
-            this.nodePageSelect,
-            this.removePageSelect,
-            this.removePageSelectSection
-        ].filter(Boolean);
-
-        selects.forEach(select => {
-            select.innerHTML = '';
-            pages.forEach((page, i) => {
-                const option = document.createElement('option');
-                option.value = i.toString();
-                option.textContent = page.PageName;
-                select.appendChild(option);
-            });
-            if (pages.length > 0) select.value = '0';
-        });
-    }
-
-    updateSectionSelect(pageSelect, sectionSelect) {
-        if (!sectionSelect || !this.interfaceData?.pages) return;
-        const pageIndex = parseInt(pageSelect.value);
-        if (isNaN(pageIndex) || pageIndex < 0 || pageIndex >= this.interfaceData.pages.length) return;
-
-        const page = this.interfaceData.pages[pageIndex];
-        if (!page.sections?.length) return;
-
-        sectionSelect.innerHTML = '';
-        page.sections.forEach((section, i) => {
-            const option = document.createElement('option');
-            option.value = i.toString();
-            option.textContent = section.SectionName;
-            sectionSelect.appendChild(option);
-        });
-        if (page.sections.length > 0) sectionSelect.value = '0';
-    }
-
-    updateNodeSelect() {
-        if (!this.removeNodeSelect || !this.interfaceData?.pages) return;
-        const pageIndex = parseInt(this.removePageSelect.value);
-        const sectionIndex = parseInt(this.removeSectionSelect.value);
-        if (isNaN(pageIndex) || isNaN(sectionIndex)) return;
-
-        const section = this.interfaceData.pages[pageIndex]?.sections?.[sectionIndex];
-        if (!section?.NodesList?.length) return;
-
-        this.removeNodeSelect.innerHTML = '';
-        section.NodesList.forEach((node, i) => {
-            const option = document.createElement('option');
-            option.value = i.toString();
-            option.textContent = node.name || `Node ${i + 1}`;
-            this.removeNodeSelect.appendChild(option);
-        });
-        if (section.NodesList.length > 0) this.removeNodeSelect.value = '0';
-    }
-
-    updateAvailableNodesSelect() {
-        if (!this.availableNodesSelect) return;
-        this.availableNodesSelect.innerHTML = '';
-
-        if (!this.availableNodes?.length) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = '-- Aucun node disponible --';
-            option.disabled = true;
-            this.availableNodesSelect.appendChild(option);
-        } else {
-            this.availableNodes.forEach(node => {
-                const option = document.createElement('option');
-                option.value = node.hash.toString();
-                option.textContent = `${node.name} (${node.hash})`;
-                this.availableNodesSelect.appendChild(option);
-            });
-            this.availableNodesSelect.value = this.availableNodes[0].hash.toString();
-        }
-    }
-
-    updateComponentProperties() {
-        if (!this.componentProperties || !this.componentTypeSelect) return;
-        const componentType = this.componentTypeSelect.value;
-        this.componentProperties.innerHTML = '<div class="component-properties-title">Component Properties</div>';
-        this.addComponentProperty('name', 'Name', 'text', true);
-
-        if (this.rendererDescriptors?.[componentType]) {
-            Object.entries(this.rendererDescriptors[componentType]).forEach(([propName, descriptor]) => {
-                if (propName === 'name') return;
-                const type = descriptor.type === 'boolean' ? 'checkbox' : 
-                            descriptor.type === 'number' ? 'number' : 
-                            descriptor.enum ? 'select' : 
-                            descriptor.type === 'array' ? 'textarea' : 'text';
-                this.addComponentProperty(
-                    propName,
-                    descriptor.description || propName,
-                    type,
-                    descriptor.required || false,
-                    descriptor.enum?.map(value => ({ value, label: value }))
-                );
-            });
-        }
-    }
-
-    addComponentProperty(name, label, type, required, options = null) {
-        const property = document.createElement('div');
-        property.className = 'component-property';
-
-        let input;
-        if (type === 'select' && options) {
-            input = document.createElement('select');
-            input.required = required;
-            options.forEach(option => {
-                const optionEl = document.createElement('option');
-                optionEl.value = option.value;
-                optionEl.textContent = option.label;
-                input.appendChild(optionEl);
-            });
-            if (options.length > 0) input.value = options[0].value;
-        } else if (type === 'checkbox') {
-            input = document.createElement('input');
-            input.type = 'checkbox';
-        } else if (type === 'textarea') {
-            input = document.createElement('textarea');
-            input.required = required;
-            input.rows = 3;
-        } else {
-            input = document.createElement('input');
-            input.type = type;
-            input.required = required;
-        }
-
-        const labelEl = document.createElement('label');
-        labelEl.textContent = label;
-        labelEl.htmlFor = `${name}-${Date.now()}`;
-        input.id = labelEl.htmlFor;
-        input.name = name;
-
-        property.appendChild(labelEl);
-        property.appendChild(input);
-        this.componentProperties.appendChild(property);
-    }
-
-    showAddSectionDialog() {
-        if (this.currentFile !== 'interface.json') return;
-        this.createAddSectionModal();
-    }
-
-    showAddNodeDialog() {
-        if (this.currentFile !== 'interface.json') return;
-        this.createAddNodeModal();
-    }
-
-    showRemoveNodeDialog() {
-        if (this.currentFile !== 'interface.json') return;
-        this.createRemoveNodeModal();
-    }
-
-    showRemoveSectionDialog() {
-        if (this.currentFile !== 'interface.json') return;
-        this.createRemoveSectionModal();
-    }
-
-    addNewSection() {
-        if (!this.interfaceData?.pages) return;
-        const pageIndex = parseInt(this.pageSelect.value);
-        if (isNaN(pageIndex) || pageIndex < 0 || pageIndex >= this.interfaceData.pages.length) return;
-
-        const sectionName = this.sectionNameInput.value.trim();
-        if (!sectionName) {
-            window.notify({ type: "error", name: "Validation Error", desc: "Section name is required" });
-            return;
-        }
-
-        const orientation = this.sectionOrientationSelect.value;
-        const newSection = { SectionName: sectionName, orientation, NodesList: [] };
-        const page = this.interfaceData.pages[pageIndex];
-        page.sections = page.sections || [];
-        page.sections.push(newSection);
-        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
-
-        window.notify({ type: "success", name: "Section Added", desc: `Section "${sectionName}" added successfully` });
-    }
-
-    addNewNode() {
-        if (!this.interfaceData?.pages) return;
-        const pageIndex = parseInt(this.nodePageSelect.value);
-        const sectionIndex = parseInt(this.nodeSectionSelect.value);
-        if (isNaN(pageIndex) || isNaN(sectionIndex)) return;
-
-        const componentType = this.componentTypeSelect.value;
-        const nodeHash = this.availableNodesSelect.value;
-        if (!componentType || !nodeHash) return;
-
-        const properties = this.getComponentProperties();
-        if (!properties.name?.trim()) {
-            window.notify({ type: "error", name: "Validation Error", desc: "Node name is required" });
-            return;
-        }
-
-        const newNode = { component: componentType, hash: parseInt(nodeHash), ...properties };
-        const section = this.interfaceData.pages[pageIndex].sections[sectionIndex];
-        section.NodesList = section.NodesList || [];
-        section.NodesList.push(newNode);
-        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
-
-        window.notify({ type: "success", name: "Node Added", desc: `Node "${newNode.name}" added successfully` });
-    }
-
-    getComponentProperties() {
-        const properties = {};
-        this.componentProperties.querySelectorAll('input, select, textarea').forEach(input => {
-            if (input.name) {
-                if (input.type === 'checkbox') {
-                    properties[input.name] = input.checked;
-                } else if (input.tagName.toLowerCase() === 'textarea' && input.name === 'items') {
-                    properties[input.name] = input.value.split(',').map(item => item.trim()).filter(item => item);
-                } else if (input.type === 'number') {
-                    properties[input.name] = input.value ? parseFloat(input.value) : null;
-                } else {
-                    properties[input.name] = input.value;
-                }
-            }
-        });
-        return properties;
-    }
-
-    removeSelectedNode() {
-        if (!this.interfaceData?.pages) return;
-        const pageIndex = parseInt(this.removePageSelect.value);
-        const sectionIndex = parseInt(this.removeSectionSelect.value);
-        const nodeIndex = parseInt(this.removeNodeSelect.value);
-        if (isNaN(pageIndex) || isNaN(sectionIndex) || isNaN(nodeIndex)) return;
-
-        const section = this.interfaceData.pages[pageIndex].sections[sectionIndex];
-        const nodeName = section.NodesList[nodeIndex].name || `Node ${nodeIndex + 1}`;
-        section.NodesList.splice(nodeIndex, 1);
-        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
-
-        window.notify({ type: "success", name: "Node Removed", desc: `Node "${nodeName}" removed successfully` });
-    }
-
-    removeSelectedSection() {
-        if (!this.interfaceData?.pages) return;
-        const pageIndex = parseInt(this.removePageSelectSection.value);
-        const sectionIndex = parseInt(this.removeSectionSelectSection.value);
-        if (isNaN(pageIndex) || isNaN(sectionIndex)) return;
-
-        const page = this.interfaceData.pages[pageIndex];
-        if (!page.sections?.[sectionIndex]) return;
-
-        const sectionName = page.sections[sectionIndex].SectionName;
-        page.sections.splice(sectionIndex, 1);
-        this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
-
-        window.notify({ type: "success", name: "Section Removed", desc: `Section "${sectionName}" removed successfully` });
-    }
-
     closeEditor() {
-        this.removeExistingInterfaces();
+        if (this.mainEditorBackdrop) {
+            this.mainEditorBackdrop.remove();
+            this.mainEditorBackdrop = null;
+        }
+        document.querySelectorAll('.modal-container').forEach(modal => modal.remove());
     }
 
     async saveChanges() {
@@ -10629,15 +9811,15 @@ class InterfaceEditor extends ConnectedElement {
 
             if (isESP32) {
                 this.socket.sendMessage("saveFile", [{ path: `/${this.currentFile}`, data: content }]);
-                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} configuration sent to ESP32` });
+                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} saved to ESP32` });
             } else {
-                const response = await fetch(`/api/save-${this.currentFile.replace('.json', '')}`, {
+                const response = await fetch(`/fs/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content })
+                    body: JSON.stringify({ path: `/${this.currentFile}`, content })
                 });
                 if (!response.ok) throw new Error('Save failed');
-                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} configuration saved successfully` });
+                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} saved successfully` });
             }
 
             this.closeEditor();
@@ -10656,17 +9838,43 @@ class InterfaceEditor extends ConnectedElement {
         this.editBtn = this.querySelector('.edit-btn');
         if (this.editBtn) {
             this.editBtn.addEventListener('click', () => this.openEditor());
-            this.forceButtonStyles();
         }
     }
 
     disconnectedCallback() {
         this.removeExistingInterfaces();
         this.editBtn?.removeEventListener('click', this.openEditor);
+        if (this.uploadBtn) this.uploadBtn.removeEventListener('click', () => this.fileInput.click());
+        if (this.fileInput) this.fileInput.removeEventListener('change', () => this.uploadFile());
+        if (this.downloadBtn) this.downloadBtn.removeEventListener('click', () => this.downloadFile());
+        if (this.cancelBtn) this.cancelBtn.removeEventListener('click', () => this.closeEditor());
+        if (this.saveBtn) this.saveBtn.removeEventListener('click', () => this.saveChanges());
+        if (this.fileSelect) this.fileSelect.removeEventListener('change', (event) => {
+            this.currentFile = event.target.value;
+            this.updateEditorState(this.currentFile);
+            this.loadFileContent();
+        });
     }
 
     render() {}
     update() {}
+
+    // Méthodes placeholders pour éviter les erreurs (à implémenter selon vos besoins)
+    showAddSectionDialog() { console.log('Add Section Dialog'); }
+    showAddNodeDialog() { console.log('Add Node Dialog'); }
+    showRemoveNodeDialog() { console.log('Remove Node Dialog'); }
+    showRemoveSectionDialog() { console.log('Remove Section Dialog'); }
+    showAddWifiDialog() { console.log('Add WiFi Dialog'); }
+    showEditWifiDialog() { console.log('Edit WiFi Dialog'); }
+    showRemoveWifiDialog() { console.log('Remove WiFi Dialog'); }
+    showEditNodeNameDialog() { console.log('Edit Node Name Dialog'); }
+    showEditPasswordDialog() { console.log('Edit Password Dialog'); }
+    async loadConfigData() { console.log('Load Config Data'); }
+    async loadRendererDescriptors() { console.log('Load Renderer Descriptors'); }
+    removeExistingInterfaces() { 
+        document.querySelectorAll('.main-editor-backdrop').forEach(el => el.remove());
+        this.mainEditorBackdrop = null;
+    }
 }
 
 customElements.define('interface-editor', InterfaceEditor);

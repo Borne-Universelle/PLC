@@ -12,6 +12,12 @@
       "angle": 45,
       "name": "11 7/8",
       "width": 3.5
+    },
+    {
+      "longLength": 11.875,
+      "angle": 45,
+      "name": "11 7/8 2",
+      "width": 3.5
     }
   ]
 }
