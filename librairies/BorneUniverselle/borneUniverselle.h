@@ -136,6 +136,7 @@ const char MODBUS_NOT_INITIALISED[] PROGMEM = "PLC want to create modbus node bu
 #define DESCRIPTOR      "descriptor"
 #define GET_DESCRIPTOR  "get_descriptor"
 #define SAVE_FILE       "saveFile"
+#define GET_FILE        "getFile"
 #define DIRECTORY       "directory"
 #define FILTER          "filter"
 #define PATH            "path"
@@ -235,6 +236,7 @@ class BorneUniverselle{
         bool handleNodesChange(JsonDocument socketDoc);
         void handleDirectoryRequest(JsonDocument socketDoc);
         bool handleSaveFile(JsonDocument socketDoc);
+        bool handleGetFile(JsonDocument socketDoc);   
         bool getIsWifiParsedOk();
         void handleWebSocket(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client);
         void clearInputschanged(); // if no client connected
@@ -242,6 +244,7 @@ class BorneUniverselle{
         bool isWebSocketMessagesListMoreThanHalf();
         bool isAllInputsReadOnce();
         static bool sendTextToClient(char *text);
+        static bool sendJsonToClient(const JsonDocument & doc);
         static std::map<uint32_t, Node *> getNodesMap();
         float getConfigVersion(){
             return projectVersion;

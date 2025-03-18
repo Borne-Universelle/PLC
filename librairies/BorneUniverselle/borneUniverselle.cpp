@@ -463,6 +463,43 @@ void BorneUniverselle::sendHeartbeat(bool reset){
     heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
 }
 
+bool BorneUniverselle::sendJsonToClient(const JsonDocument & doc){
+    size_t size = measureJson(doc) + 32; // Ajout d'une marge de sécurité
+    
+    if (size > SOCKET_MESSAGE_MAX_SIZE) {
+        char message[64];
+        strcpy(message, "JSON document is too large to send to client");
+        prepareMessage(ERROR, message);
+        Serial.println(message);
+        return false;
+    }
+    
+    char* chain = (char*)malloc(size);
+    if (!chain) {
+        prepareMessage(ERROR, "Memory allocation failed for JSON document");
+        Serial.println(F("sendJsonToClient: malloc failed for JSON document"));
+        return false;
+    }
+    
+    size_t effectiveSize = serializeJson(doc, chain, size);
+    if (effectiveSize >= size) {
+        Serial.println(F("sendJsonToClient: effective size > evaluated size"));
+        free(chain);
+        return false;
+    }
+    
+    chain[effectiveSize] = 0; // Assurer la terminaison par zéro
+    
+    bool success = sendTextToClient(chain);
+    free(chain);
+    
+    if (!success) {
+        Serial.println(F("sendJsonToClient: Failed to send to client"));
+    }
+    
+    return success;
+}
+
 bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
@@ -1026,8 +1063,11 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
             Serial.println(F("BorneUniverselle::processMessage: receive a directory request"));
             handleDirectoryRequest(socketDoc);
     } else if (!socketDoc[SAVE_FILE].isNull()){
-            Serial.println(F("BorneUniverselle::processMessage: receive a set save file request"));
+            Serial.println(F("BorneUniverselle::processMessage: receive save file request"));
             handleSaveFile(socketDoc); 
+    } else if (!socketDoc[GET_FILE].isNull()){
+            Serial.println(F("BorneUniverselle::processMessage: receive a get file request"));
+            handleGetFile(socketDoc);        
     } else if (!socketDoc[INITIAL_STATE_LOADED].isNull()){
             Serial.println(F("BorneUniverselle::processMessage: initial state loaded"));
             if (initialStateLoadedCallback) {
@@ -1076,6 +1116,18 @@ bool BorneUniverselle::handleSaveFile(JsonDocument socketDoc) {
     }
 }
 
+bool BorneUniverselle::handleGetFile(JsonDocument socketDoc){
+    if (socketDoc[PATH].isNull()){
+        Serial.println("handleGetFile:: getFile, key path doesn`t exist");
+        return false;
+    }
+    String path = socketDoc[PATH];
+    String data;
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    persistence.readFile(path.c_str(), data);
+    return sendTextToClient((char *)data.c_str());
+}
+
 void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
     Serial.println(F("BorneUniverselle::handleDirectoryRequest"));
     if (socketDoc[FILTER].isNull()){
@@ -1097,6 +1149,7 @@ void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
             //serializeJsonPretty(notifyDoc, Serial);
             sendTextToClient(chain);  
         }
+        free(chain);
     } else {
         Serial.println(F("malloc failed on notify message"));
     }
