@@ -648,28 +648,14 @@ bool BorneUniverselle::sendMessage() {
         notif[DESCRIPTION] = notifMessage->message;
     }
 
-    uint16_t len = measureJson(doc) + 1;
-    
-    char *chain = (char *)malloc(len);
-    if (!chain) {
-        // notifMessagesList.remove(notifMessage);
-        setPlcBroken("BorneUniverselle::sendMessage, failed to allocate memory for Json message");
-        return false;
-    }
-
-    serializeJson(doc, chain, len);
-
-    bool success = sendTextToClient(chain);
-    
-    if (success){
+    bool success = sendJsonToClient(doc);
+    if (success) {
         lastMessageTime = millis();
         notifMessagesList.pop_front();
     } else {
-        Serial.println("SendMessage: unable to send text to client"); 
+        Serial.println("SendMessage: unable to send JSON to client");
     }
-
-    free(chain);
-    return true;
+    return success;
 }
 
 void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
@@ -1138,20 +1124,8 @@ void BorneUniverselle::handleDirectoryRequest(JsonDocument socketDoc){
     String filter = socketDoc[FILTER];
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
     JsonDocument doc = persistence.getFilteredFilesAsJson("/", filter.c_str());
-    serializeJson(doc, Serial);
-    uint32_t size = measureJson(doc);
-    char *chain = (char *)malloc(size + 10);
-    if (chain){
-        serializeJson(doc, chain, size);
-        chain[size] = 0;  // 0 chain terminated is missing !!!!
-        //Serial.println(chain);
-        if (isClientConnected() && client != nullptr){
-            //serializeJsonPretty(notifyDoc, Serial);
-            sendTextToClient(chain);  
-        }
-        free(chain);
-    } else {
-        Serial.println(F("malloc failed on notify message"));
+    if (!sendJsonToClient(doc)) {
+        Serial.println(F("handleDirectoryRequest: Failed to send JSON to client"));
     }
 }
 
@@ -1184,26 +1158,9 @@ bool BorneUniverselle::handleGetValue(uint32_t hash){
         return false; // on supprime ma requête
     }
  
-    uint32_t size = measureJson(notifyDoc);
-    char *chain = (char *)malloc(size + 10);
-    if (chain){
-        serializeJson(notifyDoc, chain, size);
-        chain[size] = 0;  // 0 chain terminated is missing !!!!
-        //Serial.println(chain);
-   
-            //serializeJsonPretty(notifyDoc, Serial);
-        bool success =  sendTextToClient(chain); 
-        free(chain); 
-
-        if (!success){
-            Serial.println(F("Unable to send message to client"));
-            return false; // on garde le message
-        } else {
-            //Serial.println(F("handleGetAllValues: end"));
-        }     
-    } else {
-        Serial.println(F("handleGetValue:: malloc failed on notify message"));
-        return true; // on supprime le message
+    if (!sendJsonToClient(notifyDoc)) {
+        Serial.println(F("handleGetValue::Unable to send JSON message to client"));
+        return false; // on garde le message
     }
     return true;
 } // handleGetValue
@@ -2431,30 +2388,10 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             // Serial.printf("Document size: %u\r\n", size);
         }
 
-        char *chain = (char *)malloc(size);
-        if (chain){
-            size_t effectiveSize = serializeJson(notifyDoc, chain, size);
-            if (effectiveSize >= size){
-                Serial.println("notifyWebClient:: effective size > evaluated size");
-                free (chain);
-                return true; // on écharge ce message car on ne peux pas le traiter
-            }
-
-            chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
-            // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
-            //serializeJsonPretty(notifyDoc, Serial);
-            bool success = sendTextToClient(chain);
-
-            if (!success){
-                Serial.println(F("notifyWebClient: Failed to send to client"));
-                return false;
-            }
-        } else {
-            Serial.println(F("notifyWebClient:malloc failed on notify message"));
-        }
-        
-        free(chain);
-        //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
+        if (!sendJsonToClient(notifyDoc)) {
+            Serial.println(F("notifyWebClient: Failed to send JSON to client"));
+            return false;
+        }        
         
         if (millis() - start > 300){ 
             Serial.printf("\r\n%lu:: End notifyWebClient %s: duration: %lu\r\n", millis(), sendAllStates ? "all states": "on state", millis() - start);
