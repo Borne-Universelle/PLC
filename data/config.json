@@ -1,0 +1,523 @@
+{
+    "name": "Formaca",
+    "type": 2,
+    "component": "hw-module",
+    "security": {
+      "passwords": {
+        "pages": {
+          "Configuration": "1111"
+        }
+      }
+    },
+    "config": [
+      {
+        "Wifi": [
+          {
+            "ssid": "PosadaLaHacienda",
+            "pwd": "Chispas2020",
+            "name": "Mexique",
+            "dhcp": true
+          },
+          {
+            "name": "Alexis",
+            "ssid": "TELUSAFF7",
+            "pwd": "h6vJ96UKmUr7",
+            "dhcp": true
+          },
+          {
+            "ssid": "Ella",
+            "pwd": "Oceanne1",
+            "name": "EDMG_Thierry",
+            "dhcp": true
+          },
+          {
+            "ssid": "Formaca Tigger stop",
+            "pwd": "Formaca_09182",
+            "name": "Routeur Formaca",
+            "dhcp": false,
+            "ip": "10.10.10.11",
+            "dns": "10.10.10.10",
+            "gateway": "10.10.10.10",
+            "mask": "255.255.255.0"
+          }
+        ]
+      },
+      {
+        "parameters": {
+          "ota_url": "truc"
+        }
+      }
+    ],
+    "children": [
+      {
+        "name": "Direct outputs",
+        "hardware": "Kincony_KC868_A8S",
+        "type": "tx-bool",
+        "children": [
+          {
+            "id": 1,
+            "name": "Buzzer",
+            "hash": 1711197005
+          }
+        ]
+      },
+      {
+        "name": "Inputs Kincony",
+        "hardware": "Kincony_KC868_A8S",
+        "type": "PF8574_rx-bool",
+        "children": [
+          {
+            "id": 1,
+            "name": "EStopA",
+            "inverse": true,
+            "hash": 721063196
+          },
+          {
+            "id": 2,
+            "name": "capteur pression air",
+            "hash": 998762341
+          },
+          {
+            "id": 7,
+            "name": "capteur cylindres",
+            "hash": 134240750
+          },
+          {
+            "id": 6,
+            "name": "StartCycle",
+            "hash": 2986050054
+          }
+        ]
+      },
+      {
+        "name": "Outputs Kincony",
+        "hardware": "Kincony_KC868_A8S",
+        "type": "PF8574_tx-bool",
+        "children": [
+          {
+            "id": 1,
+            "name": "servoOn",
+            "hash": 2864105056
+          },
+          {
+            "id": 2,
+            "name": "Do home",
+            "hash": 2206102162
+          },
+          {
+            "id": 3,
+            "name": "Flip flop scie",
+            "hash": 756474627
+          },
+          {
+            "id": 4,
+            "name": "immediatStop",
+            "hash": 3505331062
+          },
+          {
+            "id": 5,
+            "name": "alarmsReset",
+            "hash": 2122812135
+          }
+        ]
+      },
+      {
+        "name": "Jog",
+        "hardware": "virtual",
+        "type": "tx-bool",
+        "children": [
+          {
+            "id": 1,
+            "name": "jog",
+            "hash": 627952477
+          },
+          {
+            "id": 2,
+            "name": "fwd",
+            "hash": 936928435
+          },
+          {
+            "id": 3,
+            "name": "rwd",
+            "hash": 2405696470
+          },
+          {
+            "id": 4,
+            "name": "Full torque",
+            "hash": 313736047
+          },
+          {
+            "id": 5,
+            "name": "Scier",
+            "hash": 2853133322
+          },
+          {
+            "id": 6,
+            "name": "Go home",
+            "hash": 3099259876
+          },
+          {
+            "id": 7,
+            "name": "Go Pos Park",
+            "hash": 431233
+          },
+          {
+            "id": 8,
+            "name": "Go to reference",
+            "hash": 1483048151
+          },
+          {
+            "id": 9,
+            "name": "Ejecter",
+            "hash": 3772375986
+          },
+          {
+            "id": 10,
+            "name": "Calibrate !!!",
+            "hash": 3874886927
+          },
+          {
+            "id": 11,
+            "name": "v_servoOn",
+            "hash": 1581937258  
+          },
+          {
+            "id": 12,
+            "name": "v_flipFlopScie", 
+            "hash": 1291836804 
+          },
+          {
+            "id": 13,
+            "name": "v_immediateStop",
+            "hash": 4098079457  
+          },
+          {
+            "id": 14,
+            "name": "v_alarmsReset",
+            "hash": 1771340376  
+          }
+        ]
+      },
+      {
+        "name": "Drive Status",
+        "hardware": "virtual",
+        "component": "hw-section",
+        "type": "tx-bool",
+        "children": [
+          {
+            "id": 1,
+            "name": "servoReady",
+            "component": "rx-indicator",
+            "hash": 1948505786
+          },
+          {
+            "id": 2,
+            "name": "servoActivated",
+            "hash": 3387538036
+          },
+          {
+            "id": 3,
+            "name": "zeroSpeed",
+            "hash": 343892977
+          },
+          {
+            "id": 4,
+            "name": "targetSpeedRated",
+            "hash": 1762420137
+          },
+          {
+            "id": 5,
+            "name": "AtTarget",
+            "hash": 3030039596
+          },
+          {
+            "id": 7,
+            "name": "servoAlarm",
+            "hash": 3569748327
+          },
+          {
+            "id": 9,
+            "name": "absolutPositionLost",
+            "hash": 773850583
+          },
+          {
+            "id": 10,
+            "name": "batteryAlarm",
+            "hash": 1101239736
+          },
+          {
+            "id": 11,
+            "name": "multipleTurnsOverflow",
+            "hash": 2620738621
+          },
+          {
+            "id": 12,
+            "name": "puuOverflow",
+            "hash": 570368243
+          },
+          {
+            "id": 13,
+            "name": "absoluteCoordonateNotSet",
+            "hash": 4234803574
+          },
+          {
+            "id": 14,
+            "name": "homeDone",
+            "hash": 2166030126
+          },
+          {
+            "id": 15,
+            "name": "modbusError",
+            "hash": 1552688811
+          },
+          {
+            "id": 16,
+            "name": "driveInitialised",
+            "hash": 3779480165
+          }
+        ]
+      },
+      {
+        "name": "Inputs",
+        "hardware": "virtual",
+        "type": "tx-uint32",
+        "children": [
+          {
+            "id": 3,
+            "name": "vjog speed",
+            "hash": 2984797290
+          },
+          {
+            "id": 4,
+            "name": "vcycle speed",
+            "hash": 1951357668
+          },
+          {
+            "id": 5,
+            "name": "Torque Ctrl",
+            "hash": 3526906192
+          },
+          {
+            "id": 7,
+            "name": "Nb cycles voulus",
+            "hash": 1168588921
+          },
+          {
+            "id": 8,
+            "name": "Nb cycles effectués",
+            "hash": 3018797200
+          },
+          {
+            "id": 9,
+            "name": "Nb Cycles clear",
+            "hash": 362298148
+          },
+          {
+            "id": 10,
+            "name": "v_start",
+            "hash": 824782083
+          },
+          {
+            "id": 11,
+            "name": "Cancel cycle",
+            "hash": 2539529911
+          }
+        ]
+      },
+      {
+        "name": "Floats Inputs",
+        "hardware": "virtual",
+        "type": "tx-float",
+        "children": [
+          {
+            "id": 1,
+            "name": "Longueur brute",
+            "hash": 3749283751
+          },
+          {
+            "id": 2,
+            "name": "Longueur",
+            "hash": 2736300668
+          },
+          {
+            "id": 3,
+            "name": "Largeur",
+            "hash": 1041711882
+          },
+          {
+            "id": 4,
+            "name": "Offset chargement",
+            "hash": 1041711882
+          },
+          {
+            "id": 5,
+            "name": "Longueur du rebut",
+            "hash": 1541073354
+          },
+          {
+            "id": 6,
+            "name": "butée droite",
+            "hash": 3335850172
+          },
+          {
+            "id": 7,
+            "name": "Position actuelle en inch",
+            "hash": 3132370279
+          }
+        ]
+      },
+      {
+        "name": "DropDown Inputs",
+        "hardware": "virtual",
+        "type": "tx-text",
+        "children": [
+          {
+            "id": 1,
+            "name": "Choix Recette",
+            "items": [
+              "Crème glacée",
+              "Chocolat",
+              "Reine Elizabeth"
+            ],
+            "hash": 2565368844
+          }
+        ]
+      },
+      {
+        "name": "Servo read holding register",
+        "hardware": "SureServo",
+        "type": "ModbusReadHoldingRegister",
+        "address": 127,
+        "children": [
+          {
+            "id": 1,
+            "name": "status",
+            "hash": 4137233651
+          },
+          {
+            "id": 2,
+            "name": "absolute coordonate system status",
+            "component": "no-show",
+            "refreshInterval": 0,
+            "hash": 4098304980
+          },
+          {
+            "id": 3,
+            "name": "alarms",
+            "hash": 4126332617
+          },
+          {
+            "id": 4,
+            "name": "trigger read",
+            "hash": 4059768218
+          },
+          {
+            "id": 5,
+            "name": "jog speed read",
+            "hash": 4031699079
+          }
+        ]
+      },
+      {
+        "name": "Servo write holding register",
+        "hardware": "SureServo",
+        "component": "no-show",
+        "type": "ModbusWriteHoldingRegister",
+        "address": 127,
+        "children": [
+          {
+            "id": 1,
+            "name": "aux_function",
+            "hash": 2308213873
+          },
+          {
+            "id": 2,
+            "name": "trigger",
+            "hash": 748480285
+          },
+          {
+            "id": 4,
+            "name": "jog speed",
+            "hash": 3187488644
+          },
+          {
+            "id": 5,
+            "name": "Max torque",
+            "hash": 3740987040
+          }
+        ]
+      },
+      {
+        "name": "Num Status",
+        "hardware": "SureServo",
+        "type": "ModbusReadDobbleHoldingRegister",
+        "address": 127,
+        "children": [
+          {
+            "id": 1,
+            "name": "Position",
+            "hash": 4045003206,
+            "refreshInterval": 1000
+          },
+          {
+            "id": 3,
+            "name": "target A Read",
+            "hash": 2843041799
+          },
+          {
+            "id": 4,
+            "name": "target B Read",
+            "hash": 2152625540
+          },
+          {
+            "id": 5,
+            "name": "PR speed read",
+            "hash": 1103145540
+          },
+          {
+            "id": 6,
+            "name": "Target C read",
+            "hash": 3626159173
+          }
+        ]
+      },
+      {
+        "name": "Servo write dobble holding registers",
+        "hardware": "SureServo",
+        "type": "ModbusWriteDobbleHoldingRegister",
+        "address": 127,
+        "children": [
+          {
+            "id": 1,
+            "name": "target A",
+            "hash": 2532989225
+          },
+          {
+            "id": 2,
+            "name": "target B",
+            "hash": 3432736329
+          },
+          {
+            "id": 3,
+            "name": "PR1 speed",
+            "hash": 1282109782
+          },
+          {
+            "id": 4,
+            "name": "PR2 speed",
+            "hash": 2019104905
+          },
+          {
+            "id": 5,
+            "name": "PR3 speed",
+            "hash": 4171829142
+          },
+          {
+            "id": 6,
+            "name": "PR3 data",
+            "hash": 2731028726
+          }
+        ]
+      }
+    ]
+  }
