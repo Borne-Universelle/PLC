@@ -1,8 +1,10 @@
 #pragma once
 #define ARDUINOJSON_ENABLE_COMMENTS 1
 #include <Arduino.h>
+#include <FS.h>
 #include <LittleFS.h>
 #include "ArduinoJson.h"
+#include <vector>
 #include "PLC_CommonTypes/PLC_CommonTypes.h"
 
 #define DEFAULT_PERSISTENCE_TIMEOUT 500  // Timeout en millisecondes

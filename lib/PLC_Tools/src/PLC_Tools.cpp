@@ -1,15 +1,18 @@
 #include "PLC_Tools/PLC_Tools.h"
+
 const char* PLC_Tools::REBOOT_LOG_FILE = "/reboot_log.json";
 bool PLC_Tools::wifiDisconnectedForMemory = false;
 uint32_t PLC_Tools::wifiDisconnectionTime = 0;
 uint32_t PLC_Tools::disconnectionCount = 0;
 
 bool PLC_Tools::logReboot() {
+    
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
-    
+  
     JsonDocument doc;
+    /*  
     bool fileExists = true;
-    
+ 
     // Tenter de lire le fichier directement - une seule opération de lecture
     if (!persistence.readJsonFromFile(REBOOT_LOG_FILE, doc)) {
         // Si la lecture échoue, cela peut être parce que le fichier n'existe pas
@@ -19,7 +22,7 @@ bool PLC_Tools::logReboot() {
         doc.to<JsonArray>();
         fileExists = false;
     }
-
+   
     JsonArray array = doc.as<JsonArray>();
     esp_reset_reason_t resetReason = esp_reset_reason();
     
@@ -48,23 +51,29 @@ bool PLC_Tools::logReboot() {
         Serial.println(F("Failed to save reboot log"));
         return false;
     }
+        */
+       return true;
 }// logReboot
 
 String PLC_Tools::getRebootLog() {
+    String prettyLog  = "{}";
+    /*
     Serial.printf("%lu::getRebootLog\r\n", millis());
+ 
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
-    
+  
+     
     if (!persistence.fileExists(REBOOT_LOG_FILE)) {
-        return "{}";
+        return prettyLog;
     }
 
     JsonDocument doc;
     if (!persistence.readJsonFromFile(REBOOT_LOG_FILE, doc)) {
-        return "{}";
+        return prettyLog;
     }
-
-    String prettyLog;
+   
     serializeJsonPretty(doc, prettyLog);
+    */
     return prettyLog;
 }
 
@@ -276,13 +285,4 @@ void  PLC_Tools::manageWiFiBasedOnMemory() {
       logDiagnostic(diagnosticMsg);
       return;
     }
-  }
-
-  void PLC_Tools::feedTG1WDT(){  
-    vTaskDelay(pdMS_TO_TICKS(1));
-    REG_WRITE(TIMG_WDTWPROTECT_REG(1), TIMG_WDT_WKEY_V); // Déverrouiller le watchdog
-    REG_WRITE(TIMG_WDTFEED_REG(1), 1);                   // Nourrir le watchdog
-    REG_WRITE(TIMG_WDTWPROTECT_REG(1), 0);  
-    
-}
-    
+  }  

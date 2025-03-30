@@ -3,10 +3,8 @@
 
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
-
 #include <vector>
 #include <Arduino.h>
-#include <LittleFS.h>
 #include "ArduinoJson.h"
 #include "esp_system.h"
 #include "PLC_Persistence/PLC_Persistence.h"
@@ -41,7 +39,6 @@ public:
     void static logDiagnostic(const char* message);
     void static manageWiFiBasedOnMemory();
     bool static printDiagnosticFile();
-    static void feedTG1WDT();
 
     // File management
     static std::vector<String> getFilteredFiles(const char* path, const char* pattern);

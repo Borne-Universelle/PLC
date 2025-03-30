@@ -1,2 +1,0 @@
-
-Ligne 9 il faut écrire: #define CONSTR_FORMACA "Formaca"

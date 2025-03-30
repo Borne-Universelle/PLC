@@ -1,7 +1,12 @@
 #include "MemoryMonitor/MemoryMonitor.h"
 
+uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
+uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
+uint32_t MemoryMonitor::lowestMaxBloc = UINT32_MAX;
+
 void MemoryMonitor::trackStats() {
     uint32_t currentFreeHeap = ESP.getFreeHeap();
+    uint32_t currentMaxBloc = ESP.getMaxAllocHeap();
     
     if (currentFreeHeap < lowestFreeHeap) {
         lowestFreeHeap = currentFreeHeap;
@@ -10,6 +15,11 @@ void MemoryMonitor::trackStats() {
         // Appeler l'analyse de tendance à chaque nouveau minimum
         analyzeMemoryTrend();
     }
+
+    if (currentMaxBloc < lowestMaxBloc) {
+        lowestMaxBloc = currentMaxBloc;
+        Serial.printf("%lu::New lowest max bloc: %lu bytes\n", millis(), (unsigned long)lowestMaxBloc);
+    }   
 
     uint32_t currentFreePsram = ESP.getFreePsram();
     if (currentFreePsram < lowestFreePsram) {
@@ -79,36 +89,4 @@ void MemoryMonitor::analyzeMemoryTrend() {
     
     lastHeapValue = currentHeap;
     lastCheckTime = currentTime;
-}
-
-void MemoryMonitor::sectorAnalysis() {
-    static const char* sectors[] = {
-        "WiFi", "Modbus", "PLC_Persistence", "Nodes", "Other"
-    };
-    static uint32_t lastSectorHeap[5] = {0};
-    static bool initialized = false;
-    
-    uint32_t currentHeap = ESP.getFreeHeap();
-    
-    if (!initialized) {
-        for (int i = 0; i < 5; i++) {
-            lastSectorHeap[i] = currentHeap;
-        }
-        initialized = true;
-        return;
-    }
-    
-    // Activer/désactiver temporairement différents systèmes et mesurer l'impact
-    
-    // Exemple: désactiver temporairement WiFi
-    WiFi.disconnect(true);
-    uint32_t heapWithoutWiFi = ESP.getFreeHeap();
-    uint32_t wifiImpact = heapWithoutWiFi - currentHeap;
-    
-    // Réactiver WiFi si nécessaire
-    // ...
-    
-    Serial.printf("Memory impact by sector:\n");
-    Serial.printf("WiFi: %ld bytes\n", (long)wifiImpact);
-    // Autres mesures...
 }

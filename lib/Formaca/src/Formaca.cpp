@@ -3,6 +3,8 @@
 Formaca::Formaca() {
     Serial.println(CONSTR_FORMACA);
     // Inscrit la callback
+    /*
+    
     BorneUniverselle::setInitialStateLoadedCallback([this]() {
         this->initialStateLoadedHandler();
     });
@@ -241,6 +243,7 @@ Formaca::Formaca() {
         flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
     }
     Serial.println("Fin du constructeur Formaca");
+    */
 }
 
 Formaca::~Formaca() {
@@ -739,6 +742,7 @@ void Formaca::cycleSpeedChange() {
 }
 
 void Formaca::initialStateLoadedHandler() {
+    /*
     Serial.println("NEW CLIENT CONNECTED AND LOADED!!!!!!!!!!!!!!!!!!!!!!");
     JsonDocument docToSend;
     JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
@@ -779,6 +783,7 @@ void Formaca::initialStateLoadedHandler() {
     if (capteur_pression_air && !capteur_pression_air->getValue()) {
         BorneUniverselle::prepareMessage(ERROR, "Attention on a perdu la pression d'air !!!");
     }
+        */
 }
 
 bool Formaca::setNewRecette(const char *recette) {

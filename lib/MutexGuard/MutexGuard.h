@@ -24,10 +24,12 @@ public:
             //unsigned long acquiredTime = millis();
             //Serial.printf("%lu:: Successfully acquired mutex %s in context: %s (Wait time: %lu ms)\n", acquiredTime, mutexName, context, acquiredTime - startTime);
         } else {
-            Serial.printf("%lu:: Failed to acquire mutex %s in context: %s\n", millis(), mutexName, context);
-            // Possiblement log stack trace ou autres informations de debug
-            // Ne pas bloquer indéfiniment, mais peut-être réessayer ou gérer l'erreur différemment
-            while(true) { }
+           
+            while(true) {
+                Serial.printf("%lu:: Failed to acquire mutex %s in context: %s\n", millis(), mutexName, context);
+                Serial.flush();
+                vTaskDelay(pdMS_TO_TICKS(1000));
+             }
         }
     }
 

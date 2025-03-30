@@ -11,40 +11,20 @@ PLC_InterfaceMenu::~PLC_InterfaceMenu() {
 bool PLC_InterfaceMenu::parseFile(const char* filePath) {
     nodes.clear();
 
-    if (!LittleFS.begin()) {
-        Serial.println(F("Erreur de montage LittleFS"));
-        return false;
-    }
-    Serial.println(F("LittleFS monté avec succès"));
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
     
-    File file = LittleFS.open(filePath, "r");
-    if (!file) {
-        Serial.printf("Failed to open %s\n", filePath);
-        LittleFS.end();
-        return false;
-    }
-
+    // Document to hold the parsed JSON
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-    LittleFS.end();
     
-    if (error) {
-        char buff[512];
-        const char* errorMsg = error.c_str();
-        
-        Serial.println(F("JSON parsing error detected"));
-        Serial.printf("Error code: %d\n", static_cast<int>(error.code()));
-        
-        if (errorMsg) {
-            Serial.printf("Error message: %s\n", errorMsg);
-            snprintf(buff, sizeof(buff), "%lu:: config file: deserializeJson() failed: %s", 
-                    (unsigned long)millis(), errorMsg);
-        } else {
-            Serial.println(F("No error message available"));
-            snprintf(buff, sizeof(buff), "%lu:: config file: deserializeJson() failed with unknown error", 
-                    (unsigned long)millis());
-        }
+    // Read and parse the interface file
+    if (!persistence.readJsonFromFile(filePath, doc)) {
+        Serial.printf("Failed to read interface file: %s\n", persistence.getLastError());
+        return false;
+    }
+    
+    // Check that the document is not empty
+    if (doc.isNull()) {
+        Serial.println("Interface file is empty or contains invalid JSON");
         return false;
     }
 

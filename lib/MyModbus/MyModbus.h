@@ -1,3 +1,4 @@
+#pragma once
 #include <ModbusRTU.h>
 #include "esp_task_wdt.h"
 #include "PLC_CommonTypes/PLC_CommonTypes.h"
@@ -82,7 +83,7 @@ private:
 
     void processEvent(Modbus::ResultCode event);
     void handleError(Modbus::ResultCode event);
-    void getModbusErrorMessage(Modbus::ResultCode event, char* message);
+    void getModbusErrorMessage(Modbus::ResultCode event, char* message, size_t size);
 
     bool isShowMessages;
     void showMessages(const char *text);

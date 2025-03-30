@@ -11,7 +11,7 @@
 #include <memory>
 #include <Wire.h>
 #include <iostream>
-// #include "Node/Node.h"
+#include "Node/Node.h"
 #include "MyToolBox/MyToolBox.h" 
 #include "PLC_CommonTypes/PLC_CommonTypes.h"
 #include "PLC_InterfaceMenu/PLC_InterfaceMenu.h"
@@ -19,9 +19,11 @@
 #include "MemoryMonitor/MemoryMonitor.h"
 #include "MutexGuard/MutexGuard.h"
 #include "PLC_Persistence/PLC_Persistence.h"
+#include "MyModbus/MyModbus.h"
+
 
 class Node;
-class MyModbus;
+//class MyModbus;
 
 const char BORNE_UNIVERSELLE_VERSION[] PROGMEM = "Borne Universelle 2.2.0";
 
@@ -202,7 +204,8 @@ using WebSocketMessagePtr = std::unique_ptr<WEB_SOCKET_MESSAGE, WebSocketMessage
 
 class BorneUniverselle{
 	public:
-        BorneUniverselle();
+        BorneUniverselle(); 
+        
         static bool setName(const char *name, bool check = true);
         static char *getName();
 		
@@ -279,24 +282,24 @@ class BorneUniverselle{
         bool inputsCache[NB_DIGITAL_INPUTS] = {0};
 
         static char urlTest[10];
-        //std::map<std::string, int> m;
+        std::map<std::string, int> m;
         static std::map<uint32_t, Node *> nodesMap;
 
         static bool setHardware(JsonDocument& doc, const char *, bool check = true);
         void sendHeartbeat(bool reset = false);
-        bool i2cInit(JsonDocument contextDoc);
-        bool RS485Init(JsonDocument contextDoc);
-        bool modbusInit(JsonDocument contextDoc);
+        bool i2cInit(JsonDocument& contextDoc);
+        bool RS485Init(JsonDocument& contextDoc);
+        bool modbusInit(JsonDocument& contextDoc);
         static void unableToFindKey(char *context, char *key);
-        bool createRxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument descriptor, bool check); // c'est ici que l'on créé les nodes !
-        bool createTxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
-        bool createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument descriptor, bool check);
-        bool createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
-                                     JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument descriptor, bool check);
+        bool createRxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check); // c'est ici que l'on créé les nodes !
+        bool createTxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check);
+        bool createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument& descriptor, bool check);
+        bool createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument& contextDoc,
+                                     JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument& descriptor, bool check);
         // void modbusTask();
-        bool parseConfig(JsonDocument doc, bool check = true);
-        static bool parseWifis(JsonDocument doc, bool check);
-        bool parseHardwares(JsonDocument doc, bool check, float version);
+        bool parseConfig(JsonDocument& doc, bool check = true);
+        static bool parseWifis(JsonDocument& doc, bool check);
+        bool parseHardwares(JsonDocument& doc, bool check, float version);
         static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
         static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
         bool saveParameters(const JsonDocument &configDoc);
@@ -334,5 +337,6 @@ class BorneUniverselle{
 
     private:
         void addCustomDescriptor(Node *Node, JsonObject *nodeObject);
+        
 };
 #endif

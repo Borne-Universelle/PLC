@@ -7,7 +7,8 @@
 #include <esp32/rom/crc.h>
 #include <PCF8574.h>
 #include "ArduinoJson.h"
-#include "MyModbus/MyModbus.h"
+//#include "MyModbus/MyModbus.h"
+class MyModbus; // forward declaration
 #include "BorneUniverselle/borneUniverselle.h"
 
 #define NAME_LENGHT                 80
@@ -438,8 +439,8 @@ class ModbusReadDobbleInputRegisters: public Uint32InputNode {
             uint32_t getNewValue();
 
             uint16_t address;  // Adresse de l'esclave Modbus
-            uint16_t offset;   // Offset du registre
-            MyModbus &myModbus; 
+            uint16_t offset;   // Offset du registre 
+            MyModbus &myModbus;
 };
 
 class ModbusReadDoubleHoldingRegisters: public Uint32InputNode {

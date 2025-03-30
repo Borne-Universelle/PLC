@@ -1,5 +1,4 @@
 #include "BorneUniverselle/borneUniverselle.h"
-#include "Node/Node.h"
 
 bool BorneUniverselle::otaPending;
 char  BorneUniverselle::ota_url[OTA_URL_SIZE];
@@ -20,8 +19,6 @@ bool BorneUniverselle::isLastMessageFatal = false;
 bool BorneUniverselle::plcBroken = false;
 bool BorneUniverselle::clientconnected = false;
 bool BorneUniverselle::newClientConnected = false;
-uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
-uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
 
 SemaphoreHandle_t BorneUniverselle::webSocketMutex = NULL;
 SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
@@ -32,7 +29,8 @@ std::function<void()> BorneUniverselle::initialStateLoadedCallback = nullptr;
 std::map<uint32_t, Node *> BorneUniverselle::nodesMap;
 std::list<NotifMessagePtr> BorneUniverselle::notifMessagesList;
 
-BorneUniverselle::BorneUniverselle() : myModbus(MyModbus::getInstance()){
+
+BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     Serial.println(BORNE_UNIVERSELLE_VERSION); 
     webSocketMutex = xSemaphoreCreateMutex();
 
@@ -47,25 +45,33 @@ BorneUniverselle::BorneUniverselle() : myModbus(MyModbus::getInstance()){
         return;
     }
 
+   // ici cela fonctionne
+ 
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
+
+
 
     if (!PLC_Tools::logReboot()){
         setPlcBroken("Failed to log reboot");
         return;
     }
-
+/*        
+        
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
+ 
     Serial.println(PLC_Tools::getRebootLog());
     Serial.println(F("End of reboot history"));
     Serial.println();
     Serial.println(F("BorneUniverselle constructor"));
    
+       // ici cela ne fonctionne pas
     if (!PLC_Tools::printDiagnosticFile()){
         setPlcBroken("Failed to print diagnostic file");
         return;
     }
-
+  
+       
     if (psramInit()){
         Serial.println(F("PSRAM is available !!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
         psRamAvailable = true;
@@ -73,9 +79,10 @@ BorneUniverselle::BorneUniverselle() : myModbus(MyModbus::getInstance()){
          Serial.println(F("PSRAM is not available !"));
     }
 
+ 
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
     
-    // Utiliser PLC_Persistence pour lire le fichier JSON
+    // Lecture du fichier JSON
     JsonDocument configDoc;
     if (!persistence.readJsonFromFile("/config.json", configDoc)) {
         setPlcBroken(persistence.getLastError());
@@ -93,7 +100,7 @@ BorneUniverselle::BorneUniverselle() : myModbus(MyModbus::getInstance()){
  
     nbTimeouts = 0;
 
-    // Serial.printf("Total Ps-ram: %lu, free Ps-ram: %lu\r\n", (long unsigned)totalPsRam, (long unsigned)freePsRam);
+    //Serial.printf("Total Ps-ram: %lu, free Ps-ram: %lu\r\n", (long unsigned)totalPsRam, (long unsigned)freePsRam);
 
     if (getConfigVersion() >= 2){
         PLC_InterfaceMenu* menuInterface = new PLC_InterfaceMenu();
@@ -110,7 +117,7 @@ BorneUniverselle::BorneUniverselle() : myModbus(MyModbus::getInstance()){
 
         Serial.println("Loop on nodes to set node name from the interface file");
         for (const MenuNode& menuNode : *menuInterface) {  
-           // Serial.printf("MenuNode: %s in section %s, hash: %lu\r\n", menuNode.name.c_str(), menuNode.sectionName.c_str(), (long unsigned)menuNode.hash);
+            Serial.printf("MenuNode: %s in section %s, hash: %lu\r\n", menuNode.name.c_str(), menuNode.sectionName.c_str(), (long unsigned)menuNode.hash);
             Node *node = findNode("Loop on nodes to set node name from the interface file", menuNode.hash);
             if (node != nullptr) {
                 if (node->setName(menuNode.name.c_str(), menuNode.sectionName.c_str())){
@@ -145,16 +152,18 @@ BorneUniverselle::BorneUniverselle() : myModbus(MyModbus::getInstance()){
     for (const String& fileName : files) {
         Serial.println(fileName);  // Affiche juste le nom du fichier
     } 
-   
+
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
+    */
 }
 
 void BorneUniverselle::modbusMessageHandler(uint8_t severity, const char* message) {
-    BorneUniverselle::prepareMessage(severity, message);
+    BorneUniverselle::prepareMessage(severity, message);  
 }
    
 bool BorneUniverselle::isPlcBroken(){
     return plcBroken;
+
 }
 
 void BorneUniverselle::setPlcBroken(const char *context){
@@ -177,6 +186,7 @@ void BorneUniverselle::unableToFindKey(char *_context, char *_key){
 }
 
 void BorneUniverselle::setShowModbusMessages(bool status){
+    /*
     Serial.printf("Show modbus messages: %s\r\n", status ? "true" : "false");
     showModbusMessages = status;
     // flag tous les nodes modbus pour afficher les messages
@@ -187,7 +197,9 @@ void BorneUniverselle::setShowModbusMessages(bool status){
             node->setShowMessages(status);
         }
     }
+        */
 }
+
 
 bool BorneUniverselle::getModbusStatusMessages(){
     return showModbusMessages;
@@ -200,6 +212,7 @@ void BorneUniverselle::showMessage(Node *node, const char *text){
 }
 
 void BorneUniverselle::refresh(){
+    /*
     if (isPlcBroken()){
         Serial.println("No refresh because PLC is broken !!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             return;
@@ -250,29 +263,30 @@ void BorneUniverselle::refresh(){
 
         // test;
         if (millis() - start > 1000){
-            Serial.printf("%lu::Refresh:: abnormal refresh time, aborting refresh\r\n", millis());
-            PLC_Tools::feedTG1WDT();
+            Serial.printf("%lu::Refresh:: abnormal refresh time (more than 1 sec), aborting refresh process\r\n", millis());
+            vTaskDelay(pdMS_TO_TICKS(1));
             return;
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
             Serial.printf("%lu::Refresh:: abnormal refresh time, refreshing watch dogh\r\n", millis());
             lastCheck = millis();
-            PLC_Tools::feedTG1WDT();
+            vTaskDelay(pdMS_TO_TICKS(10));
             // on a peut etre reçu un hearbeat   
             //Serial.printf("%lu::Refresh:: will call handleWebSocketMessage\r\n", millis());
-            //handleWebSocketMessage();  // handleWebSocketMessage appel checkHeartbeat
-            return;
+            handleWebSocketMessage();  // handleWebSocketMessage appel checkHeartbeat
+            //return;
         }
-        Serial.printf("%u:: Refresh: vTaskDelay\r\n", millis());
-        PLC_Tools::feedTG1WDT();
+        //Serial.printf("%u:: Refresh: vTaskDelay\r\n", millis());
+        vTaskDelay(pdMS_TO_TICKS(1));
     } // for 
 
     if ( millis() - start > 1000){
         Serial.printf("%lu::Total refresh time: %lu (wait time included)\r\n", millis(), millis() - start);
     }
+        */
 }
-
+/*
 bool BorneUniverselle::isAllInputsReadOnce(){
     bool status = true;
     if (!allInputsReadOnce){
@@ -282,13 +296,12 @@ bool BorneUniverselle::isAllInputsReadOnce(){
             if (node->getMode() == INPUT_MODE){
                 InputNode *inputNode = (InputNode *)node;
                 if (inputNode->getLastRefresh() == 0){
-                    Serial.printf("isAllInputsReadOnce: at least node %s has not been read once\r\n", node->getName());
+                    //Serial.printf("isAllInputsReadOnce: at least node %s has not been read once\r\n", node->getName());
                     status = false;
                     break;
                 }
             }
-            //esp_task_wdt_reset();
-            PLC_Tools::feedTG1WDT();
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
         if (status){
             allInputsReadOnce = true;
@@ -309,13 +322,15 @@ void BorneUniverselle::refresHardwareInputs(){
         }
      }
 }
- 
+     */
+
 bool BorneUniverselle::getWifiStatus(){
-    return wificonnected;
+    return wificonnected; // THIERRY
 }
 
 void BorneUniverselle::setWifiConnected(bool status){
-    wificonnected = status;
+    //wificonnected = status; // THIERRY
+
 }
 
 bool BorneUniverselle::isWifiConnectionTimeout(){
@@ -339,8 +354,11 @@ WifiItem BorneUniverselle::getNextNetwork(){
 	}
 
 	Serial.printf("Current wifi: %s, item: %d\r\n", wifiItemsMapBu[currentNetworkId].connectionName, currentNetworkId);
+    
 	return wifiItemsMapBu[currentNetworkId];	
 }
+    
+
 
 bool BorneUniverselle::connectWifi(WifiItem currentWifi){
     WiFi.disconnect(true, true);
@@ -361,22 +379,23 @@ bool BorneUniverselle::connectWifi(WifiItem currentWifi){
 	}
     WiFi.setHostname(BorneUniverselle::getName());
 	WiFi.begin(currentWifi.SSID, currentWifi.PWD);
-    wifiStartupTime = millis();
+    //wifiStartupTime = millis(); // THIERRY
     return true;
 }
 
 unsigned char BorneUniverselle::getNbWifiItems(){
-    Serial.printf("getNbWifiItems: %d\r\n", wifiItemsMapBu.size());
+    //Serial.printf("getNbWifiItems: %d\r\n", wifiItemsMapBu.size()); // THIERRY
 	return wifiItemsMapBu.size();
+
 }
 
 char *BorneUniverselle::getOTA_Url(){
-   
-	return urlTest;
+   return urlTest;
 }
+        
 
 void BorneUniverselle::setOTA_url(const char *url){
-	//Serial.printf("New url for fimrware update will be saved in persistant parameters: %s\r\n", url);
+	Serial.printf("New url for fimrware update will be saved in persistant parameters: %s\r\n", url);
 	//saveParameters();
 }
 
@@ -391,6 +410,7 @@ bool BorneUniverselle::saveParameters(const JsonDocument &configDoc) {
         return false;
     }
 }
+
 
 void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_client) {
     // Gestion du webSocketMutex
@@ -476,6 +496,8 @@ void BorneUniverselle::sendHeartbeat(bool reset){
     } 
     heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
 }
+    
+   
 
 bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
@@ -517,7 +539,7 @@ bool BorneUniverselle::sendTextToClient(char *text){
    
     client->text(text);
     return true;
-}
+} 
 
 void BorneUniverselle::updateEarthbeatTimeout(){
     lastHearbeatReceive = millis();
@@ -550,10 +572,10 @@ void BorneUniverselle::checkHeartbeat(){
         if (millis() > heartbeatTimeout){
             nbTimeouts++;
             Serial.printf("%lu::Web socket timeout !!!\r\n", millis());
-            setClientConnected(false, nullptr); 
+            setClientConnected(false, nullptr);
         }
     } else {// client connected
-        // Serial.println("client not connected");
+        //Serial.println("client not connected");
     }
 }
 
@@ -678,32 +700,42 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
 
     // on discard les warning messages si il n'y a pas de client connecté..
     if (!isClientConnected()){
+        char safeMessage[MAX_MESSAGE_LENGTH + 1];
+        strncpy(safeMessage, text, MAX_MESSAGE_LENGTH);
+        safeMessage[MAX_MESSAGE_LENGTH] = '\0';
+
+        if (strlen(text) > MAX_MESSAGE_LENGTH) {
+            Serial.printf("prepareMessage:: message too long (%d chars), truncating\r\n", strlen(text));
+        }
+    
         switch (type) {
-            case ERROR:     Serial.printf("%lu:: ERROR: %s\r\n", millis(), text);
+            case ERROR:     Serial.printf("%lu:: ERROR: %s\r\n", millis(), safeMessage);
                             break;
 
-            case WARNING:   Serial.printf("%lu:: WARNING: %s\r\n", millis(), text);
+            case WARNING:   Serial.printf("%lu:: WARNING: %s\r\n", millis(), safeMessage);
                             break;
 
-            case INFO:      Serial.printf("%lu:: INFO: %s\r\n", millis(), text);
+            case INFO:      Serial.printf("%lu:: INFO: %s\r\n", millis(), safeMessage);
                             break;
 
-            case SUCCESS:
-                            Serial.printf("%lu:: SUCCESS: %s\r\n", millis(), text);
+            case SUCCESS:   Serial.printf("%lu:: SUCCESS: %s\r\n", millis(), safeMessage);
+                            break;
+
+            default:        Serial.printf("%lu:: prepareMessage ::unknow severity %d, texte: %s\r\n", millis(), type, safeMessage);
                             break;
         }
         
         return;
     }
 
-    MutexGuard guard(notifMutex, "notifyMutex", __FUNCTION__); // // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
+    MutexGuard guard(notifMutex, "notifyMutex", __FUNCTION__); // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
     if (!guard.isAcquired()) {
         return;
     }
 
     if (notifMessagesList.size() >= MAX_MESSAGES_PENDING) {
         Serial.println(F("Notification queue full, dropping oldest message"));
-        notifMessagesList.remove(notifMessagesList.front());
+        notifMessagesList.pop_front();
     }
 
     // Calcul de la longueur finale
@@ -726,11 +758,9 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
         Serial.printf("Message truncated from %u to %u characters\n", messageLength, MAX_MESSAGE_LENGTH);
     }
 
-
     if (notifMessagesList.size() > MAX_MESSAGES_PENDING / 2) {
         Serial.printf("%lu:: prepareMessage:: There are %u / %u notifications on the queue\r\n", millis(), notifMessagesList.size(), MAX_MESSAGES_PENDING);
     }
-        
 }
 
 bool BorneUniverselle::setName(const char *_name, bool check){
@@ -738,7 +768,7 @@ bool BorneUniverselle::setName(const char *_name, bool check){
     if (strlen(_name) < NAME_LENGHT && strlen(_name) > 0 && !strstr(_name, " ")){
         Serial.printf("Project name: %s\r\n", _name);
         if (!check){
-            strcpy(name, _name);
+            //strcpy(name, _name);  // THIERRY
         }
         status = true;
     } else {
@@ -751,7 +781,8 @@ bool BorneUniverselle::setName(const char *_name, bool check){
 }
 
 char *BorneUniverselle::getName(){
-    return name;
+    //return name; // THIERRY
+    return nullptr; // THIERRY
 }
 
 bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() { 
@@ -759,7 +790,8 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
         return false;
     }
 
-    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
+    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__); // THIERRY
+    
     if (!guard.isAcquired()) {
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
@@ -772,7 +804,7 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
 
     return isMoreThanHalf;
 }
-
+    
 void BorneUniverselle::handleWebSocket(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client){
     // Vérifie simplement que c'est un message texte
     AwsFrameInfo *info = (AwsFrameInfo*)_arg;
@@ -899,9 +931,11 @@ bool BorneUniverselle::clientQueueIsFull() {
 
 void BorneUniverselle::handleWebSocketMessage() {
     // Vient de loop mais aussi de refresh
+    
     if (!isAllInputsReadOnce()){
         Serial.println("handleWebSocketMessage: receive a web socket message but not all inputs are read");
     }
+    
 
     WEB_SOCKET_MESSAGE workingMessage;
 
@@ -1263,12 +1297,11 @@ bool BorneUniverselle::handleNodesChange(JsonDocument& socketDoc){
     return true;
 }
 
-bool BorneUniverselle::parseConfig( JsonDocument doc,bool check){
+bool BorneUniverselle::parseConfig( JsonDocument& doc,bool check){
     bool status = true;
     projectVersion = 0;
     Serial.println("Will parse config");
 
-    //if (doc.containsKey(NAME)){
     if (!doc[NAME].isNull()){
         String name = doc[NAME]; // project name
         if (!setName(name.c_str(), check)){
@@ -1330,7 +1363,7 @@ bool BorneUniverselle::getIsWifiParsedOk(){
     return wifiParsedOk;
 }
 
-bool BorneUniverselle:: parseWifis(JsonDocument doc, bool check){
+bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
     for (JsonObject item : doc[CONFIG].as<JsonArray>()) {
         //if (item.containsKey(WIFI)){
         if (!item[WIFI].isNull()){
@@ -1488,7 +1521,7 @@ void  BorneUniverselle::eraseWifis(){
     wifiItemsMapBu.clear();
 }
 
-bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projectVersion){
+bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float projectVersion){
     bool needToSaveConfig = false;
     char buff[1000];
     //Serial.println("parseHardwares");
@@ -1516,7 +1549,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
            
         //if (!children.containsKey(HARDWARE)){
         if (children[HARDWARE].isNull()){
-            sprintf(text, "parseHardwares:: Section %s doesnt contains key hardware", name);
+           // sprintf(text, "parseHardwares:: Section %s doesnt contains key hardware", name); // THIERRY
             prepareMessage(ERROR, text);
             return false;
         }
@@ -1526,7 +1559,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
 
         //if (!children.containsKey(TYPE)){
         if (children[TYPE].isNull()){
-            sprintf(buff, "parseHardwares:: Section %s doesnt contains key type", name);
+            //sprintf(buff, "parseHardwares:: Section %s doesnt contains key type", name); // THIERRY
             Serial.println(buff);
             prepareMessage(ERROR, buff);
             return false;
@@ -1539,7 +1572,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
             for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
                 char nodeName[128];
                 if (c[NAME].isNull()){
-                    sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
+                   // sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME); // THIERRY
                     prepareMessage(ERROR, buff);
                     return false;  
                 }
@@ -1608,11 +1641,12 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
             setPlcBroken(persistence.getLastError());
             return false;
         }
-
+        /*
         if (strstr(fileName, "A8S") && !isKinconyA8S){
             Serial.println(F("Card is an Kincony A8S, pin 2 must be set after go ip"));
             isKinconyA8S = true;
         } 
+        */
 
         if (nodesDoc[HARDWARE].isNull()){
             sprintf(buff,"parseHardwares:: Key: %s not found", HARDWARE);
@@ -1648,7 +1682,7 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
 
         //if (!children.containsKey(CHILDREN)){
         if (children[CHILDREN].isNull()){
-            sprintf(buff, "parseHardwares:: section %s doesnt contains key %s from config file", name, CHILDREN);
+           // sprintf(buff, "parseHardwares:: section %s doesnt contains key %s from config file", name, CHILDREN); // THIERRY
             prepareMessage(ERROR, buff);
             return false; 
         }
@@ -1794,14 +1828,14 @@ bool BorneUniverselle::parseHardwares(JsonDocument doc, bool check, float projec
  // setHardware
 }
 
-bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument contextDoc,
-                                     JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument descriptor, bool check){
+bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint16_t id, uint32_t *hash, uint16_t slaveAddress, JsonDocument& contextDoc,
+                                     JsonObject hardSection, char *type, uint16_t refreshInterval,  uint16_t webRefreshInterval, JsonDocument& descriptor, bool check){
     
     if (!isModbusInitialised){
         prepareMessage(ERROR, MODBUS_NOT_INITIALISED);
         return false;
     }
-
+    
     Node *node;
     uint16_t offset;
     char message[256];
@@ -1826,19 +1860,50 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint1
     offset += registersOffset;
 
     if (!strcmp(type, MODBUS_READ_COIL)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusReadCoilNode));
-            node = new (a) ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusReadCoilNode));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusReadCoilNode");
+                    return false;
+                }
+            }
         } else {
-            node = new ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusReadCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusReadCoilNode");
+                return false;
+            }
         }
         Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_COIL)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusWriteCoilNode));
-            node = new (a) ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusWriteCoilNode));
+            if (a != nullptr) {
+                node = new (a) ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            } else {
+                // Gestion du cas où ps_malloc échoue
+                node = new (std::nothrow) ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                   setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteCoilNode");
+                   return false;
+                }
+            }
         } else {
-            node = new ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            node = new (std::nothrow) ModbusWriteCoilNode(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            if (node == nullptr) {
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteCoilNode");
+                return false;
+            }
         }
         Serial.printf("Node %s created with succes with type ModbusReadCoilNode, hash: %lu, address: %d, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_WRITE_MULTIPLE_COILS)){
@@ -1853,52 +1918,153 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint1
             setPlcBroken(texte);
         }
 
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusWriteMultipleCoilslNode));
-            node = new (a) ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusWriteMultipleCoilslNode));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteMultipleCoilslNode");
+                    return false;
+                }
+            }
         } else {
-             node = new ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusWriteMultipleCoilslNode(nodeName, sectionName, id, *hash, slaveAddress, offset, nbValues, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteMultipleCoilslNode");
+                return false;
+            }
         }
-
         Serial.printf("Node %s created with succes with type ModbusWriteMultipleCoilslNode, hash: %lu, address: %d, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset); 
     } else if (!strcmp(type, MODBUS_READ_HOLDING_REGISTER)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusReadHoldingRegister));
-            node = new (a) ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusReadHoldingRegister));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusReadHoldingRegister");
+                    return false;
+                }
+            }
         } else {
-            node = new ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusReadHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusReadHoldingRegister");
+                return false;
+            }
         }
         Serial.printf("Node %s created with succes with type ModbusReadHoldingRegister, hash: %lu, address: %d, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_HOLDING_REGISTER)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusWriteHoldingRegister));
-            node = new (a) ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusWriteHoldingRegister));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteHoldingRegister");
+                    return false;
+                }
+            }
         } else {
-            node = new ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusWriteHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteHoldingRegister");
+                return false;
+            }
         }
         Serial.printf("Node %s created with succes with type ModbusWriteHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_READ_DOUBLE_HOLDING_REGISTER)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusReadDoubleHoldingRegisters));
-            node = new (a) ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusReadDoubleHoldingRegisters));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusReadDoubleHoldingRegisters");
+                    return false;
+                }
+            }
         } else {
-            node = new ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval,  webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusReadDoubleHoldingRegisters(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusReadDoubleHoldingRegisters");
+                return false;
+            }
         }
         Serial.printf("Node %s created with succes with type ModbusReadDoubleHoldingRegisters, hash: %lu, address: %u, offset: %d, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_WRITE_DOUBLE_HOLDING_REGISTER)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusWriteDoubleHoldingRegister));
-            node = new (a) ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusWriteDoubleHoldingRegister));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteDoubleHoldingRegister");
+                    return false;
+                }
+            }
         } else {
-            node = new ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusWriteDoubleHoldingRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusWriteDoubleHoldingRegister");
+                return false;
+            }
         }
         Serial.printf("Node %s created with succes with type ModbusWriteDoubleHoldingRegister, hash: %lu, address: %u, offset: %d\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset);
     } else if (!strcmp(type, MODBUS_READ_INPUT_REGISTER)){
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusReadInputRegister));
-            node = new (a) ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusReadInputRegister));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusReadInputRegister");
+                    return false;
+                }
+            }
         } else {
-            node = new ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusReadInputRegister(nodeName, sectionName, id, *hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusReadInputRegister");
+                return false;
+            }
         } 
         Serial.printf("Node %s created with succes with type ModbusReadInputRegister, hash: %lu, address: %u, offset: %u, refresh interval: %u, web refresh interval %u\r\n", node->getName(), (unsigned long)*hash, slaveAddress, offset, refreshInterval, webRefreshInterval);
     } else if (!strcmp(type, MODBUS_READ_MULTIPLE_INPUTS_STATUS)){
@@ -1912,11 +2078,28 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint1
             sprintf(texte, "Unable to find key: %s on section %s\r\n", NB_VALUES, MODBUS_WRITE_MULTIPLE_COILS);
             setPlcBroken(texte);
         } 
-        if (psRamAvailable){
-            void * a = ps_malloc(sizeof(ModbusReadMultipleInputsRegistersNode));
-            node = new (a) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
-        } else {         
-            node = new ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+        if (psRamAvailable) {
+            void* a = ps_malloc(sizeof(ModbusReadMultipleInputsRegistersNode));
+            if (a != nullptr) {
+                // Utiliser le placement new avec la mémoire PSRAM allouée
+                node = new (a) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+            } else {
+                // Fallback sur l'allocation mémoire standard avec gestion d'erreur
+                node = new (std::nothrow) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+                if (node == nullptr) {
+                    // Gestion de l'échec d'allocation
+                    setPlcBroken("Erreur d'allocation mémoire pour ModbusReadMultipleInputsRegistersNode");
+                    return false;
+                }
+            }
+        } else {
+            // Allocation mémoire standard avec gestion d'erreur
+            node = new (std::nothrow) ModbusReadMultipleInputsRegistersNode(nodeName, sectionName, id, (unsigned long)*hash, slaveAddress, offset, nbValues, refreshInterval, webRefreshInterval);
+            if (node == nullptr) {
+                // Gestion de l'échec d'allocation
+                setPlcBroken("Erreur d'allocation mémoire pour ModbusReadMultipleInputsRegistersNode");
+                return false;
+            }
         }
     } else {
         sprintf(message, "createModbusNode:: Unable to identifiy node type with class %s\r\n", type);
@@ -1928,20 +2111,19 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint1
     *hash = node->getHash();
 
    if (!check){
-        auto result = nodesMap.insert(std::make_pair(node->getHash(), node));
+        auto result = nodesMap.insert(std::make_pair(node->getHash(), node)); // THIERRY
         if (!result.second) {
             // L'insertion a échoué car le hash existe déjà
             char errMsg[128];
             sprintf(errMsg, "Hash collision detected for node %s, hash: %lu", 
                     node->getName(), (unsigned long)node->getHash());
             setPlcBroken(errMsg);
-            // Vous pourriez aussi appeler setPlcBroken ici
         }
     }  
     return true;
 }
 
-bool BorneUniverselle::i2cInit(JsonDocument contextDoc){
+bool BorneUniverselle::i2cInit(JsonDocument& contextDoc){
     char buff[128];
     // if (contextDoc.containsKey(I2C)){
     if (!contextDoc[I2C].isNull()){
@@ -1968,11 +2150,12 @@ bool BorneUniverselle::i2cInit(JsonDocument contextDoc){
         }
         Serial.println("I2C bus is initialised");
         return true;
-    }
+    } 
+    Serial.printf("i2cInit:: key %s is missing\r\n", I2C);
     return false;
 }
 
-bool BorneUniverselle::RS485Init(JsonDocument contextDoc){
+bool BorneUniverselle::RS485Init(JsonDocument& contextDoc){
     if (isRs485Initialised){
         return true;
     }
@@ -2028,7 +2211,7 @@ bool BorneUniverselle::RS485Init(JsonDocument contextDoc){
     return isRs485Initialised;
 }
 
-bool BorneUniverselle::modbusInit(JsonDocument contextDoc){
+bool BorneUniverselle::modbusInit(JsonDocument& contextDoc){
     if (isModbusInitialised){
         return true;
     }
@@ -2066,12 +2249,12 @@ bool BorneUniverselle::modbusInit(JsonDocument contextDoc){
 
     myModbus.setModbus(modbus);
     isModbusInitialised = true;
-    //Serial.println("Modbus initialised");  
+    Serial.println("Modbus initialised"); 
     return true;
 }
 
-bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint16_t id, uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char * type, uint16_t refreshInterval, uint16_t webRefreshInterval,
-                                        JsonDocument descriptor, bool check){
+bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char * type, uint16_t refreshInterval, uint16_t webRefreshInterval,
+                                        JsonDocument& descriptor, bool check){
     // Cree un input node boolean hardware
     char buff[256];
 
@@ -2143,7 +2326,7 @@ bool BorneUniverselle::createRxBoolNode(char *name,  char *parentName, uint16_t 
     return true;
 }
 
-bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint16_t id,  uint32_t *hash, JsonDocument contextDoc, JsonObject hardSection, char * type, uint16_t webRefreshInterval, JsonDocument descriptor, bool check){
+bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint16_t id,  uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char * type, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check){
     // Cree un input node boolean hardware
     uint8_t pin;
     char buff[128];
@@ -2209,7 +2392,7 @@ bool BorneUniverselle::createTxBoolNode(char *name, char *parentName, uint16_t i
     return true;
 }
 
-bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument descriptor, bool check){
+bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument& descriptor, bool check){
     char buff[128];
     bool found = false;
     //Serial.printf("createVirtualNode section: %s,  node name: %s, \r\n", sectionName, name);
@@ -2301,8 +2484,10 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, uint16_t
 }
 
 bool BorneUniverselle::getIsKinconyA8S(){
-    return isKinconyA8S;
+    //return isKinconyA8S; // THIERRY
+    return true; // THIERRY
 }
+    
 
 bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     if (clientQueueIsFull()){
@@ -2367,7 +2552,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
-            Serial.printf("%lu::Refresh:: will check heartbeat and Websocket message\r\n", millis());
+            //Serial.printf("%lu::Refresh:: will check heartbeat and Websocket message\r\n", millis());
             checkHeartbeat();
             lastCheck = millis();
             vTaskDelay(pdMS_TO_TICKS(10)); // Délai plus approprié que yield()
@@ -2396,7 +2581,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             if (effectiveSize >= size){
                 Serial.println("notifyWebClient:: effective size > evaluated size");
                 free (chain);
-                return true; // on écharge ce message car on ne peux pas le traiter
+                return true; // on décharge ce message car on ne peux pas le traiter
             }
 
             chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
@@ -2422,6 +2607,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     //Serial.printf("%lu:: notifyWebClient: End web notify\r\n", millis());
     return true;
 } // notifyWebClient
+
 
 bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
     uint32_t hash = node->getHash();
@@ -2610,3 +2796,5 @@ void BorneUniverselle::printConfigFile(){
 std::map<uint32_t, Node *> BorneUniverselle::getNodesMap(){
     return nodesMap;
 }
+    
+

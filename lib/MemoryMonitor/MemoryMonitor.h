@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Arduino.h"
-#include <WiFi.h>  // Ajoutez cette ligne
+#include <WiFi.h> 
 
 class MemoryMonitor {
 public:
@@ -14,9 +14,8 @@ public:
 
     static void analyzeMemoryTrend();
 
-    static void sectorAnalysis();
-
 private:
     static uint32_t lowestFreeHeap;
     static uint32_t lowestFreePsram;
+    static uint32_t lowestMaxBloc;
 };

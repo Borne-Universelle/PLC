@@ -1,7 +1,6 @@
 #define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "MyToolBox/MyToolBox.h" 
 #include <ESPAsyncWebServer.h>
-#include <LittleFS.h>
 #include <ESPmDNS.h>
 #include <map>
 #include <vector>
@@ -9,27 +8,33 @@
 #include <WiFi.h>
 //#include <Arduino_ESP32_OTA.h>
 #include <HTTPClient.h>
-#include <HTTPUpdate.h>
+//#include <HTTPUpdate.h>
 #include "BorneUniverselle/borneUniverselle.h"
 #include "WifiManagement/wifimanagment.h"
 #include "Formaca/Formaca.h"
 
+#include "esp_task_wdt.h"
+#include "esp_system.h"
+#include "soc/timer_group_struct.h"
+#include "soc/timer_group_reg.h"
+#include "soc/rtc.h"
+#include "esp_task_wdt.h"
+
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
-//uint32_t MemoryMonitor::lowestFreeHeap = UINT32_MAX;
-//uint32_t MemoryMonitor::lowestFreePsram = UINT32_MAX;
-
 #define MAIN_VERSION "Version 2.2"
-#define OTA_STARTED "HTTP update process started"
-#define OTA_FINISHED "HTTP update process finished"
+//#define OTA_STARTED "HTTP update process started"
+//#define OTA_FINISHED "HTTP update process finished"
 
 BorneUniverselle *bu;
 Formaca *formaca;
 MyToolBox toolbox;
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+//AsyncWebServer server(80);
+//AsyncWebSocket ws("/ws");
 bool memoryMonitorBool = false;
 MemoryMonitor memoryMonitor;
+uint32_t lastMessageTime = 0;
+uint32_t lastTime = 0;
 
 #define BEEP 2
 
@@ -151,6 +156,7 @@ void commandInterpretor(char car){
   }
 }
 
+/*
 void firmwareUpdate(){
   WiFiClient client;
   httpUpdate.rebootOnUpdate(false);
@@ -170,7 +176,8 @@ void firmwareUpdate(){
         break;
   }
 }
-
+  */
+/*
 void turnOffBuzzer(){
    pinMode(BEEP, OUTPUT); 
     digitalWrite(BEEP, false);
@@ -198,9 +205,9 @@ void WiFiGotIP(){
   }
     
   // Add service to MDNS-SD
-  MDNS.addService("http", "tcp", 80);
+  //MDNS.addService("http", "tcp", 80);
   Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
-  server.begin();  // Test Thierry
+  // server.begin();  
   Serial.println("Web server started !");
 } // WiFiGotIP
 
@@ -215,6 +222,7 @@ void WiFiStationDisconnected(){
   connectToNextNetwork();
 }
 
+/*
 void update_started() {
   Serial.println(OTA_STARTED);
 }
@@ -233,10 +241,12 @@ void update_error(int err) {
   sprintf(buffer, "error %d", err);
 }
 
-void tooMuchClients(AsyncWebSocketClient *client){
-  bu->tooMuchClients(client);
-}
 
+
+void tooMuchClients(AsyncWebSocketClient *client){
+ // bu->tooMuchClients(client);
+}
+/*
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   char eventTypeText[100];
  
@@ -292,7 +302,10 @@ void notFound(AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found");
 }
 
+*/
+
 void setupServer(){
+  /*
   
   //-----------------------------------------------------SERVER   
   ws.onEvent(onWsEvent); // web socket handler
@@ -313,14 +326,11 @@ void setupServer(){
   // Explicitly serve CSS files with correct mime type
   server.serveStatic("/static/css/", LittleFS, "/static/css/").setCacheControl("max-age=600");
   
- 
-  
- 
- 
   // Serve the config.json with shorter cache time
   server.serveStatic("/config", LittleFS, "/config.json").setCacheControl("max-age=30");
   
   server.onNotFound(notFound);
+  */
  }
 
 void setup(){
@@ -328,35 +338,22 @@ void setup(){
   while(!Serial){
    ;
   }
-  delay(1000);
-
-  // Désactivation des watch dogs
-  //REG_WRITE(TIMG_WDTCONFIG0_REG(1), 0);
-  // Désactivation des watch dogs
-  //disableCore0WDT();
-  //disableCore1WDT();
-  //disableLoopWDT();
+  delay(100);
 
   Serial.println();Serial.println();Serial.println();
-
   Serial.println("Starting Formaca....");
-  
-  // Begin LittleFS
-  if (!LittleFS.begin()){
-    Serial.println("An Error has occurred while mounting LittleFS");
-    while (1){
-    }
-  } // for ever...
-  File file = LittleFS.open("/", "r");
 
   Serial.println("Will start BorneUniverselle library...");
-  bu = new BorneUniverselle();
 
+  bu = new BorneUniverselle(); // Borne Universelle will prepare file system open for the web server
+
+  /*
   if (!bu->isPlcBroken()){
-    formaca = new Formaca();
+   // formaca = new Formaca();
   }
 
-  
+  */
+  /*
   //  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
   //  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
   WiFi.onEvent([](arduino_event_t *event) {
@@ -374,38 +371,45 @@ void setup(){
   WiFi.onEvent([](arduino_event_t *event) {
     WiFiStationDisconnected();    
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+  */
 
 // OTA 
 //  httpUpdate.onStart(update_started);
 //  httpUpdate.onEnd(update_finished);
 //  httpUpdate.onProgress(update_progress);
  // httpUpdate.onError(update_error);
+ /*
  if (bu->getIsWifiParsedOk()){
-    connectToNextNetwork();
+   //connectToNextNetwork();
  } else {
   Serial.println("Not starting wifi because config is not correct !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   
  }
-
- setupServer();
- MyToolBox::emptySerialIn();
+*/
+ //setupServer();
+// MyToolBox::emptySerialIn();
  
  //showHelp();
 }  // setup
 
 void loop() {
   long start = millis();
-  
+  /*
+    if (Serial.available()){
+    commandInterpretor(Serial.read());
+  }
+
   if (Serial.available()){
         commandInterpretor(Serial.read());
   }
+
   
   // check if it is time to send heartbeat
   bu->checkHeartbeat();
 
   if (!bu->isPlcBroken()){
     if (!bu->clientQueueIsFull()){
-      bu->refresh();
+     bu->refresh();
     } 
     
     bu->handleWebSocketMessage();
@@ -417,12 +421,16 @@ void loop() {
              }
              bu->notifyWebClient(); // notify only changed nodes
         } else {
-            Serial.println("Not calling logic executor beacause automate is not fully intialised");
+          if (millis() - lastMessageTime > 5000){
+            lastMessageTime = millis();
+            Serial.printf("%lu::Not calling logic executor because not all inputs are read once\r\n", millis());
+          }
         }     
      } else {// Queues ok
-        Serial.println("Not calling logic executor because client queue is full or queue is more than half");
+        Serial.printf("%lu::Not calling logic executor because client queue is full or queue is more than half\r\n", millis());
      }
   }
+  
     
   bu->sendMessage();
   ws.cleanupClients();
@@ -435,4 +443,11 @@ void loop() {
   if (memoryMonitorBool){
     memoryMonitor.printStats("MemoryMonitor");
   }
+    */
+
+  if (millis()- lastTime > 5000){
+    lastTime = millis();
+    Serial.printf(" time: %lu v2\r\n",millis());
+  }
+  delay(1);  // Laisse
 }

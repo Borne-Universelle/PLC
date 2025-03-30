@@ -6,7 +6,7 @@ PLC_Persistence* PLC_Persistence::instance = nullptr;
 PLC_Persistence::PLC_Persistence() : busy(false), operationStartTime(0) {
     lastError[0] = '\0';
     // Monter le système de fichiers dès l'initialisation
-    if (!LittleFS.begin()) {
+    if (!LittleFS.begin(false)) {
         setLastError("Failed to mount LittleFS at initialization");
         Serial.println("Failed to mount LittleFS at initialization");
     } else {
@@ -58,10 +58,11 @@ bool PLC_Persistence::waitUntilAvailable(unsigned long timeout) {
             busy = false;
             return true;
         }
+        Serial.println("PLC_Persistence: Waiting for resource to be available...");
         
         // Wait
-        delay(DEFAULT_BUSY_WAIT_INTERVAL);
-        yield(); // Permet au ESP32 de gérer d'autres tâches
+        vTaskDelay(pdMS_TO_TICKS(DEFAULT_BUSY_WAIT_INTERVAL));
+        
     }
     
     return true;
@@ -86,7 +87,7 @@ bool PLC_Persistence::beginFS() {
 }
 
 void PLC_Persistence::endFS() {
-    // Ne pas démonter le système de fichiers
+    // Ne pas démonter le système de fichiers car le web serveur a besoin d'y accéder
     // cette fonction est maintenue pour compatibilité avec le code existant
 }
 
@@ -241,11 +242,10 @@ bool PLC_Persistence::saveJsonToFile(const char* path, const JsonDocument& doc) 
 }
 
 bool PLC_Persistence::readJsonFromFile(const char* path, JsonDocument& outDoc) {
+      /*
     Serial.printf("%lu:: Try to read json from file: %s\r\n", millis(), path);
-    if (!waitUntilAvailable()) {
-        return false;
-    }
-    
+  
+
     String jsonString;
     if (!readFile(path, jsonString)) {
         char errorMsg[256];
@@ -271,6 +271,7 @@ bool PLC_Persistence::readJsonFromFile(const char* path, JsonDocument& outDoc) {
         setLastError(errorMsg);
         return false;
     }
+    */
     return true;
 }
 

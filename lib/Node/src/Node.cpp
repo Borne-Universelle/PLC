@@ -126,9 +126,10 @@ bool Node::refresh(){
     bool success = specificRefresh();
     
     if (!success) {
+        char buff[256];
         consecutiveErrors++;
-        Serial.printf("%lu:: Nœud %s: erreur %d consécutive\n", 
-                      millis(), getName(), consecutiveErrors);
+        snprintf(buff, 256, "%lu:: Nœud %s: erreur %d consécutive(s)\n", millis(), getName(), consecutiveErrors);
+        showMessage(buff);
         
         // Désactiver temporairement après plusieurs erreurs consécutives
         if (consecutiveErrors >= 5) {
@@ -138,9 +139,8 @@ bool Node::refresh(){
             // Stratégie de backoff exponentiel : doubler le temps de désactivation
             // à chaque série d'erreurs, mais plafonner à maxDisableDuration
             disableDuration = min(disableDuration * 2, maxDisableDuration);
-            
-            Serial.printf("%lu:: Désactivation temporaire du nœud %s pour %lu ms\n", 
-                          millis(), getName(), disableDuration);
+            snprintf(buff, 256, "Désactivation temporaire du nœud %s pour %lu ms\n", getName(), disableDuration);
+            BorneUniverselle::prepareMessage(ERROR, buff);
         }
         
         return false;
@@ -157,7 +157,7 @@ bool Node::refresh(){
         }
 
         setLastRefresh(millis());
-        if (millis() - startTime > 100) {
+        if (millis() - startTime > 150) {
             Serial.printf("%lu:: Node:: Refresh, warning: Long refresh time (%lu ms) for node %s\r\n", millis(), millis() - startTime, name);
         }
         
@@ -675,7 +675,7 @@ bool ModbusReadHoldingRegister::getNewValue(uint16_t& value){
     myModbus.waitEndTransaction();
 
     if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
-        Serial.printf("%lu:: ModbusReadHoldingRegister::getNewValue for node: name: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, address, offset);
+        //Serial.printf("%lu:: ModbusReadHoldingRegister::getNewValue for node: name: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, address, offset);
         return false;
     }
     return true;
@@ -691,7 +691,7 @@ ModbusReadDoubleHoldingRegisters::ModbusReadDoubleHoldingRegisters(char *name, c
 bool ModbusReadDoubleHoldingRegisters::getNewValue(uint32_t& uint32Value){
     uint16_t value[2];
     char text[256];
-    sprintf(text, "ModbusReadDoubleHoldingRegisters::getNewValue for ode name: %s, address: %d, register %d", name, address, offset);
+    sprintf(text, "ModbusReadDoubleHoldingRegisters::getNewValue for node name: %s, address: %d, register %d", name, address, offset);
     showMessage(text);
    
     myModbus.waitUntilModbusFree();
@@ -701,7 +701,8 @@ bool ModbusReadDoubleHoldingRegisters::getNewValue(uint32_t& uint32Value){
     myModbus.waitEndTransaction();
     
     if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
-        Serial.printf("%lu:: ModbusReadDoubleHoldingRegisters::getNewValue() for node name: %s, type: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, "ModbusReadDoubleHoldingRegisters", address, offset);
+        snprintf(text, 256, "%lu:: ModbusReadDoubleHoldingRegisters::getNewValue() for node name: %s, type: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, "ModbusReadDoubleHoldingRegisters", address, offset);
+        showMessage(text);
         return false;
     }
 

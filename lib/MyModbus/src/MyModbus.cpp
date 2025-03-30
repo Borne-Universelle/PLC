@@ -44,10 +44,8 @@ void MyModbus::resetTimeout() {
 void MyModbus::waitUntilModbusFree() {
     showMessages("waitUntilModbusFree");
     while (millis() - lastTransaction < DELAY_TRANSACTION) {
-        Serial.println("MyModbus::waitUntilModbusFree vTaskDelay");
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
-
     showMessages("waitUntilModbusFree done");
 }
 
@@ -69,7 +67,8 @@ bool MyModbus::waitEndTransaction() {
                 stats.maxTransactionTime = stats.lastTransactionTime;
             }
             if (stats.lastTransactionTime > transactionTimeout/2) {
-                Serial.printf("%lu:: MyModbus::waitEndTransaction: warning: long transaction: %lu ms\r\n", millis(), stats.lastTransactionTime);
+                sprintf(message, "%lu:: MyModbus::waitEndTransaction: warning: long transaction: %lu ms\r\n", millis(), stats.lastTransactionTime);
+                showMessages((const char *)message);
             }
             //Serial.println("Transaction done");
             stats.lastTransactionTime = millis() - start;
@@ -82,8 +81,8 @@ bool MyModbus::waitEndTransaction() {
             return true;
         }  
         vTaskDelay(pdMS_TO_TICKS(10));
-        PLC_Tools::feedTG1WDT();
-        Serial.println("MyModbus::waitEndTransaction vTaskDelay");
+     
+        //Serial.println("MyModbus::waitEndTransaction vTaskDelay");
     }
 
     sprintf(message, "MyModbus waitEndTransaction out of transacion allowed time (%lu ms)", transactionTimeout);
@@ -178,6 +177,7 @@ void MyModbus::processEvent(Modbus::ResultCode event) {
 }
 
 void MyModbus::handleError(Modbus::ResultCode event) {
+
     stats.totalErrors++;
     stats.lastErrorCode = event;
 
@@ -202,43 +202,46 @@ void MyModbus::handleError(Modbus::ResultCode event) {
     // On calcule le temps depuis la dernière erreur
     uint32_t timeSinceLastError = millis() - stats.lastErrorTime;
     
-    char message[80];
-    char text[256];
-    getModbusErrorMessage(event, message);
-    sprintf(text, "MyModbus::handleError: (%lu ms since last error): %s\n", timeSinceLastError, message);
+    #define MAX_ERROR_LENGTH 80
+    char message[MAX_ERROR_LENGTH + 1];
+    char text[MAX_MESSAGE_LENGTH + 1];
+    getModbusErrorMessage(event, message, (size_t)MAX_ERROR_LENGTH);
+    snprintf(text, MAX_MESSAGE_LENGTH, "MyModbus::handleError: (%lu ms since last error): %s\n", timeSinceLastError, message);
 
     if (messageCallback) {
-        messageCallback(ERROR, text);
+        messageCallback(WARNING, text);
     }
 
     stats.lastErrorTime = millis(); // pour l'erreur suivante.....
 }
-void MyModbus::getModbusErrorMessage(Modbus::ResultCode event, char* message) {
-    strcpy(message, "Modbus error: ");
+
+void MyModbus::getModbusErrorMessage(Modbus::ResultCode event, char* message, size_t size) {
+    #define preamb "Modbus error: "
     
     switch (event) {
         case Modbus::EX_ILLEGAL_FUNCTION:
-            strcat(message, "Function Code not Supported");
+            snprintf(message, size, "%s Function Code not Supported\r\n", preamb);
             break;
         case Modbus::EX_ILLEGAL_ADDRESS:
-            strcat(message, "Output Address not exists");
+            snprintf(message, size, "%s Output Address not exists\r\n", preamb);
             break;
         case Modbus::EX_ILLEGAL_VALUE:
-            strcat(message, "Output Value not in Range");
+            snprintf(message, size, "%s Output Value not in Range\r\n", preamb);
             break;
         case Modbus::EX_SLAVE_FAILURE:
-            strcat(message, "Slave Device Fails to process request");
+            snprintf(message, size, "%s Slave Device Fails to process request\r\n", preamb);
             break;
         case Modbus::EX_TIMEOUT:
-            strcat(message, "Operation timeout");
+            snprintf(message, size, "%s Operation timeout\r\n", preamb);
             break;
         case Modbus::EX_CONNECTION_LOST:
-            strcat(message, "Connection lost");
+            snprintf(message, size, "%s Connection lost\r\n", preamb);
             break;
         case Modbus::EX_DATA_MISMACH:
-            strcat(message, "Data mismatch/CRC error");
+            snprintf(message, size, "%s Data mismatch/CRC error\r\n", preamb);
             break;
         default:
-            strcat(message, "Unknown error");
+            snprintf(message, size, "%s Unknown error\r\n", preamb);
+            break;
     }
 }
