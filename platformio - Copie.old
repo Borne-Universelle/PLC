@@ -1,0 +1,30 @@
+[env:esp32dev]
+board = esp32dev
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+	
+lib_ldf_mode = chain
+framework = arduino
+board_build.flash_mode = qio
+build_flags = -Ilib
+	-DARDUINOJSON_ENABLE_COMMENTS=1
+build_src_filter = 
+	+<../lib/*/src/*.*>
+	-<PCF8574/test/>
+board_build.partitions = huge_app.csv
+board_build.filesystem = littlefs
+monitor_filters = esp32_exception_decoder, direct, log2file, colorize
+build_type = debug
+monitor_speed = 115200
+upload_speed = 921600
+lib_deps = 
+	FS
+    LittleFS
+	Networking
+	emelianov/modbus-esp8266@^4.1.0
+	robtillaart/PCF8574@^0.4.1
+	esp32async/AsyncTCP @ 3.3.8
+	esp32async/ESPAsyncWebServer @ ^3.7.4
+	bblanchon/ArduinoJson@7.3.0
+lib_ignore = 
+	AsyncTCP_RP2040W
+	ESPAsyncTCP

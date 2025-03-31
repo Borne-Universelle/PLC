@@ -1,0 +1,16 @@
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 153911750, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4916
+load:0x40078000,len:16480
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3524
+entry 0x400805b8
+[     1][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2834
+  #0  0x400e2834 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
+
+[    13][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Dein
