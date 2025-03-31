@@ -2,8 +2,8 @@
 
 const char* PLC_Tools::REBOOT_LOG_FILE = "/reboot_log.json";
 //bool PLC_Tools::wifiDisconnectedForMemory = false;
-uint32_t PLC_Tools::wifiDisconnectionTime = 0;
-uint32_t PLC_Tools::disconnectionCount = 0;
+//uint32_t PLC_Tools::wifiDisconnectionTime = 0;
+//uint32_t PLC_Tools::disconnectionCount = 0;
 
 bool PLC_Tools::logReboot() {
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
@@ -55,7 +55,6 @@ bool PLC_Tools::logReboot() {
 
 String PLC_Tools::getRebootLog() {
     String prettyLog  = "{}";
-    /*
     Serial.printf("%lu::getRebootLog\r\n", millis());
  
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
@@ -71,7 +70,6 @@ String PLC_Tools::getRebootLog() {
     }
    
     serializeJsonPretty(doc, prettyLog);
-    */
     return prettyLog;
 }
 

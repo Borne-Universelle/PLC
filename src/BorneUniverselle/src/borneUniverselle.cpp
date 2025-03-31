@@ -44,8 +44,6 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
         setPlcBroken("notifMutex was not created successfully");
         return;
     }
-
-   // ici cela fonctionne
  
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
     PLC_Tools plcTools;
@@ -53,24 +51,21 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     if (!plcTools.logReboot()){
         setPlcBroken("Failed to log reboot");
         return;
-    }
-/*        
+    }       
         
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
  
-    Serial.println(PLC_Tools::getRebootLog());
+    Serial.println(plcTools.getRebootLog());
     Serial.println(F("End of reboot history"));
     Serial.println();
     Serial.println(F("BorneUniverselle constructor"));
    
-       // ici cela ne fonctionne pas
-    if (!PLC_Tools::printDiagnosticFile()){
+    if (!plcTools.printDiagnosticFile()){
         setPlcBroken("Failed to print diagnostic file");
         return;
     }
   
-       
     if (psramInit()){
         Serial.println(F("PSRAM is available !!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
         psRamAvailable = true;
@@ -78,7 +73,6 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
          Serial.println(F("PSRAM is not available !"));
     }
 
- 
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
     
     // Lecture du fichier JSON
@@ -153,7 +147,6 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     } 
 
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
-    */
 }
 
 void BorneUniverselle::modbusMessageHandler(uint8_t severity, const char* message) {
@@ -162,7 +155,6 @@ void BorneUniverselle::modbusMessageHandler(uint8_t severity, const char* messag
    
 bool BorneUniverselle::isPlcBroken(){
     return plcBroken;
-
 }
 
 void BorneUniverselle::setPlcBroken(const char *context){
@@ -185,7 +177,6 @@ void BorneUniverselle::unableToFindKey(char *_context, char *_key){
 }
 
 void BorneUniverselle::setShowModbusMessages(bool status){
-    /*
     Serial.printf("Show modbus messages: %s\r\n", status ? "true" : "false");
     showModbusMessages = status;
     // flag tous les nodes modbus pour afficher les messages
@@ -196,9 +187,7 @@ void BorneUniverselle::setShowModbusMessages(bool status){
             node->setShowMessages(status);
         }
     }
-        */
 }
-
 
 bool BorneUniverselle::getModbusStatusMessages(){
     return showModbusMessages;
@@ -211,15 +200,14 @@ void BorneUniverselle::showMessage(Node *node, const char *text){
 }
 
 void BorneUniverselle::refresh(){
-    /*
     if (isPlcBroken()){
         Serial.println("No refresh because PLC is broken !!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             return;
     }
 
-    //Serial.println("Refresh");
-    PLC_Tools::manageWiFiBasedOnMemory();
-
+    Serial.println("Refresh");
+    PLC_Tools plcTools;
+    plcTools.manageWiFiBasedOnMemory();
 
     uint32_t start = millis();
     uint32_t lastCheck = start;
@@ -283,9 +271,8 @@ void BorneUniverselle::refresh(){
     if ( millis() - start > 1000){
         Serial.printf("%lu::Total refresh time: %lu (wait time included)\r\n", millis(), millis() - start);
     }
-        */
 }
-/*
+
 bool BorneUniverselle::isAllInputsReadOnce(){
     bool status = true;
     if (!allInputsReadOnce){
@@ -321,7 +308,6 @@ void BorneUniverselle::refresHardwareInputs(){
         }
      }
 }
-     */
 
 bool BorneUniverselle::getWifiStatus(){
     return wificonnected; // THIERRY
@@ -356,8 +342,6 @@ WifiItem BorneUniverselle::getNextNetwork(){
     
 	return wifiItemsMapBu[currentNetworkId];	
 }
-    
-
 
 bool BorneUniverselle::connectWifi(WifiItem currentWifi){
     WiFi.disconnect(true, true);
@@ -496,8 +480,6 @@ void BorneUniverselle::sendHeartbeat(bool reset){
     heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
 }
     
-   
-
 bool BorneUniverselle::sendTextToClient(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();

@@ -20,21 +20,21 @@ class PLC_Tools {
 
 private:
     bool wifiDisconnectedForMemory;
-    static uint32_t wifiDisconnectionTime;
-    static uint32_t disconnectionCount;
+    uint32_t wifiDisconnectionTime;
+    uint32_t disconnectionCount;
 
     // Json On ne peur pas metttre les 2 fonctions dans le cpp
     static void printJsonValue(const JsonVariant &value, int indent = 0);
 
 public:
-    static bool logReboot();
-    static String getRebootLog();
-    static bool clearRebootLog();
+    bool logReboot();
+    String getRebootLog();
+    bool clearRebootLog();
     static void setLastErrorMessage(const char* message);
     static void printBits(uint16_t value);
     void static logDiagnostic(const char* message);
     void manageWiFiBasedOnMemory();
-    bool static printDiagnosticFile();
+    bool printDiagnosticFile();
 
     // File management
     static std::vector<String> getFilteredFiles(const char* path, const char* pattern);

@@ -10,44 +10,44 @@ ho 0 tail 12 room 4
 load:0x40080400,len:4
 load:0x40080404,len:3524
 entry 0x400805b8
-[     1][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2834
-  #0  0x400e2834 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
+[     1][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2838
+  #0  0x400e2838 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
 
-[    13][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_TX (3) successfully set to 0x400e2804
-  #0  0x400e2804 in _uartDetachBus_TX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:173
+[    13][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_TX (3) successfully set to 0x400e2808
+  #0  0x400e2808 in _uartDetachBus_TX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:173
 
-[    26][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_CTS (4) successfully set to 0x400e27d4
-  #0  0x400e27d4 in _uartDetachBus_CTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:180
+[    26][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_CTS (4) successfully set to 0x400e27d8
+  #0  0x400e27d8 in _uartDetachBus_CTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:180
 
-[    40][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RTS (5) successfully set to 0x400e27a4
-  #0  0x400e27a4 in _uartDetachBus_RTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:187
+[    40][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RTS (5) successfully set to 0x400e27a8
+  #0  0x400e27a8 in _uartDetachBus_RTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:187
 
-[    53][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2834
-  #0  0x400e2834 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
+[    53][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2838
+  #0  0x400e2838 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
 
-[    67][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_TX (3) successfully set to 0x400e2804
-  #0  0x400e2804 in _uartDetachBus_TX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:173
+[    67][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_TX (3) successfully set to 0x400e2808
+  #0  0x400e2808 in _uartDetachBus_TX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:173
 
-[    80][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_CTS (4) successfully set to 0x400e27d4
-  #0  0x400e27d4 in _uartDetachBus_CTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:180
+[    80][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_CTS (4) successfully set to 0x400e27d8
+  #0  0x400e27d8 in _uartDetachBus_CTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:180
 
-[    94][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RTS (5) successfully set to 0x400e27a4
-  #0  0x400e27a4 in _uartDetachBus_RTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:187
+[    94][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RTS (5) successfully set to 0x400e27a8
+  #0  0x400e27a8 in _uartDetachBus_RTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:187
 
-[   107][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2834
-  #0  0x400e2834 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
+[   107][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RX (2) successfully set to 0x400e2838
+  #0  0x400e2838 in _uartDetachBus_RX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:166
 
-[   121][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_TX (3) successfully set to 0x400e2804
-  #0  0x400e2804 in _uartDetachBus_TX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:173
+[   121][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_TX (3) successfully set to 0x400e2808
+  #0  0x400e2808 in _uartDetachBus_TX at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:173
 
-[   134][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_CTS (4) successfully set to 0x400e27d4
-  #0  0x400e27d4 in _uartDetachBus_CTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:180
+[   134][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_CTS (4) successfully set to 0x400e27d8
+  #0  0x400e27d8 in _uartDetachBus_CTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:180
 
-[   148][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RTS (5) successfully set to 0x400e27a4
-  #0  0x400e27a4 in _uartDetachBus_RTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:187
+[   148][V][esp32-hal-periman.c:235] perimanSetBusDeinit(): Deinit function for type UART_RTS (5) successfully set to 0x400e27a8
+  #0  0x400e27a8 in _uartDetachBus_RTS at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:187
 
 [   164][D][esp32-hal-cpu.c:263] setCpuFrequencyMhz(): PLL: 480 / 2 = 240 Mhz, APB: 80000000 Hz
-[   179][V][esp32-hal-periman.c:160] perimanSetPinBus(): Pin 3 successfully set to type UART_RX (2) with bus 0x3ffbdbe8
+[   178][V][esp32-hal-periman.c:160] perimanSetPinBus(): Pin 3 successfully set to type UART_RX (2) with bus 0x3ffbdbe8
   #0  0x3ffbdbe8 in ?? at C:/Users/vorms/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-uart.c:89
 
 [   189][V][esp32-hal-periman.c:160] perimanSetPinBus(): Pin 1 successfully set to type UART_TX (3) with bus 0x3ffbdbe8
@@ -245,70 +245,3 @@ GPIO Info:
  time: 525105 v2
  time: 530106 v2
  time: 535107 v2
- time: 540108 v2
- time: 545109 v2
- time: 550110 v2
- time: 555111 v2
- time: 560112 v2
- time: 565113 v2
- time: 570114 v2
- time: 575115 v2
- time: 580116 v2
- time: 585117 v2
- time: 590118 v2
- time: 595119 v2
- time: 600120 v2
- time: 605121 v2
- time: 610122 v2
- time: 615123 v2
- time: 620124 v2
- time: 625125 v2
- time: 630126 v2
- time: 635127 v2
- time: 640128 v2
- time: 645129 v2
- time: 650130 v2
- time: 655131 v2
- time: 660132 v2
- time: 665133 v2
- time: 670134 v2
- time: 675135 v2
- time: 680136 v2
- time: 685137 v2
- time: 690138 v2
- time: 695139 v2
- time: 700140 v2
- time: 705141 v2
- time: 710142 v2
- time: 715143 v2
- time: 720144 v2
- time: 725145 v2
- time: 730146 v2
- time: 735147 v2
- time: 740148 v2
- time: 745149 v2
- time: 750150 v2
- time: 755151 v2
- time: 760152 v2
- time: 765153 v2
- time: 770154 v2
- time: 775155 v2
- time: 780156 v2
- time: 785157 v2
- time: 790158 v2
- time: 795159 v2
- time: 800160 v2
- time: 805161 v2
- time: 810162 v2
- time: 815163 v2
- time: 820164 v2
- time: 825165 v2
- time: 830166 v2
- time: 835167 v2
- time: 840168 v2
- time: 845169 v2
- time: 850170 v2
- time: 855171 v2
- time: 860172 v2
- time: 865173 v2
- time: 870174 v2

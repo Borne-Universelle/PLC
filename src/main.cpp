@@ -8,7 +8,7 @@
 #include <WiFi.h>
 //#include <Arduino_ESP32_OTA.h>
 #include <HTTPClient.h>
-//#include <HTTPUpdate.h>
+#include <HTTPUpdate.h>
 #include "BorneUniverselle/borneUniverselle.h"
 #include "WifiManagement/wifimanagment.h"
 #include "Formaca/Formaca.h"
@@ -16,14 +16,14 @@
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
 #define MAIN_VERSION "Version 2.2"
-//#define OTA_STARTED "HTTP update process started"
-//#define OTA_FINISHED "HTTP update process finished"
+#define OTA_STARTED "HTTP update process started"
+#define OTA_FINISHED "HTTP update process finished"
 
 BorneUniverselle *bu;
 Formaca *formaca;
 MyToolBox toolbox;
-//AsyncWebServer server(80);
-//AsyncWebSocket ws("/ws");
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 bool memoryMonitorBool = false;
 MemoryMonitor memoryMonitor;
 uint32_t lastMessageTime = 0;
@@ -34,7 +34,6 @@ uint32_t lastTime = 0;
 long start;
 
 void connectToNextNetwork(){  
-  /*
   Serial.println("Will get next wifi network");
   if (bu->isWifiConnectionTimeout()){
     Serial.println("Wifi connection timeout");
@@ -47,7 +46,6 @@ void connectToNextNetwork(){
       criterionOK = true;
    }
   bu->connectWifi(currentWifi);
-  */
 }
 
 void modifyLogs(){
@@ -68,7 +66,7 @@ void modifyLogs(){
   while (!Serial.available()){
     delay(100);
   }
-      /*  
+    
   char car = Serial.read();
   switch (car){
     case 'A':     bu->setShowHeartbeatMessages(true);
@@ -89,7 +87,6 @@ void modifyLogs(){
 
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
   }  
-    */
 }
 
 void showHelp(){
@@ -98,13 +95,13 @@ void showHelp(){
   Serial.println(F("-----------"));  
   const char compile_date[] = __DATE__ " " __TIME__;  
   Serial.printf("Version du firmware: %s, date de compilation: %s\r\n", MAIN_VERSION, compile_date);
-  /*
+  
   if (bu->getWifiStatus()){
     WifiManagment::showIpAddress();
   } else {
     Serial.println("ATTENTION LE MODULE N'EST PAS CONNECTE AU WIFI !!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
-    */
+    
   Serial.println("Tapez sur 'A' ou 'a' pour effacer les réseaux wifi");
   Serial.println("Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config");
   Serial.println("Tapez sur 'C' pour imprimer le fichier de config");
@@ -118,7 +115,7 @@ void showHelp(){
 }
 
 void commandInterpretor(char car){
-  /*
+  switch (car){
     case 'A':     bu->eraseWifis();
       break;
 
@@ -151,10 +148,8 @@ void commandInterpretor(char car){
 
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
   }
-    */
 }
 
-/*
 void firmwareUpdate(){
   WiFiClient client;
   httpUpdate.rebootOnUpdate(false);
@@ -174,8 +169,7 @@ void firmwareUpdate(){
         break;
   }
 }
-  */
-/*
+
 void turnOffBuzzer(){
    pinMode(BEEP, OUTPUT); 
     digitalWrite(BEEP, false);
@@ -203,7 +197,7 @@ void WiFiGotIP(){
   }
     
   // Add service to MDNS-SD
-  //MDNS.addService("http", "tcp", 80);
+  MDNS.addService("http", "tcp", 80);
   Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
   // server.begin();  
   Serial.println("Web server started !");
@@ -220,7 +214,6 @@ void WiFiStationDisconnected(){
   connectToNextNetwork();
 }
 
-/*
 void update_started() {
   Serial.println(OTA_STARTED);
 }
@@ -242,9 +235,9 @@ void update_error(int err) {
 
 
 void tooMuchClients(AsyncWebSocketClient *client){
- // bu->tooMuchClients(client);
+  bu->tooMuchClients(client);
 }
-/*
+
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   char eventTypeText[100];
  
@@ -300,11 +293,8 @@ void notFound(AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found");
 }
 
-*/
 
 void setupServer(){
-  /*
-  
   //-----------------------------------------------------SERVER   
   ws.onEvent(onWsEvent); // web socket handler
   ws.enable(true);
@@ -328,7 +318,6 @@ void setupServer(){
   server.serveStatic("/config", LittleFS, "/config.json").setCacheControl("max-age=30");
   
   server.onNotFound(notFound);
-  */
  }
 
 void setup(){
@@ -348,12 +337,13 @@ esp_task_wdt_config_t wdt_config = {
 };
 esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
 
-*/
+
   esp_log_level_set("*", ESP_LOG_DEBUG);        // set all components to ERROR level
   esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
   esp_log_level_set("dhcpc", ESP_LOG_DEBUG); 
 
   Serial.println();Serial.println();Serial.println();
+  */
   Serial.println("Starting Formaca....");
 
   Serial.println("Will start BorneUniverselle library...");
@@ -387,22 +377,22 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   */
 
 // OTA 
-//  httpUpdate.onStart(update_started);
-//  httpUpdate.onEnd(update_finished);
-//  httpUpdate.onProgress(update_progress);
- // httpUpdate.onError(update_error);
- /*
- if (bu->getIsWifiParsedOk()){
-   //connectToNextNetwork();
- } else {
+  httpUpdate.onStart(update_started);
+  httpUpdate.onEnd(update_finished);
+  httpUpdate.onProgress(update_progress);
+  httpUpdate.onError(update_error);
+ 
+  if (bu->getIsWifiParsedOk()){
+    connectToNextNetwork();
+  } else {
   Serial.println("Not starting wifi because config is not correct !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   
  }
-*/
- //setupServer();
-// MyToolBox::emptySerialIn();
+
+ setupServer();
+ MyToolBox::emptySerialIn();
  
- //showHelp();
+ showHelp();
 }  // setup
 
 void loop() {
