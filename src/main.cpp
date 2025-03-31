@@ -1,6 +1,6 @@
 #define ARDUINOJSON_ENABLE_COMMENTS 1
 #include "MyToolBox/MyToolBox.h" 
-#include <ESPAsyncWebServer.h>
+#include "ESPAsyncWebServer.h"
 #include <ESPmDNS.h>
 #include <map>
 #include <vector>
@@ -12,13 +12,6 @@
 #include "BorneUniverselle/borneUniverselle.h"
 #include "WifiManagement/wifimanagment.h"
 #include "Formaca/Formaca.h"
-
-#include "esp_task_wdt.h"
-#include "esp_system.h"
-#include "soc/timer_group_struct.h"
-#include "soc/timer_group_reg.h"
-#include "soc/rtc.h"
-#include "esp_task_wdt.h"
 
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
@@ -41,6 +34,7 @@ uint32_t lastTime = 0;
 long start;
 
 void connectToNextNetwork(){  
+  /*
   Serial.println("Will get next wifi network");
   if (bu->isWifiConnectionTimeout()){
     Serial.println("Wifi connection timeout");
@@ -53,6 +47,7 @@ void connectToNextNetwork(){
       criterionOK = true;
    }
   bu->connectWifi(currentWifi);
+  */
 }
 
 void modifyLogs(){
@@ -73,7 +68,7 @@ void modifyLogs(){
   while (!Serial.available()){
     delay(100);
   }
-        
+      /*  
   char car = Serial.read();
   switch (car){
     case 'A':     bu->setShowHeartbeatMessages(true);
@@ -94,6 +89,7 @@ void modifyLogs(){
 
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
   }  
+    */
 }
 
 void showHelp(){
@@ -102,12 +98,13 @@ void showHelp(){
   Serial.println(F("-----------"));  
   const char compile_date[] = __DATE__ " " __TIME__;  
   Serial.printf("Version du firmware: %s, date de compilation: %s\r\n", MAIN_VERSION, compile_date);
-  
+  /*
   if (bu->getWifiStatus()){
     WifiManagment::showIpAddress();
   } else {
     Serial.println("ATTENTION LE MODULE N'EST PAS CONNECTE AU WIFI !!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
+    */
   Serial.println("Tapez sur 'A' ou 'a' pour effacer les réseaux wifi");
   Serial.println("Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config");
   Serial.println("Tapez sur 'C' pour imprimer le fichier de config");
@@ -121,7 +118,7 @@ void showHelp(){
 }
 
 void commandInterpretor(char car){
-  switch (car){
+  /*
     case 'A':     bu->eraseWifis();
       break;
 
@@ -154,6 +151,7 @@ void commandInterpretor(char car){
 
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
   }
+    */
 }
 
 /*
@@ -339,6 +337,21 @@ void setup(){
    ;
   }
   delay(100);
+  /*
+  //disableHardwareWatchdog(); // Tenter de désactiver TG1WDT
+  Serial.println("TG1WDT désactivé (tentative)");
+// Configurer le Task Watchdog (TWDT) pour 10 minutes
+esp_task_wdt_config_t wdt_config = {
+  .timeout_ms = 600000,  // 600 secondes (10 minutes) en millisecondes
+  .idle_core_mask = 0,   // Ne pas surveiller les cœurs inactifs (0 = tous)
+  .trigger_panic = true  // Déclencher un panic/reset si timeout
+};
+esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
+
+*/
+  esp_log_level_set("*", ESP_LOG_DEBUG);        // set all components to ERROR level
+  esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
+  esp_log_level_set("dhcpc", ESP_LOG_DEBUG); 
 
   Serial.println();Serial.println();Serial.println();
   Serial.println("Starting Formaca....");
@@ -449,5 +462,5 @@ void loop() {
     lastTime = millis();
     Serial.printf(" time: %lu v2\r\n",millis());
   }
-  delay(1);  // Laisse
+  delay(1);
 }
