@@ -663,19 +663,19 @@ ModbusReadHoldingRegister::ModbusReadHoldingRegister(char *name, char *parentNam
 
 bool ModbusReadHoldingRegister::getNewValue(uint16_t& value){
     char text[256];
-    sprintf(text, "ModbusReadHoldingRegister::getNewValue for node nameö %s, address: %d, register %d", name, address, offset);
+    sprintf(text, "ModbusReadHoldingRegister::getNewValue for node name: %s, address: %d, register %d", name, address, offset);
     showMessage(text);
 
     myModbus.waitUntilModbusFree();
     //Serial.printf("Will read Holding register at address: %u for node name: %s, hash %u, register %u\r\n", address, getName(), getHash(), offset);
 
-    sprintf(text, "%lu::ModbusReadHoldingRegister::getNewValueS, sart transaction for hash: %lu, name: %s, address: %u, offset: %u", millis(), getHash(), getName(), address, offset);
+    sprintf(text, "ModbusReadHoldingRegister::getNewValues, sart transaction for hash: %lu, name: %s, address: %u, offset: %u", getHash(), getName(), address, offset);
     showMessage(text);
     myModbus.getModbus()->readHreg(address, offset, &value, 1, MyModbus::cbRead);
     myModbus.waitEndTransaction();
 
     if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
-        //Serial.printf("%lu:: ModbusReadHoldingRegister::getNewValue for node: name: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, address, offset);
+        Serial.printf("%lu:: ModbusReadHoldingRegister::getNewValue for node: name: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, address, offset);
         return false;
     }
     return true;

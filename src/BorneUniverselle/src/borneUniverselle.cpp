@@ -47,7 +47,6 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
  
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
     PLC_Tools plcTools;
-
     if (!plcTools.logReboot()){
         setPlcBroken("Failed to log reboot");
         return;
@@ -177,7 +176,6 @@ void BorneUniverselle::unableToFindKey(char *_context, char *_key){
 }
 
 void BorneUniverselle::setShowModbusMessages(bool status){
-    Serial.printf("Show modbus messages: %s\r\n", status ? "true" : "false");
     showModbusMessages = status;
     // flag tous les nodes modbus pour afficher les messages
     std::map<uint32_t, Node *>::iterator it;
@@ -256,7 +254,7 @@ void BorneUniverselle::refresh(){
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
-            Serial.printf("%lu::Refresh:: abnormal refresh time, refreshing watch dogh\r\n", millis());
+            Serial.printf("%lu::Refresh:: abnormal refresh time, refreshing watch dog\r\n", millis());
             lastCheck = millis();
             vTaskDelay(pdMS_TO_TICKS(10));
             // on a peut etre reçu un hearbeat   
@@ -310,11 +308,11 @@ void BorneUniverselle::refresHardwareInputs(){
 }
 
 bool BorneUniverselle::getWifiStatus(){
-    return wificonnected; // THIERRY
+    return wificonnected;
 }
 
 void BorneUniverselle::setWifiConnected(bool status){
-    //wificonnected = status; // THIERRY
+    wificonnected = status;
 
 }
 
@@ -362,12 +360,12 @@ bool BorneUniverselle::connectWifi(WifiItem currentWifi){
 	}
     WiFi.setHostname(BorneUniverselle::getName());
 	WiFi.begin(currentWifi.SSID, currentWifi.PWD);
-    //wifiStartupTime = millis(); // THIERRY
+    wifiStartupTime = millis();
     return true;
 }
 
 unsigned char BorneUniverselle::getNbWifiItems(){
-    //Serial.printf("getNbWifiItems: %d\r\n", wifiItemsMapBu.size()); // THIERRY
+    //Serial.printf("getNbWifiItems: %d\r\n", wifiItemsMapBu.size());
 	return wifiItemsMapBu.size();
 
 }
@@ -749,7 +747,7 @@ bool BorneUniverselle::setName(const char *_name, bool check){
     if (strlen(_name) < NAME_LENGHT && strlen(_name) > 0 && !strstr(_name, " ")){
         Serial.printf("Project name: %s\r\n", _name);
         if (!check){
-            //strcpy(name, _name);  // THIERRY
+            strcpy(name, _name);
         }
         status = true;
     } else {
@@ -762,8 +760,7 @@ bool BorneUniverselle::setName(const char *_name, bool check){
 }
 
 char *BorneUniverselle::getName(){
-    //return name; // THIERRY
-    return nullptr; // THIERRY
+    return name;
 }
 
 bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() { 
@@ -771,7 +768,7 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
         return false;
     }
 
-    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__); // THIERRY
+    MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
     
     if (!guard.isAcquired()) {
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
@@ -912,9 +909,13 @@ bool BorneUniverselle::clientQueueIsFull() {
 
 void BorneUniverselle::handleWebSocketMessage() {
     // Vient de loop mais aussi de refresh
-    
+    static uint32_t lastMessageTime = 0;
+
     if (!isAllInputsReadOnce()){
-        Serial.println("handleWebSocketMessage: receive a web socket message but not all inputs are read");
+        if (millis() - lastMessageTime > 5000){
+            Serial.println("handleWebSocketMessage: receive a web socket message but not all inputs are read");
+            lastMessageTime = millis();
+        }
     }
     
 
@@ -1508,9 +1509,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
     //Serial.println("parseHardwares");
 
     // Est-ce que l'on a un hardware ?
-    //if (!doc.containsKey(CHILDREN)){
     if (doc[CHILDREN].isNull()){
-        prepareMessage(ERROR, NO_CHILDREN_KEY_CONFIG);
+        setPlcBroken(NO_CHILDREN_KEY_CONFIG);
         return false;
     }
 
@@ -1518,7 +1518,6 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
 
     for (JsonObject children : doc[CHILDREN].as<JsonArray>()) {
         char sectionName[128], hardware[80], type[80], text[200];
-        //if (!children.containsKey(NAME)){
         if (children[NAME].isNull()){
             sprintf(buff, "parseHardwares:: Section ? doesn't contains key %s", NAME);
             prepareMessage(ERROR, buff);
@@ -1528,21 +1527,19 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
         strcpy(sectionName, children[NAME]);
         Serial.printf("Section name: %s\r\n", sectionName);
            
-        //if (!children.containsKey(HARDWARE)){
         if (children[HARDWARE].isNull()){
-           // sprintf(text, "parseHardwares:: Section %s doesnt contains key hardware", name); // THIERRY
-            prepareMessage(ERROR, text);
+            sprintf(text, "parseHardwares:: Section %s doesnt contains key hardware", name);
+            setPlcBroken(text);
             return false;
         }
         strcpy(hardware, children[HARDWARE]);
         Serial.printf("hardware: %s\r\n", hardware);
         char fileName[250];
 
-        //if (!children.containsKey(TYPE)){
         if (children[TYPE].isNull()){
-            //sprintf(buff, "parseHardwares:: Section %s doesnt contains key type", name); // THIERRY
+            sprintf(buff, "parseHardwares:: Section %s doesnt contains key type", name);
             Serial.println(buff);
-            prepareMessage(ERROR, buff);
+            setPlcBroken(buff);
             return false;
         }
         strcpy(type, children[TYPE]);  // type du fichier de conf
@@ -1553,8 +1550,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
             for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
                 char nodeName[128];
                 if (c[NAME].isNull()){
-                   // sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME); // THIERRY
-                    prepareMessage(ERROR, buff);
+                    sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
+                    setPlcBroken(buff);
                     return false;  
                 }
                 strcpy(nodeName, c[NAME]);
@@ -1562,7 +1559,6 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
                 //Serial.printf("node name: %s\r\n", nodeName);
                 uint32_t hash, hashLocal;
 
-                //if (!c.containsKey(HASH)){
                 if (c[HASH].isNull()){
                     Serial.printf("Hash key note found for node name: %s\r\n", nodeName);
                     return false;
@@ -1589,17 +1585,10 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
                 }
 
                 if (hash != hashLocal){
-                    //if (!c.containsKey(HASH)){
                     if (c[HASH].isNull()){
-                        //Serial.println("Will add hash...");
-                        // Add object
-                        //JsonObject hashObject = c.createNestedObject(HASH);
                         JsonObject hashObject;
                         hashObject[HASH] = hash;
                         c.set(hashObject);
-                        //JsonObject hashObject = c.to<JsonObject>();
-                        
-                        //Serial.println("Hash added");
                     } 
 
                     c[HASH] = hashLocal;
@@ -1622,12 +1611,12 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
             setPlcBroken(persistence.getLastError());
             return false;
         }
-        /*
+        
         if (strstr(fileName, "A8S") && !isKinconyA8S){
             Serial.println(F("Card is an Kincony A8S, pin 2 must be set after go ip"));
             isKinconyA8S = true;
         } 
-        */
+        
 
         if (nodesDoc[HARDWARE].isNull()){
             sprintf(buff,"parseHardwares:: Key: %s not found", HARDWARE);
@@ -1654,17 +1643,15 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
     
         //Serial.println("Lectures des sections du hardware");
 
-        //if (!nodesDoc.containsKey(type)){
         if (nodesDoc[type].isNull()){
             sprintf(buff, "Hardware file doesnt contains key %s", type);
             prepareMessage(ERROR, buff);
             return false;
         }
 
-        //if (!children.containsKey(CHILDREN)){
         if (children[CHILDREN].isNull()){
-           // sprintf(buff, "parseHardwares:: section %s doesnt contains key %s from config file", name, CHILDREN); // THIERRY
-            prepareMessage(ERROR, buff);
+            sprintf(buff, "parseHardwares:: section %s doesnt contains key %s from config file", name, CHILDREN);
+            setPlcBroken(buff);
             return false; 
         }
 
@@ -2092,7 +2079,7 @@ bool BorneUniverselle::createModbusNode(char *nodeName, char *sectionName, uint1
     *hash = node->getHash();
 
    if (!check){
-        auto result = nodesMap.insert(std::make_pair(node->getHash(), node)); // THIERRY
+        auto result = nodesMap.insert(std::make_pair(node->getHash(), node));
         if (!result.second) {
             // L'insertion a échoué car le hash existe déjà
             char errMsg[128];
@@ -2465,8 +2452,7 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, uint16_t
 }
 
 bool BorneUniverselle::getIsKinconyA8S(){
-    //return isKinconyA8S; // THIERRY
-    return true; // THIERRY
+    return isKinconyA8S;
 }
     
 

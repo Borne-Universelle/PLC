@@ -30,7 +30,7 @@ public:
     bool logReboot();
     String getRebootLog();
     bool clearRebootLog();
-    static void setLastErrorMessage(const char* message);
+    //static void setLastErrorMessage(const char* message);
     static void printBits(uint16_t value);
     void static logDiagnostic(const char* message);
     void manageWiFiBasedOnMemory();
@@ -49,7 +49,7 @@ public:
     }
     
 private:
-    static String getResetReason(esp_reset_reason_t reason);
-    static const char* REBOOT_LOG_FILE;
-    static const size_t MAX_LOG_ENTRIES = 50;  // Maximum number of entries in the log file  
+    String getResetReason(esp_reset_reason_t reason);
+    const char* REBOOT_LOG_FILE = "/reboot_log.json";
+    const size_t MAX_LOG_ENTRIES = 50;  // Maximum number of entries in the log file  
 };

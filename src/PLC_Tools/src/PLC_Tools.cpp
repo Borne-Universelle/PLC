@@ -1,6 +1,6 @@
 #include "PLC_Tools/PLC_Tools.h"
 
-const char* PLC_Tools::REBOOT_LOG_FILE = "/reboot_log.json";
+//const char* PLC_Tools::REBOOT_LOG_FILE = "/reboot_log.json";
 //bool PLC_Tools::wifiDisconnectedForMemory = false;
 //uint32_t PLC_Tools::wifiDisconnectionTime = 0;
 //uint32_t PLC_Tools::disconnectionCount = 0;

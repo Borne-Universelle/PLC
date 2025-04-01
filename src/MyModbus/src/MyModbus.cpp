@@ -16,7 +16,7 @@ void MyModbus::showMessages(const char* message) {
 
 void MyModbus::setShowMessages(bool status) {
     if (status != isShowMessages){
-            Serial.println(status ? "Show modbus messages: true" : "Show modbus messages: false");
+           // Serial.println(status ? "Show modbus messages: true" : "Show modbus messages: false");
     }
     
     isShowMessages = status;
@@ -55,43 +55,48 @@ bool MyModbus::waitEndTransaction() {
     char message[256];
     sprintf(message, "MyModbus waitEndTransaction, allowed time: %lu [ms]", transactionTimeout);
     showMessages((const char *)message);
+    
+    // Variable pour suivre si on a détecté un timeout nous-mêmes
+    bool timeoutDetected = false;
+    
     // On attend au maximum le temps du timeout
     while (millis() < deadline) {
         modbus->task();
         
-        // Si la transaction est terminée, on sort de la boucle
+        // Si la transaction est terminée
         if (!modbus->slave()) {
             stats.lastTransactionTime = millis() - start;
-            stats.lastSuccessTime = millis();  // On enregistre le temps du succès
-            if (stats.lastTransactionTime > stats.maxTransactionTime) {
-                stats.maxTransactionTime = stats.lastTransactionTime;
-            }
-            if (stats.lastTransactionTime > transactionTimeout/2) {
-                sprintf(message, "%lu:: MyModbus::waitEndTransaction: warning: long transaction: %lu ms\r\n", millis(), stats.lastTransactionTime);
+            
+            // NE PAS forcer lastEvent = SUCCESS
+            // Vérifier plutôt la valeur courante de lastEvent
+            
+            if (lastEvent == Modbus::EX_SUCCESS) {
+                stats.lastSuccessTime = millis();
+                if (stats.lastTransactionTime > stats.maxTransactionTime) {
+                    stats.maxTransactionTime = stats.lastTransactionTime;
+                }
+                sprintf(message, "MyModbus waitEndTransaction done SUCCES, in: %lu [ms]", millis() - start);
                 showMessages((const char *)message);
+                return true;
+            } else {
+                // Une erreur a été détectée par le callback, la respecter
+                sprintf(message, "MyModbus waitEndTransaction done ERROR (code:%d), in: %lu [ms]", 
+                        lastEvent, millis() - start);
+                showMessages((const char *)message);
+                return false;
             }
-            //Serial.println("Transaction done");
-            stats.lastTransactionTime = millis() - start;
-            if (stats.lastTransactionTime > stats.maxTransactionTime) {
-                stats.maxTransactionTime = stats.lastTransactionTime;
-            }
-            lastEvent = Modbus::EX_SUCCESS;
-            sprintf(message, "MyModbus waitEndTransaction done SUCCES, in: %lu [ms]", millis() - start);
-            showMessages((const char *)message);
-            return true;
         }  
         vTaskDelay(pdMS_TO_TICKS(10));
-     
-        //Serial.println("MyModbus::waitEndTransaction vTaskDelay");
     }
 
+    // Si on est sorti par timeout
     sprintf(message, "MyModbus waitEndTransaction out of transacion allowed time (%lu ms)", transactionTimeout);
     showMessages(message);
-    // Si on est sorti par timeout
+    
     if (modbus->slave()) {
         // On force une dernière fois task() pour nettoyer l'état
         modbus->task();
-        // On s'assure que la librairie recommence une nouvelle transaction
+        // On s'assure que lastEvent indique un timeout
         lastEvent = Modbus::EX_TIMEOUT;
         showMessages("Will call handleError");
         handleError(Modbus::EX_TIMEOUT);

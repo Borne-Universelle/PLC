@@ -3,162 +3,83 @@
 Formaca::Formaca() {
     Serial.println(CONSTR_FORMACA);
     // Inscrit la callback
-    /*
     
     BorneUniverselle::setInitialStateLoadedCallback([this]() {
         this->initialStateLoadedHandler();
     });
 
-    // Initialisation des noeuds avec vérification des nullptr
+   // Initialisation des noeuds
     buzzer = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, BUZZER);
-    if (!buzzer) { Serial.println("Error: buzzer node not found"); }
     eStopA = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ESTOPA);
-    if (!eStopA) { Serial.println("Error: eStopA node not found"); }
     capteur_pression_air = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CAPTEUR_PRESSION_AIR);
-    if (!capteur_pression_air) { Serial.println("Error: capteur_pression_air node not found"); }
     startCycle = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, STARTCYCLE);
-    if (!startCycle) { Serial.println("Error: startCycle node not found"); }
     servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOON);
-    if (!servoOn) { Serial.println("Error: servoOn node not found"); }
     alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ALARMSRESET);
-    if (!alarmsReset) { Serial.println("Error: alarmsReset node not found"); }
     flipFlopScie = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, FLIP_FLOP_SCIE);
-    if (!flipFlopScie) { Serial.println("Error: flipFlopScie node not found"); }
     jog = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG);
-    if (!jog) { Serial.println("Error: jog node not found"); }
     fwd = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, FWD);
-    if (!fwd) { Serial.println("Error: fwd node not found"); }
     rwd = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, RWD);
-    if (!rwd) { Serial.println("Error: rwd node not found"); }
     jogFullTorque = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG_FULL_TORQUE);
-    if (!jogFullTorque) { Serial.println("Error: jogFullTorque node not found"); }
     goToPark = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_TO_PARK);
-    if (!goToPark) { Serial.println("Error: goToPark node not found"); }
     gotoRef = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_TO_REF);
-    if (!gotoRef) { Serial.println("Error: gotoRef node not found"); }
     calibrate = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CALIBRATE);
-    if (!calibrate) { Serial.println("Error: calibrate node not found"); }
     goHomeButton = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_HOME_BUTTON);
-    if (!goHomeButton) { Serial.println("Error: goHomeButton node not found"); }
     scier = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SCIER);
-    if (!scier) { Serial.println("Error: scier node not found"); }
     ejectButton = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, EJECT);
-    if (!ejectButton) { Serial.println("Error: ejectButton node not found"); }
     servoReady = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOREADY);
-    if (!servoReady) { Serial.println("Error: servoReady node not found"); }
     servoActivated = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOACTIVATED);
-    if (!servoActivated) { Serial.println("Error: servoActivated node not found"); }
     zeroSpeed = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ZEROSPEED);
-    if (!zeroSpeed) { Serial.println("Error: zeroSpeed node not found"); }
     targetSpeedRated = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TARGETSPEEDRATED);
-    if (!targetSpeedRated) { Serial.println("Error: targetSpeedRated node not found"); }
     targetPositionReached = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ATTARGET);
-    if (!targetPositionReached) { Serial.println("Error: targetPositionReached node not found"); }
     servoAlarm = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOALARM);
-    if (!servoAlarm) { Serial.println("Error: servoAlarm node not found"); }
     batteryAlarm = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, BATTERYALARM);
-    if (!batteryAlarm) { Serial.println("Error: batteryAlarm node not found"); }
     multipleTurnsOverflow = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, MULTIPLETURNSOVERFLOW);
-    if (!multipleTurnsOverflow) { Serial.println("Error: multipleTurnsOverflow node not found"); }
     puuOverflow = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PUUOVERFLOW);
-    if (!puuOverflow) { Serial.println("Error: puuOverflow node not found"); }
     absoluteCoordonateNotSet = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ABSOLUTECOORDONATENOTSET);
-    if (!absoluteCoordonateNotSet) { Serial.println("Error: absoluteCoordonateNotSet node not found"); }
     homeDone = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, HOMEDONE);
-    if (!homeDone) { Serial.println("Error: homeDone node not found"); }
     modbusError = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, MODBUSERROR);
-    if (!modbusError) { Serial.println("Error: modbusError node not found"); }
     driveInitialised = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, DRIVEINITIALISED);
-    if (!driveInitialised) { Serial.println("Error: driveInitialised node not found"); }
     v_jogSpeed = (VirtualUint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_JOG_SPEED);
-    if (!v_jogSpeed) { Serial.println("Error: v_jogSpeed node not found"); }
     v_cycleSpeed = (VirtualUint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, VCYCLE_SPEED);
-    if (!v_cycleSpeed) { Serial.println("Error: v_cycleSpeed node not found"); }
     v_maxTorque = (VirtualUint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TORQUE_CTRL);
-    if (!v_maxTorque) { Serial.println("Error: v_maxTorque node not found"); }
     overAllLenght = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, OVERALL_LENGTH);
-    if (!overAllLenght) { Serial.println("Error: overAllLenght node not found"); }
     parkOffset = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PARK_OFFSET);
-    if (!parkOffset) { Serial.println("Error: parkOffset node not found"); }
     posInch = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, POS_INCH);
-    if (!posInch) { Serial.println("Error: posInch node not found"); }
     wasteLength = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, WASTE_LENGTH);
-    if (!wasteLength) { Serial.println("Error: wasteLength node not found"); }
     rightStop = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, RIGHT_STOP);
-    if (!rightStop) { Serial.println("Error: rightStop node not found"); }
     longLength = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, LENGTH);
-    if (!longLength) { Serial.println("Error: longLength node not found"); }
     widthLength = (FloatOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, WIDTH_LENGTH);
-    if (!widthLength) { Serial.println("Error: widthLength node not found"); }
     nbCyclesVoulus = (VirtualUint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, NB_CYCLES_VOULUS);
-    if (!nbCyclesVoulus) { Serial.println("Error: nbCyclesVoulus node not found"); }
     nbCyclesMade = (VirtualUint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, NB_CYCLES_EFFECTUES);
-    if (!nbCyclesMade) { Serial.println("Error: nbCyclesMade node not found"); }
     recette = (VirtualTextOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CHOIX_RECETTE);
-    if (!recette) { Serial.println("Error: recette node not found"); }
     status = (Uint16InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, STATUS_DRIVE);
-    if (!status) { Serial.println("Error: status node not found"); }
     absoluteCoordonateSystemStatus = (Uint16InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ABSOLUTE_COORDONATE_SYSTEM_STATUS);
-    if (!absoluteCoordonateSystemStatus) { Serial.println("Error: absoluteCoordonateSystemStatus node not found"); }
     alarms = (Uint16InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ALARMS);
-    if (!alarms) { Serial.println("Error: alarms node not found"); }
     trigger_read = (Uint16InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TRIGGER_READ);
-    if (!trigger_read) { Serial.println("Error: trigger_read node not found"); }
     jogSpeedRead = (Uint16InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG_SPEED_READ);
-    if (!jogSpeedRead) { Serial.println("Error: jogSpeedRead node not found"); }
     auxFunctions = (Uint16OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, AUX_FUNCTION);
-    if (!auxFunctions) { Serial.println("Error: auxFunctions node not found"); }
     trigger = (Uint16OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TRIGGER);
-    if (!trigger) { Serial.println("Error: trigger node not found"); }
     doHome = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, DO_HOME);
-    if (!doHome) { Serial.println("Error: doHome node not found"); }
     jogSpeed = (Uint16OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG_SPEED);
-    if (!jogSpeed) { Serial.println("Error: jogSpeed node not found"); }
     position = (Uint32InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, POSITION);
-    if (!position) { Serial.println("Error: position node not found"); }
     maxTorque = (Uint16OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, MAX_TORQUE);
-    if (!maxTorque) { Serial.println("Error: maxTorque node not found"); }
     pr1SpeedRead = (Uint32InputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR_SPEED_READ);
-    if (!pr1SpeedRead) { Serial.println("Error: pr1SpeedRead node not found"); }
     target_A = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TARGET_A);
-    if (!target_A) { Serial.println("Error: target_A node not found"); }
     target_B = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TARGET_B);
-    if (!target_B) { Serial.println("Error: target_B node not found"); }
     target_C = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, TARGET_C);
-    if (!target_C) { Serial.println("Error: target_C node not found"); }
     pr1Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR1_SPEED);
-    if (!pr1Speed) { Serial.println("Error: pr1Speed node not found"); }
     pr2Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR2_SPEED);
-    if (!pr2Speed) { Serial.println("Error: pr2Speed node not found"); }
     pr3Speed = (Uint32OutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, PR3_SPEED);
-    if (!pr3Speed) { Serial.println("Error: pr3Speed node not found"); }
     immediateStop = (PF8574BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, IMMEDIATE_STOP);
-    if (!immediateStop) { Serial.println("Error: immediateStop node not found"); }
     absolutePositionLost = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ABSOLUTE_POS_LOST);
-    if (!absolutePositionLost) { Serial.println("Error: absolutePositionLost node not found"); }
     nbCyclesClear = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, NB_CYCLES_CLEAR);
-    if (!nbCyclesClear) { Serial.println("Error: nbCyclesClear node not found"); }
     vStart = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_START);
-    if (!vStart) { Serial.println("Error: vStart node not found"); }
     cancelCycle = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CANCEL_CYCLE);
-    if (!cancelCycle) { Serial.println("Error: cancelCycle node not found"); }
     cylinderCaptor = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CYLINDER_CAPTOR);
-    if (!cylinderCaptor) { Serial.println("Error: cylinderCaptor node not found"); }
     v_servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_SERVO_ON);
-    if (!v_servoOn) { Serial.println("Error: v_servoOn node not found"); }
     v_flipFlopScie = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_FLIP_FLOP_SCIE);
-    if (!v_flipFlopScie) { Serial.println("Error: v_flipFlopScie node not found"); }
     v_immediateStop = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_IMMEDIATE_STOP);
-    if (!v_immediateStop) { Serial.println("Error: v_immediateStop node not found"); }
     v_alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_ALARMS_RESET);
-    if (!v_alarmsReset) { Serial.println("Error: v_alarmsReset node not found"); }
-
-    // Vérification critique : si un noeud essentiel est manquant, on arrête
-    if (!buzzer || !eStopA || !servoOn || !immediateStop || !position || !trigger) {
-        Serial.println("Critical error: Essential nodes missing, aborting constructor");
-        BorneUniverselle::setPlcBroken("Formaca::Formaca Essential nodes not initialized");
-        return;
-    }
 
     if (BorneUniverselle::isPlcBroken()) {
         Serial.flush();
@@ -243,7 +164,6 @@ Formaca::Formaca() {
         flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
     }
     Serial.println("Fin du constructeur Formaca");
-    */
 }
 
 Formaca::~Formaca() {

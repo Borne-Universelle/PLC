@@ -232,7 +232,7 @@ class BorneUniverselle{
         static Node *findNode(const char *context, uint32_t hash);
         bool notifyWebClient(bool all = false);
         static void prepareMessage(uint8_t type, const char *text); // send message to web socket
-        static bool getIsKinconyA8S();
+        bool getIsKinconyA8S();
         void printConfigFile();
         bool sendMessage();
         static bool isPlcBroken();

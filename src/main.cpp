@@ -116,22 +116,32 @@ void showHelp(){
 
 void commandInterpretor(char car){
   switch (car){
-    case 'A':     bu->eraseWifis();
+    case 'A':     if (bu != NULL && bu != nullptr){
+                    bu->eraseWifis();
+                  } else {
+                    Serial.println("BorneUniverselle non initialisée !");
+                  }
       break;
 
-    case 'C':     bu->printConfigFile();
+    case 'C':     if (bu != NULL && bu != nullptr){
+                    bu->printConfigFile();
+                  }
       break;
 
-    case 'D':     BorneUniverselle::prepareMessage(WARNING, "Message de test");
+    case 'D':     if (bu != NULL && bu != nullptr){
+                    BorneUniverselle::prepareMessage(WARNING, "Message de test");
+                  }
       break;
 
     case 'E':     bu->notifyWebClient(true);
       break;
-
-    case 'F':     Formaca::printPersistance();
+    /*
+    case 'F':     if (formaca != NULL && formaca != nullptr){
+                    formaca->printPersistance();
+                  }
       break;
 
-    case 'G':     memoryMonitorBool = true;;
+    case 'G':     //memoryMonitorBool = true;
 
     case 'Y':     Serial.println("ESP32 will reset");
                   ESP.restart();
@@ -145,10 +155,11 @@ void commandInterpretor(char car){
 
     case '\n':
      break;
-
+*/
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
-  }
+  } 
 }
+
 
 void firmwareUpdate(){
   WiFiClient client;
@@ -182,24 +193,36 @@ void WiFiStationConnected(){
 
 //void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){ // version 1 & 2
 void WiFiGotIP(){
-  if (BorneUniverselle::getIsKinconyA8S()){
+  if (bu->getIsKinconyA8S()){
     turnOffBuzzer();
   }
   
   IPAddress ip = WiFi.localIP();
   Serial.printf("WiFi connected, IP address: %d.%d.%d.%d, level: %d [dB]\r\n", ip[0], ip[1], ip[2], ip[3], WiFi.RSSI());
   bu->setWifiConnected(true);
+
+  if (bu->getName() == NULL){
+    Serial.println("No name for the device, will set it to default name: BorneUniverselle");
+    bu->setName("BorneUniverselle", false);
+  } else {
+   if (strlen(bu->getName()) > 20){
+      Serial.println("Name too long, will set it to default name: BorneUniverselle");
+    } else {
+      Serial.printf("Device name: %s\r\n", bu->getName());
+    }
+  }
+
+  Serial.printf("Will try to set up MDNS responder with name %s\n", bu->getName());
+
   if (!MDNS.begin(bu->getName())) {
-        Serial.println("Error setting up MDNS responder!");
-        while(1) {
-            delay(1000);
-        }
+        Serial.printf("Error setting up MDNS responder with name %s\n", bu->getName());
+  } else {
+    // Add service to MDNS-SD
+   MDNS.addService("http", "tcp", 80);
+    Serial.printf("MDNS responder started with name %s\n", bu->getName());
   }
     
-  // Add service to MDNS-SD
-  MDNS.addService("http", "tcp", 80);
-  Serial.printf("mDNS responder started: address is: %s.local\r\n", bu->getName());
-  // server.begin();  
+  server.begin();  
   Serial.println("Web server started !");
 } // WiFiGotIP
 
@@ -231,8 +254,6 @@ void update_error(int err) {
   char buffer[40];
   sprintf(buffer, "error %d", err);
 }
-
-
 
 void tooMuchClients(AsyncWebSocketClient *client){
   bu->tooMuchClients(client);
@@ -336,27 +357,26 @@ esp_task_wdt_config_t wdt_config = {
   .trigger_panic = true  // Déclencher un panic/reset si timeout
 };
 esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
-
-
+  */
+ /*
   esp_log_level_set("*", ESP_LOG_DEBUG);        // set all components to ERROR level
   esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
   esp_log_level_set("dhcpc", ESP_LOG_DEBUG); 
-
+*/
   Serial.println();Serial.println();Serial.println();
-  */
+
   Serial.println("Starting Formaca....");
 
   Serial.println("Will start BorneUniverselle library...");
 
-  bu = new BorneUniverselle(); // Borne Universelle will prepare file system open for the web server
+  //bu = new BorneUniverselle(); // Borne Universelle will prepare file system open for the web server
 
-  /*
+/*
   if (!bu->isPlcBroken()){
    // formaca = new Formaca();
   }
-
-  */
-  /*
+   */
+/*
   //  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
   //  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
   WiFi.onEvent([](arduino_event_t *event) {
@@ -377,45 +397,49 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   */
 
 // OTA 
+/*
   httpUpdate.onStart(update_started);
   httpUpdate.onEnd(update_finished);
   httpUpdate.onProgress(update_progress);
   httpUpdate.onError(update_error);
+
  
   if (bu->getIsWifiParsedOk()){
-    connectToNextNetwork();
+    //connectToNextNetwork();
   } else {
   Serial.println("Not starting wifi because config is not correct !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   
  }
 
  setupServer();
- MyToolBox::emptySerialIn();
- 
+
  showHelp();
+
+ // force log:
+ bu->setShowModbusMessages(true);
+   */
+  MyToolBox::emptySerialIn(); 
 }  // setup
 
 void loop() {
   long start = millis();
-  /*
-    if (Serial.available()){
-    commandInterpretor(Serial.read());
-  }
 
   if (Serial.available()){
-        commandInterpretor(Serial.read());
+      commandInterpretor(Serial.read());
   }
-
   
-  // check if it is time to send heartbeat
-  bu->checkHeartbeat();
+      
 
+  // check if it is time to send heartbeat
+  //bu->checkHeartbeat();
+/*
   if (!bu->isPlcBroken()){
     if (!bu->clientQueueIsFull()){
-     bu->refresh();
+     //bu->refresh();
     } 
+
     
-    bu->handleWebSocketMessage();
+    //bu->handleWebSocketMessage();
 
     if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
         if (bu->isAllInputsReadOnce()){
@@ -434,15 +458,15 @@ void loop() {
      }
   }
   
-    
-  bu->sendMessage();
-  ws.cleanupClients();
+         */
+  //bu->sendMessage();
+  //ws.cleanupClients();
   if (millis() - start > 1500){
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
   }
   
-  memoryMonitor.trackStats();
-
+  //memoryMonitor.trackStats();
+/*
   if (memoryMonitorBool){
     memoryMonitor.printStats("MemoryMonitor");
   }
@@ -450,7 +474,7 @@ void loop() {
 
   if (millis()- lastTime > 5000){
     lastTime = millis();
-    Serial.printf(" time: %lu v2\r\n",millis());
+    Serial.printf(" time: %lu v3\r\n",millis());
   }
   delay(1);
 }
