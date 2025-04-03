@@ -264,7 +264,7 @@ bool PLC_Persistence::readJsonFromFile(const char* path, JsonDocument& outDoc) {
     if (error) {
         char errorMsg[150];
         snprintf(errorMsg, sizeof(errorMsg), 
-                "JSON deserialization failed for %s: %s (first 500 chars: %.500s)", 
+                "JSON deserialization failed for %s: %s (first 90 chars: %.90s)", 
                 path, error.c_str(), jsonString.c_str());
         setLastError(errorMsg);
         return false;

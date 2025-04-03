@@ -2,23 +2,12 @@
 
 bool BorneUniverselle::otaPending;
 char  BorneUniverselle::ota_url[OTA_URL_SIZE];
-std::map<unsigned char, WifiItem> BorneUniverselle::wifiItemsMapBu;
-uint32_t  BorneUniverselle::wifiStartupTime = 0;
-bool BorneUniverselle::wificonnected = false;
-char  BorneUniverselle::currentNetworkId = -1;
-unsigned char BorneUniverselle::nbWifiItems = 0;
-char BorneUniverselle::urlTest[10];
-AsyncWebSocketClient * BorneUniverselle::client;
-char BorneUniverselle::name[NAME_LENGHT];
-bool BorneUniverselle::isI2CInitialised = false;
-bool BorneUniverselle::isRs485Initialised = false;
-bool BorneUniverselle::isModbusInitialised = false;
-HardwareSerial *BorneUniverselle::myRS485;
-bool BorneUniverselle::isKinconyA8S = false;
+
+char BorneUniverselle::defaultName[NAME_LENGHT] = "Borne Universelle";
+
 bool BorneUniverselle::isLastMessageFatal = false;
-bool BorneUniverselle::plcBroken = false;
-bool BorneUniverselle::clientconnected = false;
-bool BorneUniverselle::newClientConnected = false;
+BorneUniverselle* BorneUniverselle::mainInstance = nullptr;
+SemaphoreHandle_t BorneUniverselle::instanceMutex = nullptr;
 
 SemaphoreHandle_t BorneUniverselle::webSocketMutex = NULL;
 SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
@@ -26,32 +15,41 @@ SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
 // Initialisation de la callback à nullptr
 std::function<void()> BorneUniverselle::initialStateLoadedCallback = nullptr;
 
-std::map<uint32_t, Node *> BorneUniverselle::nodesMap;
-std::list<NotifMessagePtr> BorneUniverselle::notifMessagesList;
-
-
 BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
-    Serial.println(BORNE_UNIVERSELLE_VERSION); 
-    webSocketMutex = xSemaphoreCreateMutex();
+    if (instanceMutex == nullptr) {
+        instanceMutex = xSemaphoreCreateMutex();
+    }
+    
+    if (instanceMutex != nullptr) {
+        MutexGuard guard(instanceMutex, "instanceMutex", "BorneUniverselle constructor");
+        if (guard.isAcquired() && mainInstance == nullptr) {
+            mainInstance = this;
+        }
+    } else {
+        setPlcBroken("BorneUniverselle:: unable to create the mutex instanceMutex");
+    }
 
+    Serial.println(F(BORNE_UNIVERSELLE_VERSION)); 
+
+    webSocketMutex = xSemaphoreCreateMutex();
     if (webSocketMutex == NULL) {
         setPlcBroken("webSocketMutex was not created successfully");
         return;
     }
-    
+    /*
     notifMutex = xSemaphoreCreateMutex();
     if (notifMutex == NULL) {
         setPlcBroken("notifMutex was not created successfully");
         return;
     }
- 
+
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
     PLC_Tools plcTools;
     if (!plcTools.logReboot()){
         setPlcBroken("Failed to log reboot");
         return;
     }       
-        
+ 
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
  
@@ -64,12 +62,13 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
         setPlcBroken("Failed to print diagnostic file");
         return;
     }
-  
+        
     if (psramInit()){
         Serial.println(F("PSRAM is available !!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
         psRamAvailable = true;
     } else {
-         Serial.println(F("PSRAM is not available !"));
+        psRamAvailable = false;
+        Serial.println(F("PSRAM is not available !"));
     }
 
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
@@ -144,6 +143,7 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     for (const String& fileName : files) {
         Serial.println(fileName);  // Affiche juste le nom du fichier
     } 
+    */
 
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
 }
@@ -151,12 +151,39 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
 void BorneUniverselle::modbusMessageHandler(uint8_t severity, const char* message) {
     BorneUniverselle::prepareMessage(severity, message);  
 }
-   
+
 bool BorneUniverselle::isPlcBroken(){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->isPlcBrokenImpl();
+    } else {
+        Serial.println("Pas d'instance BorneUniverselle !!!");
+        return true;
+    }
+}
+   
+bool BorneUniverselle::isPlcBrokenImpl(){
     return plcBroken;
 }
 
 void BorneUniverselle::setPlcBroken(const char *context){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        instance->setPlcBrokenImpl(context);
+    } else {
+        // Comportement de secours si pas d'instance disponible
+        char *text = (char *)malloc(strlen(context) + 40);
+        if (text) {
+            sprintf(text, "Plc is broken, context: %s", context);
+            Serial.println(text);
+            free(text);
+        } else {
+            Serial.printf("Plc is broken, context: %s (allocation failed)\n", context);
+        }
+    }
+}
+
+void BorneUniverselle::setPlcBrokenImpl(const char *context){
     if (!plcBroken){
         char *text = (char *)malloc(strlen(context) + 40);
         sprintf(text,"Plc is broken, context: %s", context);
@@ -169,6 +196,18 @@ void BorneUniverselle::setPlcBroken(const char *context){
 }
 
 void BorneUniverselle::unableToFindKey(char *_context, char *_key){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        instance->unableToFindKeyImpl(_context, _key);
+    } else {
+        // Comportement de secours si pas d'instance disponible
+        char message[256];
+        sprintf(message, "unableToFindKey:: In context: %s, Unable to find key: %s\r\n", _context, _key);
+        Serial.println(message);
+    }
+}
+
+void BorneUniverselle::unableToFindKeyImpl(char *_context, char *_key){
     char message[256];
     sprintf(message, "unableToFindKey:: In context: %s, Unable to find key: %s\r\n", _context, _key);
     prepareMessage(ERROR, message);
@@ -203,13 +242,13 @@ void BorneUniverselle::refresh(){
             return;
     }
 
-    Serial.println("Refresh");
-    PLC_Tools plcTools;
-    plcTools.manageWiFiBasedOnMemory();
+    //Serial.println("Refresh");
+    //PLC_Tools plcTools;
+    //plcTools.manageWiFiBasedOnMemory();
 
     uint32_t start = millis();
     uint32_t lastCheck = start;
-    //Serial.printf("%lu:: start Refresh\r\n", millis());
+    //Serial.printf("%lu:: start refresh\r\n", millis());
     std::map<uint32_t, Node *>::iterator it;
     for (it = nodesMap.begin(); it != nodesMap.end(); it++){
         if (PF8574BooleanInputNode::isInterrupt()){
@@ -296,6 +335,13 @@ bool BorneUniverselle::isAllInputsReadOnce(){
 }
 
 void BorneUniverselle::refresHardwareInputs(){
+    BorneUniverselle* instance = getInstance();
+    if (instance) {
+        instance->refresHardwareInputsImpl();
+    }
+}
+
+void BorneUniverselle::refresHardwareInputsImpl(){
     std::map<uint32_t, Node *>::iterator it;
     for (it = nodesMap.begin(); it != nodesMap.end(); it++){
         //Serial.printf("Will refresh node key: %d\r\n", it->first);
@@ -342,6 +388,15 @@ WifiItem BorneUniverselle::getNextNetwork(){
 }
 
 bool BorneUniverselle::connectWifi(WifiItem currentWifi){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->connectWifiImpl(currentWifi);
+    } else {
+        return false;
+    }
+}
+
+bool BorneUniverselle::connectWifiImpl(WifiItem currentWifi){
     WiFi.disconnect(true, true);
     Serial.printf("Try to connect to: %s, SSID: %s, PWD: %s\r\n", currentWifi.connectionName, currentWifi.SSID, currentWifi.PWD);
     Serial.flush();
@@ -368,12 +423,7 @@ unsigned char BorneUniverselle::getNbWifiItems(){
     //Serial.printf("getNbWifiItems: %d\r\n", wifiItemsMapBu.size());
 	return wifiItemsMapBu.size();
 
-}
-
-char *BorneUniverselle::getOTA_Url(){
-   return urlTest;
-}
-        
+}      
 
 void BorneUniverselle::setOTA_url(const char *url){
 	Serial.printf("New url for fimrware update will be saved in persistant parameters: %s\r\n", url);
@@ -397,6 +447,7 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
     // Gestion du webSocketMutex
     MutexGuard webSocketguard(webSocketMutex, "webSocketMutex", __FUNCTION__); 
     if (!webSocketguard.isAcquired()) {
+        setPlcBroken("setClientConnected:: unable to acquire the mutex");
         return;
     }
 
@@ -427,6 +478,7 @@ void BorneUniverselle::setClientConnected(bool status, AsyncWebSocketClient *_cl
     // Gestion du notifMutex
     MutexGuard notifGuard(notifMutex, "notifMutex",  __FUNCTION__) ; 
     if (!notifGuard.isAcquired()) {
+        setPlcBroken("setClientConnected:: unable to acquire the mutex notifyMutex");
         return;
     }
 
@@ -442,6 +494,7 @@ bool BorneUniverselle::isClientConnected() {
     if (!webSocketGuard.isAcquired()) {
         // Si on ne peut pas acquérir le mutex, par prudence on considère
         // qu'aucun client n'est connecté
+        setPlcBroken("isClientConnected:: unable to acquire the mutex");
         return false;
     }
     
@@ -477,8 +530,17 @@ void BorneUniverselle::sendHeartbeat(bool reset){
     } 
     heartbeatTimeout = millis() + HEARTHBEAT_TIMEOUT;
 }
-    
 bool BorneUniverselle::sendTextToClient(char *text){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->sendTextToClientImpl(text);
+    } else {
+        Serial.println("ERROR: Cannot send text to client, no BorneUniverselle instance");
+        return false;
+    }
+}
+
+bool BorneUniverselle::sendTextToClientImpl(char *text){
     const uint32_t QUEUE_TIMEOUT_MS = 100; // 0.1 seconde
     uint32_t startTime = millis();
 
@@ -491,6 +553,7 @@ bool BorneUniverselle::sendTextToClient(char *text){
 
     MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__); 
     if (!guard.isAcquired()) {
+        setPlcBroken("sendTextToClientImpl:: unable to acquire the mutex webSocketMutex");
         return false;
     }
 
@@ -670,7 +733,30 @@ void BorneUniverselle::tooMuchClients(AsyncWebSocketClient *_client){
     }
 }
 
-void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
+BorneUniverselle* BorneUniverselle::getInstance() {
+    if (instanceMutex == nullptr) {
+        return nullptr;
+    }
+    
+    BorneUniverselle* instance = nullptr;
+    MutexGuard guard(instanceMutex, "instanceMutex", "getInstance");
+    if (guard.isAcquired()) {
+        instance = mainInstance;
+    }
+    return instance;
+}
+
+void BorneUniverselle::prepareMessage(uint8_t type, const char *text){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        instance->prepareMessageImpl(type, text);
+    } else {
+        // Logger l'erreur si aucune instance n'est disponible
+        Serial.printf("%lu:: ERROR: Cannot prepare message, no BorneUniverselle instance\r\n", millis());
+    }
+}
+
+void BorneUniverselle::prepareMessageImpl(uint8_t type, const char * text){
     // Protection contre les pointeurs nuls ou textes vides
     if (!text || !*text) {
         Serial.println(F("Empty message discarded"));
@@ -700,7 +786,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
             case SUCCESS:   Serial.printf("%lu:: SUCCESS: %s\r\n", millis(), safeMessage);
                             break;
 
-            default:        Serial.printf("%lu:: prepareMessage ::unknow severity %d, texte: %s\r\n", millis(), type, safeMessage);
+            default:        type = ERROR; // Default to ERROR if type is unknown,
                             break;
         }
         
@@ -709,6 +795,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
 
     MutexGuard guard(notifMutex, "notifyMutex", __FUNCTION__); // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
     if (!guard.isAcquired()) {
+        setPlcBroken("prepareMessageImpl:: unable to acquire the mutex notifyMutes");
         return;
     }
 
@@ -742,7 +829,18 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char * text){
     }
 }
 
-bool BorneUniverselle::setName(const char *_name, bool check){
+bool BorneUniverselle::setName(const char *_name, bool check) {
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->setNameImpl(_name, check);
+    } else {
+        // Comportement de secours si pas d'instance disponible
+        Serial.println("ERROR: Cannot set name, no BorneUniverselle instance");
+        return false;
+    }
+}
+
+bool BorneUniverselle::setNameImpl(const char *_name, bool check){
     bool status = false;
     if (strlen(_name) < NAME_LENGHT && strlen(_name) > 0 && !strstr(_name, " ")){
         Serial.printf("Project name: %s\r\n", _name);
@@ -760,6 +858,17 @@ bool BorneUniverselle::setName(const char *_name, bool check){
 }
 
 char *BorneUniverselle::getName(){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->getNameImpl();
+    } else {
+        // Comportement de secours si pas d'instance disponible
+        Serial.println("WARNING: No BorneUniverselle instance available for getName()");
+        return defaultName; // Retourne la variable statique comme avant
+    }
+}
+
+char *BorneUniverselle::getNameImpl(){
     return name;
 }
 
@@ -771,6 +880,7 @@ bool BorneUniverselle::isWebSocketMessagesListMoreThanHalf() {
     MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
     
     if (!guard.isAcquired()) {
+        setPlcBroken("isWebSocketMessagesListMoreThanHalf:: unable to acquire webSocketMutex");
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
@@ -842,6 +952,7 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t 
 
     MutexGuard webSocketGuard(webSocketMutex, "webSocketMutex", __FUNCTION__);
     if (!webSocketGuard.isAcquired()) {
+        setPlcBroken("keepWebSocketMessage:: unable to acquire the webSocket mutex");
         return;
     }
 
@@ -883,6 +994,7 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t 
 bool BorneUniverselle::clientQueueIsFull() {
     MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__);
     if (!guard.isAcquired()) {
+        setPlcBroken("clientQueueIsFull:: unable to acquire webSocket mutex");
         return true; // Par sécurité, on retourne true pour indiquer que la liste est "pleine"
     }
 
@@ -910,18 +1022,12 @@ bool BorneUniverselle::clientQueueIsFull() {
 void BorneUniverselle::handleWebSocketMessage() {
     // Vient de loop mais aussi de refresh
     static uint32_t lastMessageTime = 0;
-
     if (!isAllInputsReadOnce()){
         if (millis() - lastMessageTime > 5000){
-            Serial.println("handleWebSocketMessage: receive a web socket message but not all inputs are read");
+            //Serial.println("handleWebSocketMessage: not all inputs are read");
             lastMessageTime = millis();
         }
     }
-    
-
-    WEB_SOCKET_MESSAGE workingMessage;
-
-    WEB_SOCKET_MESSAGE *webSocketMessageOrig;
 
     while ( true) {
         if (PF8574BooleanInputNode::isInterrupt()) {
@@ -934,69 +1040,79 @@ void BorneUniverselle::handleWebSocketMessage() {
         }
 
         vTaskDelay(pdMS_TO_TICKS(1));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+        WEB_SOCKET_MESSAGE workingMessage = {0}; // Initialisation à zéro
+#pragma GCC diagnostic pop
+        WEB_SOCKET_MESSAGE *webSocketMessageOrig = nullptr;
+        bool messageExtracted = false;
+
         {   
             MutexGuard webSocketGuard(webSocketMutex, "webSocketMutex", __FUNCTION__);
             if (!webSocketGuard.isAcquired()) {
+                setPlcBroken("handleWebSocketMessage:: unable to acquire the webSocket Mutex");
                 return;
             }
 
-            if (!webSocketMessagesList.size()) {
-                return;
-            }
-        
-            // on extrait le 1er message de la liste
             if (webSocketMessagesList.empty()) {
                 return;
             }
-            webSocketMessageOrig = webSocketMessagesList.front().get();
 
+            // on extrait le 1er message de la liste
+            webSocketMessageOrig = webSocketMessagesList.front().get();
             if (!webSocketMessageOrig) {
             
                 Serial.println("handleWebSocketMessage:: webSocketMessage Null !!");
                 continue;
             }
         
-            workingMessage.len = webSocketMessageOrig->len;
+       
             workingMessage.data = (uint8_t*)malloc(webSocketMessageOrig->len + 1);
-
             if (!workingMessage.data) {
                 setPlcBroken("handleWebSocketMessage: failed to allocate memory for working message");
                 return;
             }
 
+            workingMessage.len = webSocketMessageOrig->len;
             memcpy(workingMessage.data, webSocketMessageOrig->data, webSocketMessageOrig->len);
             workingMessage.data[webSocketMessageOrig->len] = 0;  // Ajouter le zéro terminal
             workingMessage.timeOfOrigine = webSocketMessageOrig->timeOfOrigine;
             workingMessage.client = webSocketMessageOrig->client;
+
+            messageExtracted = true;
         } // Fin du mutex
+
+        // Si l'extraction a échoué, continuer la boucle
+        if (!messageExtracted) {
+            continue;
+        }
 
         uint32_t processStart = millis();
         vTaskDelay(pdMS_TO_TICKS(1));
         bool success = processMessage(&workingMessage);
         vTaskDelay(pdMS_TO_TICKS(1));
 
-        {
+        if (success) {
             MutexGuard webSocketProtGuard(webSocketMutex, "webSocketMutex", __FUNCTION__);
-            if (!webSocketProtGuard.isAcquired()) {
-                return;
-            }
-
-            // Suppression de l'original de la liste
-            if (success){
-                webSocketMessagesList.pop_front();
-                //webSocketMessagesList.remove_first();
+            if (webSocketProtGuard.isAcquired()) {
+                if (!webSocketMessagesList.empty()) {
+                    webSocketMessagesList.pop_front();
+                }
             } else {
-                Serial.println("handleWebSocketMessage: processMessage return an error");
-            }
-        } // Fin du mutex
+                setPlcBroken("handleWebSocketMessage:: unable to acquire webSocket mutex");
+            } 
+        }
+
+        if (workingMessage.data) {
+            free(workingMessage.data);
+            workingMessage.data = nullptr;
+        }
 
         if (millis() - processStart > 100) {
             Serial.printf("handleWebSocketMessage:: message processing duration: %lu, message: %s\r\n", 
                 millis() - processStart, workingMessage.data);
         }
         
-        free(workingMessage.data);
-        workingMessage.data = nullptr;
         checkHeartbeat();
     } // while
 } // handleWebSocketMessage
@@ -1026,7 +1142,7 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
     if (!socketDoc[HEARTBEAT].isNull()){
         heartbeatReceive = true;
         lastHearbeatReceive = millis();     
-        if (showHeartbeatMessages){
+        if (showHeartbeatMessages && client != nullptr){
             Serial.printf("%lu:: Heartbeat from client id: %lu received, value: %s\r\n", millis(), (unsigned long)client->id(), socketDoc[HEARTBEAT] ? "true": "false");   
         }
     } else if (!socketDoc[CONFIG].isNull()){
@@ -1346,8 +1462,16 @@ bool BorneUniverselle::getIsWifiParsedOk(){
 }
 
 bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->parseWifisImpl(doc, check);
+    } else {
+        return false;
+    }
+}
+
+bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
     for (JsonObject item : doc[CONFIG].as<JsonArray>()) {
-        //if (item.containsKey(WIFI)){
         if (!item[WIFI].isNull()){
             for (JsonObject wifiItem : item[WIFI].as<JsonArray>()) {
                 const char *ssid, *pwd, *name;
@@ -1362,7 +1486,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                     return false;
                 }
 
-                //if (wifiItem.containsKey(SSID_)){
                 if (!wifiItem[SSID_].isNull()){
                     ssid = wifiItem[SSID_];
                 } else {
@@ -1371,7 +1494,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                     return false;
                 }
 
-                //if (wifiItem.containsKey(PWD_)){
                 if (!wifiItem[PWD_].isNull()){
                     pwd = wifiItem[PWD_];
                 } else {
@@ -1381,7 +1503,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                 }
 
                 bool dhcp = true;
-                //if (wifiItem.containsKey(DHCP)){
                  if (!wifiItem[DHCP].isNull()){
                     if (wifiItem[DHCP] == true){
                         Serial.println(F("Item with dhcp"));
@@ -1393,7 +1514,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                         dhcp = false;
                         IPAddress ipAddress, dns, gateway, mask;
                         Serial.println(F("Fixed address"));
-                        // if (wifiItem.containsKey(IP)){
                         if (!wifiItem[IP].isNull()){
                             const char *ipChar = wifiItem[IP];
                             String ipString = String(ipChar);
@@ -1404,7 +1524,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                        //if (wifiItem.containsKey(DNS_)){
                         if (!wifiItem[DNS_].isNull()){
                             const char *dnsChar = wifiItem[DNS_];
                             String dnsString = String(dnsChar);
@@ -1415,7 +1534,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                        //if (wifiItem.containsKey(GATEWAY_)){
                         if (!wifiItem[GATEWAY_].isNull()){
                             const char *gatewayChar = wifiItem[GATEWAY_];
                             String gatewayString = String(gatewayChar);
@@ -1426,7 +1544,6 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                        //if (wifiItem.containsKey(MASK_)){
                          if (!wifiItem[MASK_].isNull()){
                             const char *maskChar = wifiItem[MASK_];
                             String maskString = String(maskChar);
@@ -1448,10 +1565,8 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
                 }
             }
         } else {
-            //if (item.containsKey(PARAMETERS)){
             if (!item[PARAMETERS].isNull()){
                 JsonObject params = item[PARAMETERS];    
-                //if (params.containsKey(OTA_URL)){
                 if (!params[OTA_URL].isNull()){
                     strcpy(ota_url, params[OTA_URL]);
                     Serial.printf("ota_url: %s\r\n", ota_url);
@@ -2123,60 +2238,77 @@ bool BorneUniverselle::i2cInit(JsonDocument& contextDoc){
     return false;
 }
 
-bool BorneUniverselle::RS485Init(JsonDocument& contextDoc){
-    if (isRs485Initialised){
+bool BorneUniverselle::RS485Init(JsonDocument& contextDoc) {
+  
+    if (isRs485Initialised) {
         return true;
     }
+  
+    isRs485Initialised = false;
 
-    //if (contextDoc.containsKey(RS485)){
-    if (!contextDoc[RS485].isNull()){
-        uint8_t rxPin, txPin;
-        uint16_t speed;
-        uint32_t config;
-        //if (contextDoc[RS485].containsKey(RX)){
-        if (!contextDoc[RS485][RX].isNull()){
-            rxPin = contextDoc[RS485][RX];
-            //if (contextDoc[RS485].containsKey(TX)){
-            if (!contextDoc[RS485][TX].isNull()){
-                txPin = contextDoc[RS485][TX];
-                //if (contextDoc[RS485].containsKey(SPEED)){
-                if (!contextDoc[RS485][SPEED].isNull()){
-                    speed = contextDoc[RS485][SPEED];
-                    //if (contextDoc[RS485].containsKey(CONFIG)){
-                    if (!contextDoc[RS485][CONFIG].isNull()){
-                        if (!strcmp(contextDoc[RS485][CONFIG], "SERIAL_8N1")){
-                            config = SERIAL_8N1;
-                        } else if (!strcmp(contextDoc[RS485][CONFIG], "SERIAL_8N2")){
-                            config = SERIAL_8N2;
-                        } else  if (!strcmp(contextDoc[RS485][CONFIG], "SERIAL_8E1")){
-                            config = SERIAL_8E1;
-                        } else if (!strcmp(contextDoc[RS485][CONFIG], "SERIAL_8E2")){
-                            config = SERIAL_8E2;
-                        } else {
-                            prepareMessage(ERROR, "RS485Init:: unrecognised protocol");
-                            return false;
-                        }
-
-                        Serial.printf("RS485 speed: %d, rx pin: %d, tx pin: %d config: %lu\r\n", speed, rxPin, txPin, (unsigned long)config);
-                        myRS485 = new HardwareSerial(1);
-                        myRS485->setRxBufferSize(128);
-                        myRS485->begin(speed, config, rxPin, txPin);
-                        //myRS485->setTimeout(1);
-                        isRs485Initialised = true;
-                        //Serial.println("RS485 bus is initialised");
-                    }   
-                } else {
-                  prepareMessage(ERROR, "RS485Init::Unable to find key speed");  
-                }
-            } else {
-                prepareMessage(ERROR, "RS485Init::Unable to find key tx");
-            }
-        } else {
-            prepareMessage(ERROR, "RS485Init::Unable to find key rx");
-        }
+    if (contextDoc[RS485].isNull()) {
+        setPlcBroken("RS485Init:: No RS485 key or null");
+        return false;
     }
-    
-    return isRs485Initialised;
+   
+    JsonObject rs485 = contextDoc[RS485];
+    if (rs485[RX].isNull()) {
+        setPlcBroken("RS485Init:: Unable to find key rx");
+        return false;
+    }
+    if (rs485[TX].isNull()) {
+        setPlcBroken("RS485Init:: Unable to find key tx");
+        return false;
+    }
+    if (rs485[SPEED].isNull()) {
+        setPlcBroken("RS485Init:: Unable to find key speed");
+        return false;
+    }
+    if (rs485[CONFIG].isNull()) {
+        setPlcBroken("RS485Init:: Unable to find key config");
+        return false;
+    }
+
+    uint8_t rxPin = rs485[RX];
+    uint8_t txPin = rs485[TX];
+    uint16_t speed = rs485[SPEED];
+    uint32_t config;
+
+    const char* configStr = rs485[CONFIG];
+    if (!strcmp(configStr, "SERIAL_8N1")) {
+        config = SERIAL_8N1;
+    } else if (!strcmp(configStr, "SERIAL_8N2")) {
+        config = SERIAL_8N2;
+    } else if (!strcmp(configStr, "SERIAL_8E1")) {
+        config = SERIAL_8E1;
+    } else if (!strcmp(configStr, "SERIAL_8E2")) {
+        config = SERIAL_8E2;
+    } else {
+        setPlcBroken("RS485Init:: Unrecognised protocol");
+        return false;
+    }
+
+    Serial.printf("RS485 speed: %d, rx pin: %d, tx pin: %d\r\n", speed, rxPin, txPin);
+
+    if (myRS485 != nullptr) {
+        delete myRS485;
+    }
+
+    myRS485 = new HardwareSerial(1);
+   
+    myRS485->setRxBufferSize(256);
+    myRS485->begin(speed, config, rxPin, txPin);  // THIERRY
+
+    if (!myRS485->availableForWrite()) {
+        setPlcBroken("RS485Init:: Failed to initialize HardwareSerial");
+        delete myRS485;
+        myRS485 = nullptr;
+        return false;
+    }
+
+    isRs485Initialised = true;
+    Serial.println("RS485 bus is initialised");
+    return true;
 }
 
 bool BorneUniverselle::modbusInit(JsonDocument& contextDoc){
@@ -2216,8 +2348,10 @@ bool BorneUniverselle::modbusInit(JsonDocument& contextDoc){
     modbus->master();
 
     myModbus.setModbus(modbus);
+    
     isModbusInitialised = true;
     Serial.println("Modbus initialised"); 
+    
     return true;
 }
 
@@ -2454,7 +2588,6 @@ bool BorneUniverselle::createVirtualNode(char *name, char *sectionName, uint16_t
 bool BorneUniverselle::getIsKinconyA8S(){
     return isKinconyA8S;
 }
-    
 
 bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     if (clientQueueIsFull()){
@@ -2558,6 +2691,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
 
             if (!success){
                 Serial.println(F("notifyWebClient: Failed to send to client"));
+                free(chain);
                 return false;
             }
         } else {
@@ -2735,16 +2869,29 @@ void BorneUniverselle::clearInputschanged(){
 } // if no client connected
 
 Node *BorneUniverselle::findNode(const char *context, uint32_t hash){
-    auto iter =  nodesMap.find(hash);
+    BorneUniverselle* instance = getInstance();
+    if (instance != nullptr) {
+        return instance->findNodeImpl(context, hash);
+    } else {
+        // Cas où aucune instance n'est disponible
+        char text[256];
+        snprintf(text, sizeof(text), "findNode:: No instance available. Searching for node with hash: %lu, with context: %s", (unsigned long)hash, context);
+        Serial.println(text);
+        return nullptr;
+    }
+}
 
-    if (iter != nodesMap.end()){
-        return nodesMap.at(hash);
+Node *BorneUniverselle::findNodeImpl(const char *context, uint32_t hash) {
+    auto iter = nodesMap.find(hash);
+
+    if (iter != nodesMap.end()) {
+        return iter->second;
     } else {
         char text[256];
-        snprintf(text, sizeof(text), "findNode:: Searching for node with hash: %lu, with context: %s but not found !\r\n", (unsigned long)hash, context);
+        snprintf(text, sizeof(text), "findNodeImpl:: Searching for node with hash: %lu, with context: %s but not found!", (unsigned long)hash, context);
         setPlcBroken(text);
         return nullptr;
-    }  
+    }
 }
 
 void BorneUniverselle::printConfigFile(){
@@ -2759,9 +2906,5 @@ void BorneUniverselle::printConfigFile(){
     
     serializeJsonPretty(configDoc, Serial);
   }
-
-std::map<uint32_t, Node *> BorneUniverselle::getNodesMap(){
-    return nodesMap;
-}
     
 

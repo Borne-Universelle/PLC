@@ -1,5 +1,7 @@
 #include "Node/Node.h"
 
+#define DEVKIT_C
+
 PCF8574 *PF8574BooleanInputNode:: pcfRx;
 bool PF8574BooleanInputNode:: isPCF8574_Initialised = false;
 bool PF8574BooleanInputNode:: pcfError = false;
@@ -110,8 +112,7 @@ bool Node::refresh(){
         // Vérifier si la période de désactivation est terminée
         if (millis() - disabledTime >= disableDuration) {
             tempDisabled = false;
-            Serial.printf("%lu:: Réactivation du nœud %s après %lu ms de désactivation\n", 
-                          millis(), getName(), disableDuration);
+            Serial.printf("%lu:: Réactivation du nœud %s après %lu ms de désactivation\n", (long unsigned int)millis(), getName(), (long unsigned int)disableDuration);
             
             // Réinitialiser le compteur d'erreurs avec une valeur non nulle
             // pour garder une "mémoire" des problèmes précédents
@@ -139,7 +140,7 @@ bool Node::refresh(){
             // Stratégie de backoff exponentiel : doubler le temps de désactivation
             // à chaque série d'erreurs, mais plafonner à maxDisableDuration
             disableDuration = min(disableDuration * 2, maxDisableDuration);
-            snprintf(buff, 256, "Désactivation temporaire du nœud %s pour %lu ms\n", getName(), disableDuration);
+            snprintf(buff, 256, "Désactivation temporaire du nœud %s pour %lu ms\n", getName(), (long unsigned int)disableDuration);
             BorneUniverselle::prepareMessage(ERROR, buff);
         }
         
@@ -600,8 +601,9 @@ PF8574BooleanInputNode::PF8574BooleanInputNode(char *name, char *parentName, uin
     if (!isPCF8574_Initialised){
         pcfRx = new PCF8574(i2cAddr);
         if (!pcfRx->begin()){
-            BorneUniverselle::prepareMessage(ERROR, PFC_INIT_ERROR);
-            BorneUniverselle::setPlcBroken(PFC_INIT_ERROR);
+#ifndef DEVKIT_C
+            BorneUniverselle::setPlcBroken(PFC_INIT_ERROR); //THIERRY
+#endif
         }    
     }
 
@@ -623,7 +625,9 @@ bool PF8574BooleanInputNode::isInterrupt(){
 bool PF8574BooleanInputNode::getNewValue(bool& value){
     char text[256];
     sprintf(text, "PF8574BooleanInputNode::getNewValue() for node: %s, pin: %u", name, pin);
+#ifndef DEVKIT_C
     value = !pcfRx->read(pin); // Les entrées sont inversées !
+#endif
     return true; // Pas d'erreur possible....
 }
 
@@ -669,7 +673,7 @@ bool ModbusReadHoldingRegister::getNewValue(uint16_t& value){
     myModbus.waitUntilModbusFree();
     //Serial.printf("Will read Holding register at address: %u for node name: %s, hash %u, register %u\r\n", address, getName(), getHash(), offset);
 
-    sprintf(text, "ModbusReadHoldingRegister::getNewValues, sart transaction for hash: %lu, name: %s, address: %u, offset: %u", getHash(), getName(), address, offset);
+    sprintf(text, "ModbusReadHoldingRegister::getNewValues, sart transaction for hash: %lu, name: %s, address: %u, offset: %u", (long unsigned int)getHash(), getName(), address, offset);
     showMessage(text);
     myModbus.getModbus()->readHreg(address, offset, &value, 1, MyModbus::cbRead);
     myModbus.waitEndTransaction();
@@ -690,18 +694,19 @@ ModbusReadDoubleHoldingRegisters::ModbusReadDoubleHoldingRegisters(char *name, c
 
 bool ModbusReadDoubleHoldingRegisters::getNewValue(uint32_t& uint32Value){
     uint16_t value[2];
-    char text[256];
+    #define TEXT_SIZE   512
+    char text[TEXT_SIZE];
     sprintf(text, "ModbusReadDoubleHoldingRegisters::getNewValue for node name: %s, address: %d, register %d", name, address, offset);
     showMessage(text);
    
     myModbus.waitUntilModbusFree();
-    sprintf(text, "%lu:: Start transaction for hash: %lu, name: %s, address: %u, offset: %u\r\n", millis(), getHash(), getName(), address, offset);
+    sprintf(text, "%lu:: Start transaction for hash: %lu, name: %s, address: %u, offset: %u\r\n", millis(), (long unsigned int)getHash(), getName(), address, offset);
     showMessage(text);
     myModbus.getModbus()->readHreg(address, offset, value, 2, MyModbus::cbRead);
     myModbus.waitEndTransaction();
     
     if (myModbus.getLastEvent() != Modbus::EX_SUCCESS) {
-        snprintf(text, 256, "%lu:: ModbusReadDoubleHoldingRegisters::getNewValue() for node name: %s, type: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, "ModbusReadDoubleHoldingRegisters", address, offset);
+        snprintf(text, TEXT_SIZE, "%lu:: ModbusReadDoubleHoldingRegisters::getNewValue() for node name: %s, type: %s, address: %d, register %d. Transaction error, return hideValue\r\n", millis(), name, "ModbusReadDoubleHoldingRegisters", address, offset);
         showMessage(text);
         return false;
     }
@@ -726,7 +731,7 @@ bool ModbusReadInputRegister::getNewValue(uint16_t& value){
     showMessage(text);
 
     myModbus.waitUntilModbusFree();
-    sprintf(text, "%lu:: ModbusReadInputRegister::getNewValue, start transaction for hash: %lu, name: %s, address: %u, offset: %u", millis(), getHash(), getName(), address, offset);
+    sprintf(text, "%lu:: ModbusReadInputRegister::getNewValue, start transaction for hash: %lu, name: %s, address: %u, offset: %u", millis(), (long unsigned int)getHash(), getName(), address, offset);
     showMessage(text);
     myModbus.getModbus()->readIreg(address, offset, &value, 1, myModbus.cbRead);
     // Serial.printf("Transaction initiée for node %s\r\n", getName());
@@ -763,8 +768,9 @@ PF8574BooleanOutputNode::PF8574BooleanOutputNode(char *name, char *parentName, u
     if (!isPCF8574_Initialised){
         pcfTx = new PCF8574(i2cAddr);
         if (!pcfTx->begin()){
-            BorneUniverselle::prepareMessage(ERROR, PFC_INIT_ERROR);
-            BorneUniverselle::setPlcBroken(PFC_INIT_ERROR);
+#ifndef DEVKIT_C
+            BorneUniverselle::setPlcBroken(PFC_INIT_ERROR);   // THIERRY
+#endif
         }
     }
     // Serial.println("Fin du constructeur de la classe PF8574BooleanOutputNode");
@@ -774,7 +780,9 @@ bool PF8574BooleanOutputNode::setNewValue(bool newValue){
     char text[256];
     sprintf(text, "PF8574BooleanOutputNode::setNewValue for node: %s, pin: %u, new value: %s", name, pin, newValue ? "true" : "false"); 
     showMessage(text);
+#ifndef DEVKIT_C
     pcfTx->write(pin, !newValue); // sorties inversées !
+#endif
     return true;
 }
 
@@ -982,7 +990,7 @@ ModbusWriteDoubleHoldingRegister::ModbusWriteDoubleHoldingRegister(char *name, c
 
 bool ModbusWriteDoubleHoldingRegister::setNewValue(uint32_t newValue){
     char text[200]; // Adjust size as needed
-    sprintf(text, "%lu:: ModbusWriteHoldingRegister::setNewValue,  value: %lu, address: %d, register: %d", millis(), newValue, address, offset); // Adjust fields as needed
+    sprintf(text, "%lu:: ModbusWriteHoldingRegister::setNewValue,  value: %lu, address: %d, register: %d", millis(), (long unsigned int)newValue, address, offset); // Adjust fields as needed
     showMessage(text);
     
     myModbus.waitUntilModbusFree();

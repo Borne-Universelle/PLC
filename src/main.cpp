@@ -13,6 +13,9 @@
 #include "WifiManagement/wifimanagment.h"
 #include "Formaca/Formaca.h"
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 // #define CONFIG_ASYNC_TCP_USE_WDT 0
 
 #define MAIN_VERSION "Version 2.2"
@@ -45,7 +48,7 @@ void connectToNextNetwork(){
       currentWifi = bu->getNextNetwork();
       criterionOK = true;
    }
-  bu->connectWifi(currentWifi);
+  //bu->connectWifi(currentWifi);
 }
 
 void modifyLogs(){
@@ -129,19 +132,21 @@ void commandInterpretor(char car){
       break;
 
     case 'D':     if (bu != NULL && bu != nullptr){
+                    Serial.println("Envoi d'un message de test sur le web socket");
                     BorneUniverselle::prepareMessage(WARNING, "Message de test");
                   }
       break;
-
+    
     case 'E':     bu->notifyWebClient(true);
       break;
-    /*
+
     case 'F':     if (formaca != NULL && formaca != nullptr){
                     formaca->printPersistance();
                   }
       break;
 
-    case 'G':     //memoryMonitorBool = true;
+    case 'G':     memoryMonitorBool = true;
+      break;
 
     case 'Y':     Serial.println("ESP32 will reset");
                   ESP.restart();
@@ -155,13 +160,14 @@ void commandInterpretor(char car){
 
     case '\n':
      break;
-*/
+
     default:      Serial.printf("Command interrpretor: Key: %c not attributed !!\r\n", car);
   } 
 }
 
 
 void firmwareUpdate(){
+  /*
   WiFiClient client;
   httpUpdate.rebootOnUpdate(false);
   t_httpUpdate_return ret = httpUpdate.update(client,  bu->getOTA_Url());
@@ -179,6 +185,7 @@ void firmwareUpdate(){
         Serial.println("HTTP_UPDATE_OK");
         break;
   }
+  */
 }
 
 void turnOffBuzzer(){
@@ -222,7 +229,7 @@ void WiFiGotIP(){
     Serial.printf("MDNS responder started with name %s\n", bu->getName());
   }
     
-  server.begin();  
+  //server.begin();  
   Serial.println("Web server started !");
 } // WiFiGotIP
 
@@ -284,7 +291,10 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   break;
     
     case WS_EVT_PONG:
-      Serial.println("WebSocket ping request");
+      Serial.println("WebSocket pong request");
+    break;
+
+    case WS_EVT_PING:   Serial.println("WebSocket ping request");
     break;
       
     case WS_EVT_ERROR:
@@ -341,6 +351,11 @@ void setupServer(){
   server.onNotFound(notFound);
  }
 
+ void printTaskInfo() {
+  UBaseType_t uxArraySize = uxTaskGetNumberOfTasks();
+    Serial.printf("[TaskInfo] Number of tasks: %u at %lu s\n", (unsigned int)uxArraySize, millis() / 1000);
+}
+
 void setup(){
   Serial.begin(115200);
   while(!Serial){
@@ -368,15 +383,16 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   Serial.println("Starting Formaca....");
 
   Serial.println("Will start BorneUniverselle library...");
-
-  //bu = new BorneUniverselle(); // Borne Universelle will prepare file system open for the web server
-
-/*
+  printTaskInfo();
+  bu = new BorneUniverselle(); // Borne Universelle will prepare file system open for the web server
+  Serial.println("Apres BorneUniverselle");
+  printTaskInfo();
+  
+  /*
   if (!bu->isPlcBroken()){
-   // formaca = new Formaca();
+    formaca = new Formaca();
   }
-   */
-/*
+ 
   //  WiFi.onEvent(WiFiStationConnected, SYSTEM_EVENT_STA_CONNECTED); // version 1
   //  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_STA_CONNECTED); // version 2.0x
   WiFi.onEvent([](arduino_event_t *event) {
@@ -386,7 +402,7 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   //  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP); // version 1
   // WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP); // version 2.0x
   WiFi.onEvent([](arduino_event_t *event) {
-    WiFiGotIP();
+    //WiFiGotIP();
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
   //  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED); // version 1
@@ -394,10 +410,9 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   WiFi.onEvent([](arduino_event_t *event) {
     WiFiStationDisconnected();    
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-  */
 
 // OTA 
-/*
+
   httpUpdate.onStart(update_started);
   httpUpdate.onEnd(update_finished);
   httpUpdate.onProgress(update_progress);
@@ -405,7 +420,7 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
 
  
   if (bu->getIsWifiParsedOk()){
-    //connectToNextNetwork();
+    connectToNextNetwork();
   } else {
   Serial.println("Not starting wifi because config is not correct !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   
@@ -414,32 +429,31 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
  setupServer();
 
  showHelp();
-
+*/
  // force log:
- bu->setShowModbusMessages(true);
-   */
+ //bu->setShowModbusMessages(true);
+  
   MyToolBox::emptySerialIn(); 
 }  // setup
 
 void loop() {
   long start = millis();
-
+   /*
   if (Serial.available()){
       commandInterpretor(Serial.read());
-  }
-  
-      
+  }  
 
   // check if it is time to send heartbeat
-  //bu->checkHeartbeat();
-/*
+  bu->checkHeartbeat();
+  
   if (!bu->isPlcBroken()){
     if (!bu->clientQueueIsFull()){
-     //bu->refresh();
-    } 
-
-    
-    //bu->handleWebSocketMessage();
+      //bu->refresh();
+    } else {
+      Serial.println("Queue is full !!!");
+    }
+ 
+    bu->handleWebSocketMessage();
 
     if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
         if (bu->isAllInputsReadOnce()){
@@ -456,17 +470,20 @@ void loop() {
      } else {// Queues ok
         Serial.printf("%lu::Not calling logic executor because client queue is full or queue is more than half\r\n", millis());
      }
+  
+  } else {
+    Serial.println("PLC is broken !");
   }
   
-         */
-  //bu->sendMessage();
-  //ws.cleanupClients();
+
+  bu->sendMessage();
+  ws.cleanupClients();
   if (millis() - start > 1500){
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
   }
   
   //memoryMonitor.trackStats();
-/*
+
   if (memoryMonitorBool){
     memoryMonitor.printStats("MemoryMonitor");
   }
@@ -475,6 +492,7 @@ void loop() {
   if (millis()- lastTime > 5000){
     lastTime = millis();
     Serial.printf(" time: %lu v3\r\n",millis());
+    printTaskInfo();
   }
   delay(1);
 }

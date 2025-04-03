@@ -205,14 +205,14 @@ using WebSocketMessagePtr = std::unique_ptr<WEB_SOCKET_MESSAGE, WebSocketMessage
 class BorneUniverselle{
 	public:
         BorneUniverselle(); 
+        static BorneUniverselle* getInstance();
+        bool setName(const char *name, bool check = true);
+        bool setNameImpl(const char *name, bool check = true);
+        char *getName();
+        char *getNameImpl();
         
-        static bool setName(const char *name, bool check = true);
-        static char *getName();
-		
-        static char *getOTA_Url();
-        
-        static bool isWifiConnectionTimeout();
-        static WifiItem getNextNetwork();
+        bool isWifiConnectionTimeout();
+        WifiItem getNextNetwork();
 
         unsigned char getNbWifiItems();
         void setOTA_url(const char *url);
@@ -222,20 +222,25 @@ class BorneUniverselle{
         void setClientConnected(bool status, AsyncWebSocketClient *client);
         bool clientQueueIsFull();
         void setShowHeartbeatMessages(bool status);
-        static bool isClientConnected();
+        bool isClientConnected();
         bool getWifiStatus();
         uint32_t getWifiStartupTime();
         void setWifiConnected(bool status);
-        static bool connectWifi(WifiItem item); 
+        bool connectWifi(WifiItem item); 
+        bool connectWifiImpl(WifiItem item); 
         void eraseWifis();
         void refresh();
         static Node *findNode(const char *context, uint32_t hash);
+        Node *findNodeImpl(const char *context, uint32_t hash);
         bool notifyWebClient(bool all = false);
         static void prepareMessage(uint8_t type, const char *text); // send message to web socket
+        void prepareMessageImpl(uint8_t type, const char * text);
         bool getIsKinconyA8S();
         void printConfigFile();
         bool sendMessage();
         static bool isPlcBroken();
+        bool isPlcBrokenImpl();
+        void setPlcBrokenImpl(const char *context);  
         static void setPlcBroken(const char *context);
         void tooMuchClients(AsyncWebSocketClient *client);
         bool handleNodesChange(JsonDocument& socketDoc);
@@ -245,10 +250,11 @@ class BorneUniverselle{
         void handleWebSocket(void *_arg, unsigned char *_data, size_t _len, AsyncWebSocketClient *_client);
         void clearInputschanged(); // if no client connected
         static void refresHardwareInputs();
+        void refresHardwareInputsImpl();
         bool isWebSocketMessagesListMoreThanHalf();
         bool isAllInputsReadOnce();
+        bool sendTextToClientImpl(char *text);
         static bool sendTextToClient(char *text);
-        static std::map<uint32_t, Node *> getNodesMap();
         float getConfigVersion(){
             return projectVersion;
         };
@@ -258,39 +264,40 @@ class BorneUniverselle{
         static void modbusMessageHandler(uint8_t severity, const char* message);
         static void setInitialStateLoadedCallback(std::function<void()> callback);
 
-        static char name[NAME_LENGHT];
+        char name[NAME_LENGHT];
+        static char defaultName[NAME_LENGHT];
         static char ota_url[OTA_URL_SIZE];
-        static uint32_t  wifiStartupTime;
-        static char  currentNetworkId;
-        static unsigned char nbWifiItems;
+        uint32_t  wifiStartupTime = 0;
+        char currentNetworkId = -1;
+        unsigned char nbWifiItems = 0;
         bool showModbusMessages = false;
 	
-		static std::map<unsigned char, WifiItem> wifiItemsMapBu;
+		std::map<unsigned char, WifiItem> wifiItemsMapBu;
 
 		bool wifiParsedOk = true;
 		static bool otaPending;
-        static bool wificonnected;
+        bool wificonnected = false;
 
-        bool heartbeatReceive;
+        bool heartbeatReceive = false;
         uint32_t lastHearbeatReceive = 0, lastHeartbeatSend = 0;
-        uint8_t nbTimeouts;
-        static bool clientconnected;
+        uint8_t nbTimeouts = 0;
+        bool clientconnected = false;
         bool showHeartbeatMessages = false;
-        static AsyncWebSocketClient *client;
+         AsyncWebSocketClient *client = nullptr;
         uint32_t heartbeatTimeout = 0;
 
         bool inputsCache[NB_DIGITAL_INPUTS] = {0};
 
-        static char urlTest[10];
         std::map<std::string, int> m;
-        static std::map<uint32_t, Node *> nodesMap;
+        std::map<uint32_t, Node *> nodesMap;
 
-        static bool setHardware(JsonDocument& doc, const char *, bool check = true);
+       // static bool setHardware(JsonDocument& doc, const char *, bool check = true);
         void sendHeartbeat(bool reset = false);
         bool i2cInit(JsonDocument& contextDoc);
         bool RS485Init(JsonDocument& contextDoc);
         bool modbusInit(JsonDocument& contextDoc);
-        static void unableToFindKey(char *context, char *key);
+        static void unableToFindKeyImpl(char *context, char *key);
+        void unableToFindKey(char *context, char *key);
         bool createRxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check); // c'est ici que l'on créé les nodes !
         bool createTxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check);
         bool createVirtualNode(char *name, char *sectionName, uint16_t id, char *type, uint32_t *hash, JsonDocument& descriptor, bool check);
@@ -299,29 +306,30 @@ class BorneUniverselle{
         // void modbusTask();
         bool parseConfig(JsonDocument& doc, bool check = true);
         static bool parseWifis(JsonDocument& doc, bool check);
+        bool parseWifisImpl(JsonDocument& doc, bool check);
         bool parseHardwares(JsonDocument& doc, bool check, float version);
-        static uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
-        static uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
+        uint8_t addWifiItem(const char *ssid, const char *pwd, const char *connexionName, IPAddress ip, IPAddress dns, IPAddress gateway, IPAddress mask, bool dhcp);
+        uint8_t addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp);
         bool saveParameters(const JsonDocument &configDoc);
         bool handleGetValue(uint32_t hash);
         bool handleGetAllValues();
         bool addNodeToNodeObject(Node *node, JsonObject *nodeObject);
         bool processMessage(WEB_SOCKET_MESSAGE *webSocketMessage);
-        static bool isI2CInitialised, isRs485Initialised, isModbusInitialised;
-        static HardwareSerial *myRS485;
+        bool isI2CInitialised = false, isRs485Initialised = false, isModbusInitialised = false;
+        HardwareSerial *myRS485 = nullptr;
         MyModbus& myModbus; // singleton 
-        static bool isKinconyA8S;
-        static bool plcBroken;
+        bool isKinconyA8S = true;
+        bool plcBroken = false;
         uint32_t clientConnectedAt;
         static bool isLastMessageFatal;
         static SemaphoreHandle_t webSocketMutex;
-        static std::list<NotifMessagePtr> notifMessagesList;
+        std::list<NotifMessagePtr> notifMessagesList;
         std::list<WebSocketMessagePtr> webSocketMessagesList;
         static SemaphoreHandle_t notifMutex;
         bool allInputsReadOnce = false;
         bool psRamAvailable = false;
-        static bool newClientConnected;
-        float projectVersion;
+        bool newClientConnected = false;
+        float projectVersion = 0;
         bool noPLC_BrokenMessage = false;
 
         static const uint8_t MAX_MUTEX_ATTEMPTS = 10;  // Nb max de tentatives pour acquérir le mutex
@@ -337,6 +345,8 @@ class BorneUniverselle{
 
     private:
         void addCustomDescriptor(Node *Node, JsonObject *nodeObject);
+        static BorneUniverselle* mainInstance;
+        static SemaphoreHandle_t instanceMutex;
         
 };
 #endif

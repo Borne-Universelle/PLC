@@ -33,7 +33,7 @@ public:
     //static void setLastErrorMessage(const char* message);
     static void printBits(uint16_t value);
     void static logDiagnostic(const char* message);
-    void manageWiFiBasedOnMemory();
+    //void manageWiFiBasedOnMemory();
     bool printDiagnosticFile();
 
     // File management

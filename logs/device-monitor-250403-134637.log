@@ -1,0 +1,236 @@
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 153911750, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1344
+load:0x40078000,len:13936
+load:0x40080400,len:3600
+entry 0x400805f0
+[    26][D][esp32-hal-cpu.c:244] setCpuFrequencyMhz(): PLL: 480 / 2 = 240 Mhz, APB: 80000000 Hz
+
+
+
+Starting Formaca....
+Will start BorneUniverselle library...
+[TaskInfo] Number of tasks: 6 at 0 s
+Borne Universelle 2.2.0
+End of BorneUniversel constuctor, nb nodes: 0
+Apres BorneUniverselle
+[TaskInfo] Number of tasks: 6 at 0 s
+ time: 5001 v3
+[TaskInfo] Number of tasks: 6 at 5 s
+ time: 10002 v3
+[TaskInfo] Number of tasks: 6 at 10 s
+ time: 15003 v3
+[TaskInfo] Number of tasks: 6 at 15 s
+ time: 20004 v3
+[TaskInfo] Number of tasks: 6 at 20 s
+ time: 25005 v3
+[TaskInfo] Number of tasks: 6 at 25 s
+ time: 30006 v3
+[TaskInfo] Number of tasks: 6 at 30 s
+ time: 35007 v3
+[TaskInfo] Number of tasks: 6 at 35 s
+ time: 40008 v3
+[TaskInfo] Number of tasks: 6 at 40 s
+ time: 45009 v3
+[TaskInfo] Number of tasks: 6 at 45 s
+ time: 50010 v3
+[TaskInfo] Number of tasks: 6 at 50 s
+ time: 55011 v3
+[TaskInfo] Number of tasks: 6 at 55 s
+ time: 60012 v3
+[TaskInfo] Number of tasks: 6 at 60 s
+ time: 65013 v3
+[TaskInfo] Number of tasks: 6 at 65 s
+ time: 70014 v3
+[TaskInfo] Number of tasks: 6 at 70 s
+ time: 75015 v3
+[TaskInfo] Number of tasks: 6 at 75 s
+ time: 80016 v3
+[TaskInfo] Number of tasks: 6 at 80 s
+ time: 85017 v3
+[TaskInfo] Number of tasks: 6 at 85 s
+ time: 90018 v3
+[TaskInfo] Number of tasks: 6 at 90 s
+ time: 95019 v3
+[TaskInfo] Number of tasks: 6 at 95 s
+ time: 100020 v3
+[TaskInfo] Number of tasks: 6 at 100 s
+ time: 105021 v3
+[TaskInfo] Number of tasks: 6 at 105 s
+ time: 110022 v3
+[TaskInfo] Number of tasks: 6 at 110 s
+ time: 115023 v3
+[TaskInfo] Number of tasks: 6 at 115 s
+ time: 120024 v3
+[TaskInfo] Number of tasks: 6 at 120 s
+ time: 125025 v3
+[TaskInfo] Number of tasks: 6 at 125 s
+ time: 130026 v3
+[TaskInfo] Number of tasks: 6 at 130 s
+ time: 135027 v3
+[TaskInfo] Number of tasks: 6 at 135 s
+ time: 140028 v3
+[TaskInfo] Number of tasks: 6 at 140 s
+ time: 145029 v3
+[TaskInfo] Number of tasks: 6 at 145 s
+ time: 150030 v3
+[TaskInfo] Number of tasks: 6 at 150 s
+ time: 155031 v3
+[TaskInfo] Number of tasks: 6 at 155 s
+ time: 160032 v3
+[TaskInfo] Number of tasks: 6 at 160 s
+ time: 165033 v3
+[TaskInfo] Number of tasks: 6 at 165 s
+ time: 170034 v3
+[TaskInfo] Number of tasks: 6 at 170 s
+ time: 175035 v3
+[TaskInfo] Number of tasks: 6 at 175 s
+ time: 180036 v3
+[TaskInfo] Number of tasks: 6 at 180 s
+ time: 185037 v3
+[TaskInfo] Number of tasks: 6 at 185 s
+ time: 190038 v3
+[TaskInfo] Number of tasks: 6 at 190 s
+ time: 195039 v3
+[TaskInfo] Number of tasks: 6 at 195 s
+ time: 200040 v3
+[TaskInfo] Number of tasks: 6 at 200 s
+ time: 205041 v3
+[TaskInfo] Number of tasks: 6 at 205 s
+ time: 210042 v3
+[TaskInfo] Number of tasks: 6 at 210 s
+ time: 215043 v3
+[TaskInfo] Number of tasks: 6 at 215 s
+ time: 220044 v3
+[TaskInfo] Number of tasks: 6 at 220 s
+ time: 225045 v3
+[TaskInfo] Number of tasks: 6 at 225 s
+ time: 230046 v3
+[TaskInfo] Number of tasks: 6 at 230 s
+ time: 235047 v3
+[TaskInfo] Number of tasks: 6 at 235 s
+ time: 240048 v3
+[TaskInfo] Number of tasks: 6 at 240 s
+ time: 245049 v3
+[TaskInfo] Number of tasks: 6 at 245 s
+ time: 250050 v3
+[TaskInfo] Number of tasks: 6 at 250 s
+ time: 255051 v3
+[TaskInfo] Number of tasks: 6 at 255 s
+ time: 260052 v3
+[TaskInfo] Number of tasks: 6 at 260 s
+ time: 265053 v3
+[TaskInfo] Number of tasks: 6 at 265 s
+ time: 270054 v3
+[TaskInfo] Number of tasks: 6 at 270 s
+ time: 275055 v3
+[TaskInfo] Number of tasks: 6 at 275 s
+ time: 280056 v3
+[TaskInfo] Number of tasks: 6 at 280 s
+ time: 285057 v3
+[TaskInfo] Number of tasks: 6 at 285 s
+ time: 290058 v3
+[TaskInfo] Number of tasks: 6 at 290 s
+ time: 295059 v3
+[TaskInfo] Number of tasks: 6 at 295 s
+ time: 300060 v3
+[TaskInfo] Number of tasks: 6 at 300 s
+ time: 305061 v3
+[TaskInfo] Number of tasks: 6 at 305 s
+ time: 310062 v3
+[TaskInfo] Number of tasks: 6 at 310 s
+ time: 315063 v3
+[TaskInfo] Number of tasks: 6 at 315 s
+ time: 320064 v3
+[TaskInfo] Number of tasks: 6 at 320 s
+ time: 325065 v3
+[TaskInfo] Number of tasks: 6 at 325 s
+ time: 330066 v3
+[TaskInfo] Number of tasks: 6 at 330 s
+ time: 335067 v3
+[TaskInfo] Number of tasks: 6 at 335 s
+ time: 340068 v3
+[TaskInfo] Number of tasks: 6 at 340 s
+ time: 345069 v3
+[TaskInfo] Number of tasks: 6 at 345 s
+ time: 350070 v3
+[TaskInfo] Number of tasks: 6 at 350 s
+ time: 355071 v3
+[TaskInfo] Number of tasks: 6 at 355 s
+ time: 360072 v3
+[TaskInfo] Number of tasks: 6 at 360 s
+ time: 365073 v3
+[TaskInfo] Number of tasks: 6 at 365 s
+ time: 370074 v3
+[TaskInfo] Number of tasks: 6 at 370 s
+ time: 375075 v3
+[TaskInfo] Number of tasks: 6 at 375 s
+ time: 380076 v3
+[TaskInfo] Number of tasks: 6 at 380 s
+ time: 385077 v3
+[TaskInfo] Number of tasks: 6 at 385 s
+ time: 390078 v3
+[TaskInfo] Number of tasks: 6 at 390 s
+ time: 395079 v3
+[TaskInfo] Number of tasks: 6 at 395 s
+ time: 400080 v3
+[TaskInfo] Number of tasks: 6 at 400 s
+ time: 405081 v3
+[TaskInfo] Number of tasks: 6 at 405 s
+ time: 410082 v3
+[TaskInfo] Number of tasks: 6 at 410 s
+ time: 415083 v3
+[TaskInfo] Number of tasks: 6 at 415 s
+ time: 420084 v3
+[TaskInfo] Number of tasks: 6 at 420 s
+ time: 425085 v3
+[TaskInfo] Number of tasks: 6 at 425 s
+ time: 430086 v3
+[TaskInfo] Number of tasks: 6 at 430 s
+ time: 435087 v3
+[TaskInfo] Number of tasks: 6 at 435 s
+ time: 440088 v3
+[TaskInfo] Number of tasks: 6 at 440 s
+ time: 445089 v3
+[TaskInfo] Number of tasks: 6 at 445 s
+ time: 450090 v3
+[TaskInfo] Number of tasks: 6 at 450 s
+ time: 455091 v3
+[TaskInfo] Number of tasks: 6 at 455 s
+ time: 460092 v3
+[TaskInfo] Number of tasks: 6 at 460 s
+ time: 465093 v3
+[TaskInfo] Number of tasks: 6 at 465 s
+ time: 470094 v3
+[TaskInfo] Number of tasks: 6 at 470 s
+ time: 475095 v3
+[TaskInfo] Number of tasks: 6 at 475 s
+ time: 480096 v3
+[TaskInfo] Number of tasks: 6 at 480 s
+ time: 485097 v3
+[TaskInfo] Number of tasks: 6 at 485 s
+ time: 490098 v3
+[TaskInfo] Number of tasks: 6 at 490 s
+ time: 495099 v3
+[TaskInfo] Number of tasks: 6 at 495 s
+ time: 500100 v3
+[TaskInfo] Number of tasks: 6 at 500 s
+ time: 505101 v3
+[TaskInfo] Number of tasks: 6 at 505 s
+ time: 510102 v3
+[TaskInfo] Number of tasks: 6 at 510 s
+ time: 515103 v3
+[TaskInfo] Number of tasks: 6 at 515 s
+ time: 520104 v3
+[TaskInfo] Number of tasks: 6 at 520 s
+ time: 525105 v3
+[TaskInfo] Number of tasks: 6 at 525 s
+ time: 530106 v3
+[TaskInfo] Number of tasks: 6 at 530 s
+ time: 535107 v3
+[TaskInfo] Number of tasks: 6 at 535 s
+ time: 540108 v3

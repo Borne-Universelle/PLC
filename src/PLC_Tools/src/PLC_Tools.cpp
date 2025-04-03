@@ -173,7 +173,7 @@ void  PLC_Tools::logDiagnostic(const char* message) {
     // Format: timestamp, mémoire libre, message
     char logEntry[256];
     snprintf(logEntry, sizeof(logEntry), "[%lu] Available memory: %lu - %s\n", 
-             millis(), ESP.getFreeHeap(), message);
+             millis(), (long unsigned int)ESP.getFreeHeap(), message);
     
     // Lire le fichier existant
     String existingLog;
@@ -244,6 +244,7 @@ bool PLC_Tools::printDiagnosticFile() {
     return true;
   }
 
+/*
 void  PLC_Tools::manageWiFiBasedOnMemory() {
     static uint32_t lastMemoryCheck = 0;
     
@@ -282,3 +283,5 @@ void  PLC_Tools::manageWiFiBasedOnMemory() {
       return;
     }
   }  
+
+  */

@@ -198,7 +198,9 @@ bool Formaca::isEmergencyMode() {
 
 bool Formaca::logiqueExecutor() {
     uint32_t start = millis();
-    if (BorneUniverselle::isPlcBroken()) return false;
+    if (BorneUniverselle::isPlcBroken()){
+     return false;
+    }
 
     if (PF8574BooleanInputNode::isInterrupt()) {
         BorneUniverselle::refresHardwareInputs();

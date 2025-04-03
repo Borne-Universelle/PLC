@@ -84,7 +84,7 @@ void MemoryMonitor::analyzeMemoryTrend() {
         
         float avgLossPerSecond = (float)totalLoss * 1000.0f / (currentTime - lastCheckTime);
         
-        Serial.printf("Memory loss: %lu bytes in %lu ms (%.2f bytes/sec average)\n", loss, timeElapsed, avgLossPerSecond);
+        Serial.printf("Memory loss: %lu bytes in %lu ms (%.2f bytes/sec average)\n", (long unsigned int)loss, (long unsigned) timeElapsed, avgLossPerSecond);
     }
     
     lastHeapValue = currentHeap;
