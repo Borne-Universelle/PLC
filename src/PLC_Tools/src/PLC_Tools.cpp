@@ -8,8 +8,7 @@
 bool PLC_Tools::logReboot() {
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
   
-    JsonDocument doc;
-      
+    JsonDocument doc;    
     bool fileExists = true;
  
     // Tenter de lire le fichier directement - une seule opération de lecture

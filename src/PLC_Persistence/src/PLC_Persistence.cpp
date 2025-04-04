@@ -160,6 +160,7 @@ bool PLC_Persistence::saveToFile(const char* path, const String& data) {
 bool PLC_Persistence::readFile(const char* path, String& outData) {
     //Serial.printf("Will try to read file: %s\r\n", path);
     if (!waitUntilAvailable()) {
+        Serial.println(F("readFile:: Timeout waiting for LittleFS availability"));
         return false;
     }
     

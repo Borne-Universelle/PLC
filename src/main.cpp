@@ -305,7 +305,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 
       char *dataText = (char *)malloc(len + 1);
       if (!dataText) {
-        bu->setPlcBroken("Memory allocation error for websocket message copy");
+        bu->setPlcBrokenImpl("Memory allocation error for websocket message copy");
         return;
       }
 
@@ -458,7 +458,7 @@ void loop() {
     if (!bu->clientQueueIsFull() && !bu->isWebSocketMessagesListMoreThanHalf()){ // C'est la queue du serveur et la queue des message récupéré
         if (bu->isAllInputsReadOnce()){
              if (!formaca->logiqueExecutor()){
-                bu->setPlcBroken("LogicalExecutor");
+                bu->setPlcBrokenImpl("LogicalExecutor");
              }
              bu->notifyWebClient(); // notify only changed nodes
         } else {

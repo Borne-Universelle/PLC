@@ -5,7 +5,6 @@ char  BorneUniverselle::ota_url[OTA_URL_SIZE];
 
 char BorneUniverselle::defaultName[NAME_LENGHT] = "Borne Universelle";
 
-bool BorneUniverselle::isLastMessageFatal = false;
 BorneUniverselle* BorneUniverselle::mainInstance = nullptr;
 SemaphoreHandle_t BorneUniverselle::instanceMutex = nullptr;
 
@@ -16,6 +15,8 @@ SemaphoreHandle_t BorneUniverselle::notifMutex = NULL;
 std::function<void()> BorneUniverselle::initialStateLoadedCallback = nullptr;
 
 BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
+    Serial.printf("Start at %lu ms, tasks: %u, heap: %u, stack free: %u\n", millis(), uxTaskGetNumberOfTasks(), xPortGetFreeHeapSize(), uxTaskGetStackHighWaterMark(NULL) * 4);
+
     if (instanceMutex == nullptr) {
         instanceMutex = xSemaphoreCreateMutex();
     }
@@ -26,40 +27,43 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
             mainInstance = this;
         }
     } else {
-        setPlcBroken("BorneUniverselle:: unable to create the mutex instanceMutex");
+        setPlcBrokenImpl("BorneUniverselle:: unable to create the mutex instanceMutex");
     }
 
     Serial.println(F(BORNE_UNIVERSELLE_VERSION)); 
 
     webSocketMutex = xSemaphoreCreateMutex();
     if (webSocketMutex == NULL) {
-        setPlcBroken("webSocketMutex was not created successfully");
-        return;
-    }
-    /*
-    notifMutex = xSemaphoreCreateMutex();
-    if (notifMutex == NULL) {
-        setPlcBroken("notifMutex was not created successfully");
+        setPlcBrokenImpl("webSocketMutex was not created successfully");
         return;
     }
 
+    notifMutex = xSemaphoreCreateMutex();
+    
+    if (notifMutex == NULL) {
+        setPlcBrokenImpl("notifMutex was not created successfully");
+        return;
+    }
+    
     myModbus.setMessageCallback(modbusMessageHandler); // callback for modbus messages
     PLC_Tools plcTools;
+  
     if (!plcTools.logReboot()){
-        setPlcBroken("Failed to log reboot");
+            setPlcBrokenImpl("Failed to log reboot");
         return;
-    }       
- 
+    }   
+   
     Serial.println(F("Reboot history"));
     Serial.println(F("*************"));
- 
+
     Serial.println(plcTools.getRebootLog());
+        /* 
     Serial.println(F("End of reboot history"));
     Serial.println();
     Serial.println(F("BorneUniverselle constructor"));
    
     if (!plcTools.printDiagnosticFile()){
-        setPlcBroken("Failed to print diagnostic file");
+        setPlcBrokenImpl("Failed to print diagnostic file");
         return;
     }
         
@@ -72,17 +76,17 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     }
 
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
-    
+
     // Lecture du fichier JSON
     JsonDocument configDoc;
     if (!persistence.readJsonFromFile("/config.json", configDoc)) {
-        setPlcBroken(persistence.getLastError());
+        setPlcBrokenImpl(persistence.getLastError());
         return;
     }
 
     if (configDoc[CONFIG].is<JsonArray>()){
         if (!parseConfig(configDoc, false)){
-            setPlcBroken("The config file doesn't contain the key config");
+            setPlcBrokenImpl("The config file doesn't contain the key config");
             return;
         }
     } else {
@@ -100,7 +104,7 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
             char buff[128];
             sprintf(buff, "Unable to parse the interface file with the path: %s\r\n", INTERFACE_PATH_FILE);
             delete menuInterface;
-            setPlcBroken(buff);
+            setPlcBrokenImpl(buff);
             return;
         } else {
             Serial.println("Interface file parsed with success");
@@ -117,7 +121,7 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
                     String fullName = String(menuNode.sectionName.c_str()) + "/" + String(menuNode.name.c_str());
                     char buff[128];
                     sprintf(buff, "Unable to set node name: %s \r\n", fullName.c_str());
-                    setPlcBroken(buff);
+                    setPlcBrokenImpl(buff);
                     return;
                 }
             }
@@ -143,9 +147,10 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     for (const String& fileName : files) {
         Serial.println(fileName);  // Affiche juste le nom du fichier
     } 
-    */
+    
 
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
+    */
 }
 
 void BorneUniverselle::modbusMessageHandler(uint8_t severity, const char* message) {
@@ -166,31 +171,20 @@ bool BorneUniverselle::isPlcBrokenImpl(){
     return plcBroken;
 }
 
-void BorneUniverselle::setPlcBroken(const char *context){
+void BorneUniverselle::setPlcBroken(const char *context) {
     BorneUniverselle* instance = getInstance();
     if (instance != nullptr) {
         instance->setPlcBrokenImpl(context);
-    } else {
-        // Comportement de secours si pas d'instance disponible
-        char *text = (char *)malloc(strlen(context) + 40);
-        if (text) {
-            sprintf(text, "Plc is broken, context: %s", context);
-            Serial.println(text);
-            free(text);
-        } else {
-            Serial.printf("Plc is broken, context: %s (allocation failed)\n", context);
-        }
     }
 }
 
-void BorneUniverselle::setPlcBrokenImpl(const char *context){
-    if (!plcBroken){
-        char *text = (char *)malloc(strlen(context) + 40);
-        sprintf(text,"Plc is broken, context: %s", context);
+void BorneUniverselle::setPlcBrokenImpl(const char *context) {
+    if (!plcBroken) {
+        char text[512];
+        snprintf(text, sizeof(text), "Plc is broken, context: %s", context);
         prepareMessage(ERROR, text);
         isLastMessageFatal = true;
         Serial.println(text);
-        free(text);
     }
     plcBroken = true;
 }
@@ -211,7 +205,7 @@ void BorneUniverselle::unableToFindKeyImpl(char *_context, char *_key){
     char message[256];
     sprintf(message, "unableToFindKey:: In context: %s, Unable to find key: %s\r\n", _context, _key);
     prepareMessage(ERROR, message);
-    setPlcBroken(message);
+    setPlcBrokenImpl(message);
 }
 
 void BorneUniverselle::setShowModbusMessages(bool status){
@@ -494,7 +488,7 @@ bool BorneUniverselle::isClientConnected() {
     if (!webSocketGuard.isAcquired()) {
         // Si on ne peut pas acquérir le mutex, par prudence on considère
         // qu'aucun client n'est connecté
-        setPlcBroken("isClientConnected:: unable to acquire the mutex");
+        setPlcBrokenImpl("isClientConnected:: unable to acquire the mutex");
         return false;
     }
     
@@ -553,7 +547,7 @@ bool BorneUniverselle::sendTextToClientImpl(char *text){
 
     MutexGuard guard(webSocketMutex, "webSocketMutex", __FUNCTION__); 
     if (!guard.isAcquired()) {
-        setPlcBroken("sendTextToClientImpl:: unable to acquire the mutex webSocketMutex");
+        setPlcBrokenImpl("sendTextToClientImpl:: unable to acquire the mutex webSocketMutex");
         return false;
     }
 
@@ -641,7 +635,7 @@ bool BorneUniverselle::sendMessage() {
      // Le MutexGuard assurera la libération du mutex à la sortie de la fonction
     MutexGuard guard(notifMutex, "notifMutex", __FUNCTION__);
     if (!guard.isAcquired()) {
-        setPlcBroken("sendMessage: unable to acquire the mutex");
+        setPlcBrokenImpl("sendMessage: unable to acquire the mutex");
         return false;
     }
 

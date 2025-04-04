@@ -296,7 +296,7 @@ class BorneUniverselle{
         bool i2cInit(JsonDocument& contextDoc);
         bool RS485Init(JsonDocument& contextDoc);
         bool modbusInit(JsonDocument& contextDoc);
-        static void unableToFindKeyImpl(char *context, char *key);
+        void unableToFindKeyImpl(char *context, char *key);
         void unableToFindKey(char *context, char *key);
         bool createRxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char *type, uint16_t refreshInterval, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check); // c'est ici que l'on créé les nodes !
         bool createTxBoolNode(char *name, char *parentName, uint16_t id, uint32_t *hash, JsonDocument& contextDoc, JsonObject hardSection, char *type, uint16_t webRefreshInterval, JsonDocument& descriptor, bool check);
@@ -321,7 +321,7 @@ class BorneUniverselle{
         bool isKinconyA8S = true;
         bool plcBroken = false;
         uint32_t clientConnectedAt;
-        static bool isLastMessageFatal;
+        bool isLastMessageFatal;
         static SemaphoreHandle_t webSocketMutex;
         std::list<NotifMessagePtr> notifMessagesList;
         std::list<WebSocketMessagePtr> webSocketMessagesList;
