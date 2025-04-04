@@ -203,8 +203,7 @@ void  PLC_Tools::logDiagnostic(const char* message) {
 }
 
 bool PLC_Tools::printDiagnosticFile() { 
-    Serial.println();
-    Serial.println("============ JOURNAL DE DIAGNOSTIC WIFI/MÉMOIRE ============");
+    
     
     // Obtenir l'instance de PLC_Persistence
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
@@ -225,6 +224,8 @@ bool PLC_Tools::printDiagnosticFile() {
       return false;
     }
     
+    Serial.println();
+    Serial.println("============ JOURNAL DE DIAGNOSTIC WIFI/MÉMOIRE ============");
     // Afficher des statistiques sur le fichier
     Serial.printf("Taille du fichier: %u octets\n", fileContent.length());
     

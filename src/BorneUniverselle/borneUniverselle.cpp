@@ -33,11 +33,12 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     Serial.println(F(BORNE_UNIVERSELLE_VERSION)); 
 
     webSocketMutex = xSemaphoreCreateMutex();
+    
     if (webSocketMutex == NULL) {
         setPlcBrokenImpl("webSocketMutex was not created successfully");
         return;
     }
-
+    
     notifMutex = xSemaphoreCreateMutex();
     
     if (notifMutex == NULL) {
@@ -57,7 +58,7 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     Serial.println(F("*************"));
 
     Serial.println(plcTools.getRebootLog());
-        /* 
+    
     Serial.println(F("End of reboot history"));
     Serial.println();
     Serial.println(F("BorneUniverselle constructor"));
@@ -150,7 +151,6 @@ BorneUniverselle::BorneUniverselle(): myModbus(MyModbus::getInstance()) {
     
 
     Serial.printf("End of BorneUniversel constuctor, nb nodes: %u\r\n", nodesMap.size());
-    */
 }
 
 void BorneUniverselle::modbusMessageHandler(uint8_t severity, const char* message) {
@@ -180,11 +180,21 @@ void BorneUniverselle::setPlcBroken(const char *context) {
 
 void BorneUniverselle::setPlcBrokenImpl(const char *context) {
     if (!plcBroken) {
-        char text[512];
-        snprintf(text, sizeof(text), "Plc is broken, context: %s", context);
+        size_t len = strlen(context) + strlen("Plc is broken, context: ") + 10;
+        char *text = (char *)malloc(len);
+      
+        if (text == nullptr) {
+            Serial.println("setPlcBrokenImpl:: Unable to allocate memory for error message");
+            return;
+        }
+     
+        snprintf(text, len, "Plc is broken, context: %s", context);
         prepareMessage(ERROR, text);
         isLastMessageFatal = true;
         Serial.println(text);
+          
+        free(text);
+      
     }
     plcBroken = true;
 }
@@ -193,11 +203,6 @@ void BorneUniverselle::unableToFindKey(char *_context, char *_key){
     BorneUniverselle* instance = getInstance();
     if (instance != nullptr) {
         instance->unableToFindKeyImpl(_context, _key);
-    } else {
-        // Comportement de secours si pas d'instance disponible
-        char message[256];
-        sprintf(message, "unableToFindKey:: In context: %s, Unable to find key: %s\r\n", _context, _key);
-        Serial.println(message);
     }
 }
 
@@ -528,10 +533,8 @@ bool BorneUniverselle::sendTextToClient(char *text){
     BorneUniverselle* instance = getInstance();
     if (instance != nullptr) {
         return instance->sendTextToClientImpl(text);
-    } else {
-        Serial.println("ERROR: Cannot send text to client, no BorneUniverselle instance");
-        return false;
-    }
+    } 
+    return false;
 }
 
 bool BorneUniverselle::sendTextToClientImpl(char *text){
@@ -744,10 +747,7 @@ void BorneUniverselle::prepareMessage(uint8_t type, const char *text){
     BorneUniverselle* instance = getInstance();
     if (instance != nullptr) {
         instance->prepareMessageImpl(type, text);
-    } else {
-        // Logger l'erreur si aucune instance n'est disponible
-        Serial.printf("%lu:: ERROR: Cannot prepare message, no BorneUniverselle instance\r\n", millis());
-    }
+    } 
 }
 
 void BorneUniverselle::prepareMessageImpl(uint8_t type, const char * text){
