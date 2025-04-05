@@ -358,7 +358,12 @@ bool BorneUniverselle::getWifiStatus(){
 
 void BorneUniverselle::setWifiConnected(bool status){
     wificonnected = status;
-
+    if (status){
+        IPAddress ip = WiFi.localIP();
+        Serial.printf("WiFi connected, IP address: %d.%d.%d.%d, level: %d [dB]\r\n", ip[0], ip[1], ip[2], ip[3], WiFi.RSSI());
+    } else {
+        Serial.println(F("Wifi disconnected"));
+    }
 }
 
 bool BorneUniverselle::isWifiConnectionTimeout(){

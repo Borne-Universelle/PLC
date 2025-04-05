@@ -1,0 +1,621 @@
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 153911750, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13232
+load:0x40080400,len:3028
+entry 0x400805e4
+[    27][D][esp32-hal-cpu.c:244] setCpuFrequencyMhz(): PLL: 480 / 2 = 240 Mhz, APB: 80000000 Hz
+
+
+
+Starting Formaca....
+Will start BorneUniverselle library...
+[TaskInfo] Number of tasks: 6 at 0 s
+Start at 155 ms, tasks: 6, heap: 210236, stack free: 26896
+Borne Universelle 2.2.0
+LittleFS mounted successfully at initialization
+184:: Try to read json from file: /reboot_log.json
+[   184][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+Reboot history
+*************
+240::getRebootLog
+[   241][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+262:: Try to read json from file: /reboot_log.json
+[   263][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+[
+  {
+    "reason": "Power-on"
+  },
+  {
+    "reason": "Software reset"
+  }
+]
+End of reboot history
+
+BorneUniverselle constructor
+[   326][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+[   330][E][vfs_api.cpp:105] open(): /littlefs/diagnostic.txt does not exist, no permits for creation
+Fichier de diagnostic non trouvé
+PSRAM is not available !
+341:: Try to read json from file: /config.json
+[   341][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+Will parse config
+Project name: Formaca
+[   481][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+[   501][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+Created backup: /config.v1.json (version 1)
+Created backup of config.json before applying changes
+Project version: 2.00
+Item with dhcp
+New nb network: 1
+Item with dhcp
+New nb network: 2
+Item with dhcp
+New nb network: 3
+Fixed address
+SSID: Formaca Tigger stop successfuly added, connexion name: Routeur Formaca ip: 10.10.10.11, dns: 10.10.10.10, gateway: 10.10.10.10, mask: 255.255.255.0 New nb network: 4
+ota_url: truc
+Section name: Direct outputs
+hardware: Kincony_KC868_A8S
+type: tx-bool
+976:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+[   986][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+[  1079][I][esp32-hal-i2c.c:75] i2cInit(): Initialising I2C Master: sda=4 scl=5 freq=100000
+[  1081][W][Wire.cpp:301] begin(): Bus already started in Master Mode.
+I2C bus is initialised
+Bus I2C initialized
+Try to initialise Modbus
+RS485 speed: 57600, rx pin: 32, tx pin: 33
+RS485 bus is initialised
+Modbus RTU timeout: 101
+MyModbus timeout: 101 ms
+Modbus initialised
+Modbus initialized
+Will set pin 2 as output
+Node Direct outputs/Buzzer created with succes (ESP32 pin 2) with type HardwareBooleanOutputNode and hash: 1711197005
+Section name: Inputs Kincony
+hardware: Kincony_KC868_A8S
+type: PF8574_rx-bool
+1130:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+[  1130][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/EStopA is 0
+Node Inputs Kincony/EStopA created with succes with type PF8574BooleanInputNode and hash: 721063196, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/capteur pression air is 0
+Node Inputs Kincony/capteur pression air created with succes with type PF8574BooleanInputNode and hash: 998762341, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/capteur cylindres is 0
+Node Inputs Kincony/capteur cylindres created with succes with type PF8574BooleanInputNode and hash: 134240750, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/StartCycle is 0
+Node Inputs Kincony/StartCycle created with succes with type PF8574BooleanInputNode and hash: 2986050054, refresh interval: 0, web refresh interval: 0
+Section name: Outputs Kincony
+hardware: Kincony_KC868_A8S
+type: PF8574_tx-bool
+1321:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+[  1321][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+Node Outputs Kincony/servoOn created with succes with type PF8574BooleanOutputNode and hash: 2864105056
+Node Outputs Kincony/Do home created with succes with type PF8574BooleanOutputNode and hash: 2206102162
+Node Outputs Kincony/Flip flop scie created with succes with type PF8574BooleanOutputNode and hash: 756474627
+Node Outputs Kincony/immediatStop created with succes with type PF8574BooleanOutputNode and hash: 3505331062
+Node Outputs Kincony/alarmsReset created with succes with type PF8574BooleanOutputNode and hash: 2122812135
+Section name: Jog
+hardware: virtual
+type: tx-bool
+Node Jog/jog created (VirtualBooleanOutputNode) with succes, hash: 627952477
+Node Jog/fwd created (VirtualBooleanOutputNode) with succes, hash: 936928435
+Node Jog/rwd created (VirtualBooleanOutputNode) with succes, hash: 2405696470
+Node Jog/Full torque created (VirtualBooleanOutputNode) with succes, hash: 313736047
+Node Jog/Scier created (VirtualBooleanOutputNode) with succes, hash: 2853133322
+Node Jog/Go home created (VirtualBooleanOutputNode) with succes, hash: 3099259876
+Node Jog/Go Pos Park created (VirtualBooleanOutputNode) with succes, hash: 431233
+Node Jog/Go to reference created (VirtualBooleanOutputNode) with succes, hash: 1483048151
+Node Jog/Ejecter created (VirtualBooleanOutputNode) with succes, hash: 3772375986
+Node Jog/Calibrate !!! created (VirtualBooleanOutputNode) with succes, hash: 3874886927
+Node Jog/v_servoOn created (VirtualBooleanOutputNode) with succes, hash: 1581937258
+Node Jog/v_flipFlopScie created (VirtualBooleanOutputNode) with succes, hash: 1291836804
+Node Jog/v_immediateStop created (VirtualBooleanOutputNode) with succes, hash: 4098079457
+Node Jog/v_alarmsReset created (VirtualBooleanOutputNode) with succes, hash: 1771340376
+Section name: Drive Status
+hardware: virtual
+type: tx-bool
+Node Drive Status/servoReady created (VirtualBooleanOutputNode) with succes, hash: 1948505786
+Node Drive Status/servoActivated created (VirtualBooleanOutputNode) with succes, hash: 3387538036
+Node Drive Status/zeroSpeed created (VirtualBooleanOutputNode) with succes, hash: 343892977
+Node Drive Status/targetSpeedRated created (VirtualBooleanOutputNode) with succes, hash: 1762420137
+Node Drive Status/AtTarget created (VirtualBooleanOutputNode) with succes, hash: 3030039596
+Node Drive Status/servoAlarm created (VirtualBooleanOutputNode) with succes, hash: 3569748327
+Node Drive Status/absolutPositionLost created (VirtualBooleanOutputNode) with succes, hash: 773850583
+Node Drive Status/batteryAlarm created (VirtualBooleanOutputNode) with succes, hash: 1101239736
+Node Drive Status/multipleTurnsOverflow created (VirtualBooleanOutputNode) with succes, hash: 2620738621
+Node Drive Status/puuOverflow created (VirtualBooleanOutputNode) with succes, hash: 570368243
+Node Drive Status/absoluteCoordonateNotSet created (VirtualBooleanOutputNode) with succes, hash: 4234803574
+Node Drive Status/homeDone created (VirtualBooleanOutputNode) with succes, hash: 2166030126
+Node Drive Status/modbusError created (VirtualBooleanOutputNode) with succes, hash: 1552688811
+Node Drive Status/driveInitialised created (VirtualBooleanOutputNode) with succes, hash: 3779480165
+Section name: Inputs
+hardware: virtual
+type: tx-uint32
+Node Inputs/vjog speed created (VirtualUint32OutputNode) with succes, hash: 2984797290
+Node Inputs/vcycle speed created (VirtualUint32OutputNode) with succes, hash: 1951357668
+Node Inputs/Torque Ctrl created (VirtualUint32OutputNode) with succes, hash: 3526906192
+Node Inputs/Nb cycles voulus created (VirtualUint32OutputNode) with succes, hash: 1168588921
+Node Inputs/Nb cycles effectués created (VirtualUint32OutputNode) with succes, hash: 3018797200
+Node Inputs/Nb Cycles clear created (VirtualUint32OutputNode) with succes, hash: 362298148
+Node Inputs/v_start created (VirtualUint32OutputNode) with succes, hash: 824782083
+Node Inputs/Cancel cycle created (VirtualUint32OutputNode) with succes, hash: 2539529911
+Section name: Floats Inputs
+hardware: virtual
+type: tx-float
+Node Floats Inputs/Longueur brute created (VirtualFloatOutputNode) with succes, hash: 3749283751
+Node Floats Inputs/Longueur created (VirtualFloatOutputNode) with succes, hash: 2736300668
+Node Floats Inputs/Largeur created (VirtualFloatOutputNode) with succes, hash: 1041711882
+Node Floats Inputs/Offset chargement created (VirtualFloatOutputNode) with succes, hash: 1541073354
+Node Floats Inputs/Longueur du rebut created (VirtualFloatOutputNode) with succes, hash: 3335850172
+Node Floats Inputs/butée droite created (VirtualFloatOutputNode) with succes, hash: 3132370279
+Node Floats Inputs/Position actuelle en inch created (VirtualFloatOutputNode) with succes, hash: 666618897
+Section name: DropDown Inputs
+hardware: virtual
+type: tx-text
+Node DropDown Inputs/Choix Recette created (VirtualTextOutputNode) with succes, hash: 2565368844
+Section name: Servo read holding register
+hardware: SureServo
+type: ModbusReadHoldingRegister
+1853:: Try to read json from file: /hardware/SureServo.json
+[  1854][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo read holding register/status created with succes with type ModbusReadHoldingRegister, hash: 4137233651, address: 127, offset: 92, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/absolute coordonate system status created with succes with type ModbusReadHoldingRegister, hash: 4098304980, address: 127, offset: 100, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/alarms created with succes with type ModbusReadHoldingRegister, hash: 4126332617, address: 127, offset: 2, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/trigger read created with succes with type ModbusReadHoldingRegister, hash: 4059768218, address: 127, offset: 1294, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/jog speed read created with succes with type ModbusReadHoldingRegister, hash: 4031699079, address: 127, offset: 1034, refresh interval: 0, web refresh interval 0
+Section name: Servo write holding register
+hardware: SureServo
+type: ModbusWriteHoldingRegister
+2047:: Try to read json from file: /hardware/SureServo.json
+[  2057][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo write holding register/aux_function created with succes with type ModbusWriteHoldingRegister, hash: 2308213873, address: 127, offset: 572
+Node Servo write holding register/trigger created with succes with type ModbusWriteHoldingRegister, hash: 748480285, address: 127, offset: 1294
+Node Servo write holding register/jog speed created with succes with type ModbusWriteHoldingRegister, hash: 3187488644, address: 127, offset: 1034
+Node Servo write holding register/Max torque created with succes with type ModbusWriteHoldingRegister, hash: 3740987040, address: 127, offset: 370
+Section name: Num Status
+hardware: SureServo
+type: ModbusReadDobbleHoldingRegister
+2215:: Try to read json from file: /hardware/SureServo.json
+[  2215][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Num Status/Position created with succes with type ModbusReadDoubleHoldingRegisters, hash: 4045003206, address: 127, offset: 22, refresh interval: 1000, web refresh interval 0
+Node Num Status/target A Read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2843041799, address: 127, offset: 1542, refresh interval: 0, web refresh interval 0
+Node Num Status/target B Read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2152625540, address: 127, offset: 1546, refresh interval: 0, web refresh interval 0
+Node Num Status/PR speed read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 1103145540, address: 127, offset: 1540, refresh interval: 0, web refresh interval 0
+Node Num Status/Target C read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 3626159173, address: 127, offset: 1550, refresh interval: 0, web refresh interval 0
+Section name: Servo write dobble holding registers
+hardware: SureServo
+type: ModbusWriteDobbleHoldingRegister
+2410:: Try to read json from file: /hardware/SureServo.json
+[  2410][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo write dobble holding registers/target A created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2532989225, address: 127, offset: 1542
+Node Servo write dobble holding registers/target B created with succes with type ModbusWriteDoubleHoldingRegister, hash: 3432736329, address: 127, offset: 1546
+Node Servo write dobble holding registers/PR1 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 1282109782, address: 127, offset: 1540
+Node Servo write dobble holding registers/PR2 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2019104905, address: 127, offset: 1544
+Node Servo write dobble holding registers/PR3 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 4171829142, address: 127, offset: 1548
+Node Servo write dobble holding registers/PR3 data created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2731028726, address: 127, offset: 1550
+PLC_InterfaceMenu initialized
+Will parse the interface file
+2605:: Try to read json from file: /interface.json
+[  2605][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+JSON parsing successful - parsing nodes
+Found 3 pages
+Page: Page principale
+Will parse section: Opération
+Found 7 nodes in section Opération
+Will parse section: Jog
+Found 5 nodes in section Jog
+Page: Monitoring
+Will parse section: Commandes de calibration
+Found 2 nodes in section Commandes de calibration
+Will parse section: États du servo
+Found 6 nodes in section États du servo
+Will parse section: Alarmes
+Found 7 nodes in section Alarmes
+Will parse section: États du système
+Found 4 nodes in section États du système
+Page: Configuration
+Will parse section: Paramètres machine
+Found 7 nodes in section Paramètres machine
+Will parse section: Vitesses et compteurs
+Found 6 nodes in section Vitesses et compteurs
+Will parse section: Test
+Found 4 nodes in section Test
+Interface file parsed with success
+Loop on nodes to set node name from the interface file
+MenuNode: Start Cycle in section Opération, hash: 824782083
+Node name set: Opération/Start Cycle
+MenuNode: Stop cycle in section Opération, hash: 2539529911
+Node name set: Opération/Stop cycle
+MenuNode: Reset défauts in section Opération, hash: 1771340376
+Node name set: Opération/Reset défauts
+MenuNode: Alarme Servo in section Opération, hash: 3569748327
+Node name set: Opération/Alarme Servo
+MenuNode: Nb cycles effectués in section Opération, hash: 3018797200
+Node name set: Opération/Nb cycles effectués
+MenuNode: Reset compteur cycles in section Opération, hash: 362298148
+Node name set: Opération/Reset compteur cycles
+MenuNode: Position Park in section Opération, hash: 431233
+Node name set: Opération/Position Park
+MenuNode: Jog Mode in section Jog, hash: 627952477
+Node name set: Jog/Jog Mode
+MenuNode: Jog + in section Jog, hash: 2405696470
+Node name set: Jog/Jog +
+MenuNode: Jog - in section Jog, hash: 936928435
+Node name set: Jog/Jog -
+MenuNode: Position actuelle in section Jog, hash: 666618897
+Node name set: Jog/Position actuelle
+MenuNode: Longueur brute in section Jog, hash: 3749283751
+Node name set: Jog/Longueur brute
+MenuNode: Calibrer in section Commandes de calibration, hash: 3874886927
+Node name set: Commandes de calibration/Calibrer
+MenuNode: Aller à la référence in section Commandes de calibration, hash: 1483048151
+Node name set: Commandes de calibration/Aller à la référence
+MenuNode: Servo Ready in section États du servo, hash: 1948505786
+Node name set: États du servo/Servo Ready
+MenuNode: Servo Activé in section États du servo, hash: 3387538036
+Node name set: États du servo/Servo Activé
+MenuNode: Vitesse Zéro in section États du servo, hash: 343892977
+Node name set: États du servo/Vitesse Zéro
+MenuNode: Vitesse Cible Atteinte in section États du servo, hash: 1762420137
+Node name set: États du servo/Vitesse Cible Atteinte
+MenuNode: Position Cible Atteinte in section États du servo, hash: 3030039596
+Node name set: États du servo/Position Cible Atteinte
+MenuNode: Home effectué in section États du servo, hash: 2166030126
+Node name set: États du servo/Home effectué
+MenuNode: Alarme Servo in section Alarmes, hash: 3569748327
+Node name set: Alarmes/Alarme Servo
+MenuNode: Position Absolue Perdue in section Alarmes, hash: 773850583
+Node name set: Alarmes/Position Absolue Perdue
+MenuNode: Alarme Batterie in section Alarmes, hash: 1101239736
+Node name set: Alarmes/Alarme Batterie
+MenuNode: Overflow Tours Multiples in section Alarmes, hash: 2620738621
+Node name set: Alarmes/Overflow Tours Multiples
+MenuNode: Overflow PUU in section Alarmes, hash: 570368243
+Node name set: Alarmes/Overflow PUU
+MenuNode: Coordonnées Absolues Non Définies in section Alarmes, hash: 4234803574
+Node name set: Alarmes/Coordonnées Absolues Non Définies
+MenuNode: Erreur Modbus in section Alarmes, hash: 1552688811
+Node name set: Alarmes/Erreur Modbus
+MenuNode: Pression d'air in section États du système, hash: 998762341
+Node name set: États du système/Pression d'air
+MenuNode: Capteur cylindres in section États du système, hash: 134240750
+Node name set: États du système/Capteur cylindres
+MenuNode: E-Stop in section États du système, hash: 721063196
+Node name set: États du système/E-Stop
+MenuNode: Drive Initialisé in section États du système, hash: 3779480165
+Node name set: États du système/Drive Initialisé
+MenuNode: Choix Recette in section Paramètres machine, hash: 2565368844
+Node name set: Paramètres machine/Choix Recette
+MenuNode: Longueur brute in section Paramètres machine, hash: 3749283751
+Node name set: Paramètres machine/Longueur brute
+MenuNode: Longueur in section Paramètres machine, hash: 2736300668
+Node name set: Paramètres machine/Longueur
+MenuNode: Largeur in section Paramètres machine, hash: 1041711882
+Node name set: Paramètres machine/Largeur
+MenuNode: Longueur de rebut in section Paramètres machine, hash: 3335850172
+Node name set: Paramètres machine/Longueur de rebut
+MenuNode: Offset chargement in section Paramètres machine, hash: 1541073354
+Node name set: Paramètres machine/Offset chargement
+MenuNode: Butée droite in section Paramètres machine, hash: 3132370279
+Node name set: Paramètres machine/Butée droite
+MenuNode: Vitesse Cycle in section Vitesses et compteurs, hash: 1951357668
+Node name set: Vitesses et compteurs/Vitesse Cycle
+MenuNode: Vitesse Jog in section Vitesses et compteurs, hash: 3187488644
+Node name set: Vitesses et compteurs/Vitesse Jog
+MenuNode: Contrôle Couple in section Vitesses et compteurs, hash: 3526906192
+Node name set: Vitesses et compteurs/Contrôle Couple
+MenuNode: Nb cycles voulus in section Vitesses et compteurs, hash: 1168588921
+Node name set: Vitesses et compteurs/Nb cycles voulus
+MenuNode: Nb cycles effectués in section Vitesses et compteurs, hash: 3018797200
+Node name set: Vitesses et compteurs/Nb cycles effectués
+MenuNode: Full torque in section Vitesses et compteurs, hash: 313736047
+Node name set: Vitesses et compteurs/Full torque
+MenuNode: Scier in section Test, hash: 1291836804
+Node name set: Test/Scier
+MenuNode: Éjecter in section Test, hash: 3772375986
+Node name set: Test/Éjecter
+MenuNode: Servo on off in section Test, hash: 1581937258
+Node name set: Test/Servo on off
+MenuNode: Stop immediat in section Test, hash: 4098079457
+Node name set: Test/Stop immediat
+[  3405][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+List of files in the root directory:
+Formaca.json
+config.json
+config.v1.json
+index.html
+index.js
+interface.json
+reboot_log.json
+reboot_log.v1.json
+End of BorneUniversel constuctor, nb nodes: 74
+Apres BorneUniverselle
+[TaskInfo] Number of tasks: 6 at 3 s
+Constructeur class Formaca
+[  3622][W][LittleFS.cpp:77] begin(): LittleFS Already Mounted!
+Recette name: 11 7/8
+Machine name received: Formaca scie, machine name ref: Formaca scie
+Persistance parameters
+----------------------
+Home position: 700
+Référence: 3101409
+Longeur brute: 96.00
+Offset parque: 0.50
+Longeur du rebut: 6.00
+Butée droite: 97.00
+Nb recettes: 1
+Recettes
+--------
+    Name: 11 7/8
+    Long lenght: 11.88
+    Angle: 45.00
+    Width: 3.50
+
+Fin du constructeur Formaca
+Will get next wifi network
+Current wifi: Mexique, item: 0
+Try to connect to: Mexique, SSID: PosadaLaHacienda, PWD: Chispas2020
+Wifi is with DHCP
+[  3725][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 0 - WIFI_READY
+[  3839][V][WiFiGeneric.cpp:97] set_esp_interface_ip(): Configuring Station static IP: 0.0.0.0, MASK: 0.0.0.0, GW: 0.0.0.0
+[  3830][V][WiFiGeneric.cpp:340] _arduino_event_cb(): STA Started
+[  3845][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 2 - STA_START
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Help
+-----------
+Version du firmware: Version 2.2, date de compilation: Apr  5 2025 10:09:21
+ATTENTION LE MODULE N'EST PAS CONNECTE AU WIFI !!!!!!!!!!!!!!!!!!!!!!!!!!
+Tapez sur 'A' ou 'a' pour effacer les réseaux wifi
+Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config
+Tapez sur 'C' pour imprimer le fichier de config
+Tapez sur 'D' pour envoyer un message de test
+Tapez sur 'E' pour notifier le client web
+Tapez sur 'F' pour imprimer le fichier de persistance
+Tapez sur 'G' pour afficher la mémoire de manière cyclique
+Tapez sur 'Y' pour faire un reset
+Tapez sur 'Z' pour afficher modifier les logs
+Tapez sur '?' pour afficher l'aide
+3941::New lowest free heap: 167752 bytes
+3942::New lowest max bloc: 110580 bytes
+3942::New lowest free PSRAM: 0 bytes
+3975::New lowest free heap: 167728 bytes
+Memory loss: 24 bytes in 33 ms (727.27 bytes/sec average)
+4219::New lowest free heap: 167564 bytes
+Memory loss: 164 bytes in 244 ms (770.49 bytes/sec average)
+4943::New lowest free heap: 167532 bytes
+5001::Not calling logic executor because not all inputs are read once
+ time: 5001 v3
+[TaskInfo] Number of tasks: 10 at 5 s
+[  6266][V][WiFiGeneric.cpp:362] _arduino_event_cb(): STA Disconnected: SSID: PosadaLaHacienda, BSSID: 00:00:00:00:00:00, Reason: 201
+[  6268][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 5 - STA_DISCONNECTED
+[  6275][W][WiFiGeneric.cpp:1057] _eventCallback(): Reason: 201 - NO_AP_FOUND
+[  6282][D][WiFiGeneric.cpp:1077] _eventCallback(): WiFi Reconnect Running
+6292::New lowest free heap: 167452 bytes
+[  6304][V][WiFiGeneric.cpp:97] set_esp_interface_ip(): Configuring Station static IP: 0.0.0.0, MASK: 0.0.0.0, GW: 0.0.0.0
+Memory loss: 256 bytes in 1359 ms (326.71 bytes/sec average)
+Wifi disconnected
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: Alexis, item: 1
+6327::New lowest free heap: 167268 bytes
+Memory loss: 40 bytes in 26 ms (18615.38 bytes/sec average)
+6358::New lowest free heap: 165076 bytes
+[  6359][V][WiFiGeneric.cpp:343] _arduino_event_cb(): STA Stopped
+Try to connect to: Alexis, SSID: TELUSAFF7, PWD: h6vJ96UKmUr7
+Wifi is with DHCP
+[  6392][V][WiFiGeneric.cpp:340] _arduino_event_cb(): STA Started
+[  6480][V][WiFiGeneric.cpp:97] set_esp_interface_ip(): Configuring Station static IP: 0.0.0.0, MASK: 0.0.0.0, GW: 0.0.0.0
+[  6489][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 3 - STA_STOP
+[  6489][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 0 - WIFI_READY
+[  6494][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 2 - STA_START
+[  8899][V][WiFiGeneric.cpp:362] _arduino_event_cb(): STA Disconnected: SSID: TELUSAFF7, BSSID: 00:00:00:00:00:00, Reason: 201
+[  8900][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 5 - STA_DISCONNECTED
+[  8907][W][WiFiGeneric.cpp:1057] _eventCallback(): Reason: 201 - NO_AP_FOUND
+[  8914][D][WiFiGeneric.cpp:1081] _eventCallback(): WiFi AutoReconnect Running
+[  8936][V][WiFiGeneric.cpp:97] set_esp_interface_ip(): Configuring Station static IP: 0.0.0.0, MASK: 0.0.0.0, GW: 0.0.0.0
+Wifi disconnected
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: EDMG_Thierry, item: 2
+[  8991][V][WiFiGeneric.cpp:343] _arduino_event_cb(): STA Stopped
+Try to connect to: EDMG_Thierry, SSID: Ella, PWD: Oceanne1
+Wifi is with DHCP
+[  9023][V][WiFiGeneric.cpp:340] _arduino_event_cb(): STA Started
+[  9054][V][WiFiGeneric.cpp:97] set_esp_interface_ip(): Configuring Station static IP: 0.0.0.0, MASK: 0.0.0.0, GW: 0.0.0.0
+[  9062][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 3 - STA_STOP
+[  9063][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 0 - WIFI_READY
+[  9068][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 2 - STA_START
+9637::New lowest free heap: 162256 bytes
+Memory loss: 7312 bytes in 3279 ms (2377.55 bytes/sec average)
+10002::Not calling logic executor because not all inputs are read once
+ time: 10002 v3
+[TaskInfo] Number of tasks: 10 at 10 s
+[ 10713][V][WiFiGeneric.cpp:355] _arduino_event_cb(): STA Connected: SSID: Ella, BSSID: 10:78:5b:c9:b8:f2, Channel: 6, Auth: WPA2_PSK
+[ 10715][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 4 - STA_CONNECTED
+10722:: Connected to AP successfully, SSID: Ella, level: -57 [dB]
+[ 12683][V][WiFiGeneric.cpp:369] _arduino_event_cb(): STA Got New IP:192.168.1.86
+[ 12684][D][WiFiGeneric.cpp:1035] _eventCallback(): Arduino Event: 7 - STA_GOT_IP
+[ 12687][D][WiFiGeneric.cpp:1098] _eventCallback(): STA IP: 192.168.1.86, MASK: 255.255.255.0, GW: 192.168.1.254
+15005::Not calling logic executor because not all inputs are read once
+ time: 15005 v3
+[TaskInfo] Number of tasks: 10 at 15 s
+20007::Not calling logic executor because not all inputs are read once
+ time: 20007 v3
+[TaskInfo] Number of tasks: 10 at 20 s
+25009::Not calling logic executor because not all inputs are read once
+ time: 25009 v3
+[TaskInfo] Number of tasks: 10 at 25 s
+30011::Not calling logic executor because not all inputs are read once
+ time: 30011 v3
+[TaskInfo] Number of tasks: 10 at 30 s
+35013::Not calling logic executor because not all inputs are read once
+ time: 35013 v3
+[TaskInfo] Number of tasks: 10 at 35 s
+40015::Not calling logic executor because not all inputs are read once
+ time: 40015 v3
+[TaskInfo] Number of tasks: 10 at 40 s
+45017::Not calling logic executor because not all inputs are read once
+ time: 45017 v3
+[TaskInfo] Number of tasks: 10 at 45 s
+50019::Not calling logic executor because not all inputs are read once
+ time: 50019 v3
+[TaskInfo] Number of tasks: 10 at 50 s
+55021::Not calling logic executor because not all inputs are read once
+ time: 55021 v3
+[TaskInfo] Number of tasks: 10 at 55 s
+60023::Not calling logic executor because not all inputs are read once
+ time: 60023 v3
+[TaskInfo] Number of tasks: 10 at 60 s
+65025::Not calling logic executor because not all inputs are read once
+ time: 65025 v3
+[TaskInfo] Number of tasks: 10 at 65 s
+70027::Not calling logic executor because not all inputs are read once
+ time: 70027 v3
+[TaskInfo] Number of tasks: 10 at 70 s
+75029::Not calling logic executor because not all inputs are read once
+ time: 75029 v3
+[TaskInfo] Number of tasks: 10 at 75 s
+80031::Not calling logic executor because not all inputs are read once
+ time: 80031 v3
+[TaskInfo] Number of tasks: 10 at 80 s
+85033::Not calling logic executor because not all inputs are read once
+ time: 85033 v3
+[TaskInfo] Number of tasks: 10 at 85 s
+90035::Not calling logic executor because not all inputs are read once
+ time: 90035 v3
+[TaskInfo] Number of tasks: 10 at 90 s
+95037::Not calling logic executor because not all inputs are read once
+ time: 95037 v3
+[TaskInfo] Number of tasks: 10 at 95 s
+100039::Not calling logic executor because not all inputs are read once
+ time: 100039 v3
+[TaskInfo] Number of tasks: 10 at 100 s
+105041::Not calling logic executor because not all inputs are read once
+ time: 105041 v3
+[TaskInfo] Number of tasks: 10 at 105 s
+110043::Not calling logic executor because not all inputs are read once
+ time: 110043 v3
+[TaskInfo] Number of tasks: 10 at 110 s
+111745::New lowest free heap: 161296 bytes
+115045::Not calling logic executor because not all inputs are read once
+ time: 115045 v3
+[TaskInfo] Number of tasks: 10 at 115 s

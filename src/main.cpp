@@ -203,23 +203,7 @@ void WiFiGotIP(){
   if (bu->getIsKinconyA8S()){
     turnOffBuzzer();
   }
-  
-  IPAddress ip = WiFi.localIP();
-  Serial.printf("WiFi connected, IP address: %d.%d.%d.%d, level: %d [dB]\r\n", ip[0], ip[1], ip[2], ip[3], WiFi.RSSI());
   bu->setWifiConnected(true);
-
-  if (bu->getName() == NULL){
-    Serial.println("No name for the device, will set it to default name: BorneUniverselle");
-    bu->setName("BorneUniverselle", false);
-  } else {
-   if (strlen(bu->getName()) > 20){
-      Serial.println("Name too long, will set it to default name: BorneUniverselle");
-    } else {
-      Serial.printf("Device name: %s\r\n", bu->getName());
-    }
-  }
-
-  Serial.printf("Will try to set up MDNS responder with name %s\n", bu->getName());
 
   if (!MDNS.begin(bu->getName())) {
         Serial.printf("Error setting up MDNS responder with name %s\n", bu->getName());
@@ -229,7 +213,7 @@ void WiFiGotIP(){
     Serial.printf("MDNS responder started with name %s\n", bu->getName());
   }
     
-  //server.begin();  
+  server.begin();  
   Serial.println("Web server started !");
 } // WiFiGotIP
 
@@ -401,7 +385,7 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   //  WiFi.onEvent(WiFiGotIP, SYSTEM_EVENT_STA_GOT_IP); // version 1
   // WiFi.onEvent(WiFiGotIP, ARDUINO_EVENT_WIFI_STA_GOT_IP); // version 2.0x
   WiFi.onEvent([](arduino_event_t *event) {
-    //WiFiGotIP();
+    WiFiGotIP();
   }, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 
   //  WiFi.onEvent(WiFiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED); // version 1
