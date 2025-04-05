@@ -1102,14 +1102,14 @@ void BorneUniverselle::handleWebSocketMessage() {
             } 
         }
 
-        if (workingMessage.data) {
-            free(workingMessage.data);
-            workingMessage.data = nullptr;
-        }
-
         if (millis() - processStart > 100) {
             Serial.printf("handleWebSocketMessage:: message processing duration: %lu, message: %s\r\n", 
                 millis() - processStart, workingMessage.data);
+        }
+
+        if (workingMessage.data) {
+            free(workingMessage.data);
+            workingMessage.data = nullptr;
         }
         
         checkHeartbeat();

@@ -59,12 +59,12 @@ bool MyModbus::waitEndTransaction() {
 
     // On attend au maximum le temps du timeout
     while (millis() < deadline) {
-        Serial.printf("Avant modbus->task() à %lu ms\n", millis());
+        //Serial.printf("Avant modbus->task() à %lu ms\n", millis());
         modbus->task();
-        Serial.printf("Après modbus->task() à %lu ms\n", millis());
+        //Serial.printf("Après modbus->task() à %lu ms\n", millis());
 
         status = modbus->slave();
-        Serial.printf("modbus->slave() = %d à %lu ms\n", status, millis());
+        //Serial.printf("modbus->slave() = %d à %lu ms\n", status, millis());
         
         // Si la transaction est terminée
         if (!status) {
@@ -95,12 +95,12 @@ bool MyModbus::waitEndTransaction() {
     snprintf(message, sizeof(message), "MyModbus waitEndTransaction out of transaction allowed time (%lu ms)", (long unsigned int)transactionTimeout);
     showMessages(message);
     status = modbus->slave();
-    Serial.printf("modbus->slave() = %d à %lu ms\n", status, millis());
+    //Serial.printf("modbus->slave() = %d à %lu ms\n", status, millis());
     if (modbus->slave()) {
         // On force une dernière fois task() pour nettoyer l'état
-        Serial.printf("Avant modbus->task() à %lu ms\n", millis());
+        //Serial.printf("Avant modbus->task() à %lu ms\n", millis());
         modbus->task();
-        Serial.printf("Après modbus->task() à %lu ms\n", millis());
+        //Serial.printf("Après modbus->task() à %lu ms\n", millis());
         // On s'assure que lastEvent indique un timeout
         lastEvent = Modbus::EX_TIMEOUT;
         showMessages("Will call handleError");

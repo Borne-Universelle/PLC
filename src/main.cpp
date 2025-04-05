@@ -431,7 +431,7 @@ void loop() {
   
   if (!bu->isPlcBroken()){
     if (!bu->clientQueueIsFull()){
-      //bu->refresh();
+      bu->refresh();
     } else {
       Serial.println("Queue is full !!!");
     }

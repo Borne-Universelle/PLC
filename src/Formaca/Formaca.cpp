@@ -741,7 +741,8 @@ void Formaca::displayAlarmsAndStatus() {
         modbusError->setValue(true);
     }
 
-    if (status && status->getIsChanged()) {
+    if (status->getIsChanged()) {
+        Serial.printf("Status changed: %u\r\n", status->getValue());
         if (servoReady) servoReady->setValue(status->getValue() & 0b0000000000000001);
         Serial.printf("Servo ready: %s\r\n", status->getValue() & 0b0000000000000001 ? "true" : "false");
         if (servoActivated) servoActivated->setValue(status->getValue() & 0b0000000000000010);
