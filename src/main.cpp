@@ -388,7 +388,6 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   Serial.println("Apres BorneUniverselle");
   printTaskInfo();
   
-  /*
   if (!bu->isPlcBroken()){
     formaca = new Formaca();
   }
@@ -429,7 +428,7 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
  setupServer();
 
  showHelp();
-*/
+
  // force log:
  //bu->setShowModbusMessages(true);
   
@@ -438,7 +437,7 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
 
 void loop() {
   long start = millis();
-   /*
+  
   if (Serial.available()){
       commandInterpretor(Serial.read());
   }  
@@ -482,12 +481,11 @@ void loop() {
     Serial.printf("Lopp time: %lu\r\n", millis() - start);
   }
   
-  //memoryMonitor.trackStats();
+  memoryMonitor.trackStats();
 
   if (memoryMonitorBool){
     memoryMonitor.printStats("MemoryMonitor");
   }
-    */
 
   if (millis()- lastTime > 5000){
     lastTime = millis();
