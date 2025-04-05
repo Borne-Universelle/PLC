@@ -48,7 +48,7 @@ void connectToNextNetwork(){
       currentWifi = bu->getNextNetwork();
       criterionOK = true;
    }
-  //bu->connectWifi(currentWifi);
+  bu->connectWifi(currentWifi);
 }
 
 void modifyLogs(){

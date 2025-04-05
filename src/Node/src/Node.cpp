@@ -1,7 +1,5 @@
 #include "Node/Node.h"
 
-#define DEVKIT_C
-
 PCF8574 *PF8574BooleanInputNode:: pcfRx;
 bool PF8574BooleanInputNode:: isPCF8574_Initialised = false;
 bool PF8574BooleanInputNode:: pcfError = false;
@@ -601,9 +599,8 @@ PF8574BooleanInputNode::PF8574BooleanInputNode(char *name, char *parentName, uin
     if (!isPCF8574_Initialised){
         pcfRx = new PCF8574(i2cAddr);
         if (!pcfRx->begin()){
-#ifndef DEVKIT_C
             BorneUniverselle::setPlcBroken(PFC_INIT_ERROR); //THIERRY
-#endif
+
         }    
     }
 
@@ -625,9 +622,7 @@ bool PF8574BooleanInputNode::isInterrupt(){
 bool PF8574BooleanInputNode::getNewValue(bool& value){
     char text[256];
     sprintf(text, "PF8574BooleanInputNode::getNewValue() for node: %s, pin: %u", name, pin);
-#ifndef DEVKIT_C
     value = !pcfRx->read(pin); // Les entrées sont inversées !
-#endif
     return true; // Pas d'erreur possible....
 }
 
@@ -768,9 +763,7 @@ PF8574BooleanOutputNode::PF8574BooleanOutputNode(char *name, char *parentName, u
     if (!isPCF8574_Initialised){
         pcfTx = new PCF8574(i2cAddr);
         if (!pcfTx->begin()){
-#ifndef DEVKIT_C
             BorneUniverselle::setPlcBroken(PFC_INIT_ERROR);   // THIERRY
-#endif
         }
     }
     // Serial.println("Fin du constructeur de la classe PF8574BooleanOutputNode");
@@ -780,9 +773,7 @@ bool PF8574BooleanOutputNode::setNewValue(bool newValue){
     char text[256];
     sprintf(text, "PF8574BooleanOutputNode::setNewValue for node: %s, pin: %u, new value: %s", name, pin, newValue ? "true" : "false"); 
     showMessage(text);
-#ifndef DEVKIT_C
     pcfTx->write(pin, !newValue); // sorties inversées !
-#endif
     return true;
 }
 
