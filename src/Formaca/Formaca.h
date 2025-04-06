@@ -1,5 +1,4 @@
-#include <FS.h>
-#include <LittleFS.h>
+#include "PLC_Persistence/PLC_Persistence.h"
 #include "BorneUniverselle/borneUniverselle.h"
 #include "Node/Node.h"
 #include "RenderTools/RenderTools.h"
@@ -177,6 +176,8 @@ public:
     static void InterruptHandling();
     // Déclaration de la méthode non statique
     void initialStateLoadedHandler();
+    JsonDocument getDropDownDescriptorHandler(); // C'est le handler qui sera appelé lorsque le dropdown du js enverra un get value: on va en profiter pour répondre avec le descripteuré
+
 
 private: 
     void displayAlarmsAndStatus();
@@ -245,6 +246,7 @@ private:
     uint32_t homePos, parkPosition, ejectionStartTime;
 
     float bladelostLength = 0, totalWasteLength = 0, angleRadians;
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
 
 public:
 

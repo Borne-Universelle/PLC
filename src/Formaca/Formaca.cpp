@@ -1,4 +1,4 @@
-#include "Formaca/Formaca.h"
+#include "Formaca.h"
 
 Formaca::Formaca() {
     Serial.println(CONSTR_FORMACA);
@@ -87,82 +87,74 @@ Formaca::Formaca() {
         return;
     }
 
-    if (!LittleFS.begin()) {
-        BorneUniverselle::setPlcBroken("Formaca::Formaca An Error has occurred while mounting LittleFS");
+    JsonDocument doc;
+    if (!persistence.readJsonFromFile(CONFIG_FILE_NAME, doc)) {
+        BorneUniverselle::setPlcBroken(persistence.getLastError());
         return;
-    } else {
-        // read and parse the json file
-        File file = LittleFS.open(CONFIG_FILE_NAME, FILE_READ);
-        if (!file) {
-            BorneUniverselle::setPlcBroken("Formaca::Formaca Failed to open config file");
-            return;
-        }
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, file);
-        file.close();
-        if (error) {
-            char buff[128];
-            sprintf(buff, "%lu:: %s file: deserializeJson() failed: ", millis(), CONFIG_FILE_NAME);
-            strcpy_P(buff + strlen(buff), (const prog_char*)error.f_str());
-            BorneUniverselle::setPlcBroken(buff);
-            return;
-        } else {
-            strlcpy(parameters.machineName, doc[MACHINE], sizeof(parameters.machineName));
-            parameters.overAllLenght = doc[OVERALL__LENGHT];
-            parameters.reference = doc[REFERENCE];
-            parameters.home = doc[HOME];
-            parameters.parkOffset = doc[PARK__OFFSET];
-            parameters.wasteLength = doc[WASTE__LENGTH];
-            parameters.rightStop = doc[RIGHT__STOP];
-
-            uint8_t idRecette = 0;
-            for (JsonObject recette : doc[RECETTES].as<JsonArray>()) {
-                parameters.recettes[idRecette].longlength = recette[LONG__LENGTH];
-                parameters.recettes[idRecette].angle = recette[ANGLE];
-                parameters.recettes[idRecette].width = recette[WIDTH__LENGTH];
-                strlcpy(parameters.recettes[idRecette].name, recette[NAME], sizeof(parameters.recettes[idRecette].name));
-                Serial.printf("Recette name: %s\r\n", parameters.recettes[idRecette].name);
-                idRecette++;
-            }
-            parameters.nbRecettes = idRecette;
-        }
-
-        if (!strcmp(parameters.machineName, MACHINE_RESP)) {
-            Serial.printf("Machine name received: %s, machine name ref: %s\r\n", parameters.machineName, MACHINE_RESP);
-        }
-        Serial.println("Persistance parameters");
-        Serial.println("----------------------");
-        Serial.printf("Home position: %lu\r\n", (unsigned long)parameters.home);
-        Serial.printf("Référence: %lu\r\n", (unsigned long)parameters.reference);
-        Serial.printf("Longeur brute: %.2f\r\n", parameters.overAllLenght);
-        Serial.printf("Offset parque: %.2f\r\n", parameters.parkOffset);
-        Serial.printf("Longeur du rebut: %.2f\r\n", parameters.wasteLength);
-        Serial.printf("Butée droite: %.2f\r\n", parameters.rightStop);
-
-        Serial.printf("Nb recettes: %u\r\n", parameters.nbRecettes);
-        Serial.println("Recettes");
-        Serial.println("--------");
-        for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
-            Serial.printf("    Name: %s\r\n", parameters.recettes[id].name);
-            Serial.printf("    Long lenght: %.2f\r\n", parameters.recettes[id].longlength);
-            Serial.printf("    Angle: %.2f\r\n", parameters.recettes[id].angle);
-            Serial.printf("    Width: %.2f\r\n", parameters.recettes[id].width);
-            Serial.println();
-        }
-
-        drompDownIndicator = new DropDown(recette);
-        visu = new VisualIndicator(nbCyclesMade);
-        if (!drompDownIndicator || !visu) {
-            Serial.println("Error: Failed to allocate UI components");
-            BorneUniverselle::setPlcBroken("Formaca::Formaca Failed to allocate DropDown or VisualIndicator");
-            delete drompDownIndicator;
-            delete visu;
-            drompDownIndicator = nullptr;
-            visu = nullptr;
-            return;
-        }
-        flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
     }
+
+    strlcpy(parameters.machineName, doc[MACHINE], sizeof(parameters.machineName));
+    parameters.overAllLenght = doc[OVERALL__LENGHT];
+    parameters.reference = doc[REFERENCE];
+    parameters.home = doc[HOME];
+    parameters.parkOffset = doc[PARK__OFFSET];
+    parameters.wasteLength = doc[WASTE__LENGTH];
+    parameters.rightStop = doc[RIGHT__STOP];
+
+    uint8_t idRecette = 0;
+    for (JsonObject recette : doc[RECETTES].as<JsonArray>()) {
+        parameters.recettes[idRecette].longlength = recette[LONG__LENGTH];
+        parameters.recettes[idRecette].angle = recette[ANGLE];
+        parameters.recettes[idRecette].width = recette[WIDTH__LENGTH];
+        strlcpy(parameters.recettes[idRecette].name, recette[NAME], sizeof(parameters.recettes[idRecette].name));
+        Serial.printf("Recette name: %s\r\n", parameters.recettes[idRecette].name);
+        idRecette++;
+    }
+    parameters.nbRecettes = idRecette;
+        
+
+    if (!strcmp(parameters.machineName, MACHINE_RESP)) {
+        Serial.printf("Machine name received: %s, machine name ref: %s\r\n", parameters.machineName, MACHINE_RESP);
+    }
+
+    Serial.println("Persistance parameters");
+    Serial.println("----------------------");
+    Serial.printf("Home position: %lu\r\n", (unsigned long)parameters.home);
+    Serial.printf("Référence: %lu\r\n", (unsigned long)parameters.reference);
+    Serial.printf("Longeur brute: %.2f\r\n", parameters.overAllLenght);
+    Serial.printf("Offset parque: %.2f\r\n", parameters.parkOffset);
+    Serial.printf("Longeur du rebut: %.2f\r\n", parameters.wasteLength);
+    Serial.printf("Butée droite: %.2f\r\n", parameters.rightStop);
+
+    Serial.printf("Nb recettes: %u\r\n", parameters.nbRecettes);
+    Serial.println("Recettes");
+    Serial.println("--------");
+    for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
+        Serial.printf("    Name: %s\r\n", parameters.recettes[id].name);
+        Serial.printf("    Long lenght: %.2f\r\n", parameters.recettes[id].longlength);
+        Serial.printf("    Angle: %.2f\r\n", parameters.recettes[id].angle);
+        Serial.printf("    Width: %.2f\r\n", parameters.recettes[id].width);
+        Serial.println();
+    }
+
+    drompDownIndicator = new DropDown(recette);
+    visu = new VisualIndicator(nbCyclesMade);
+    if (!drompDownIndicator || !visu) {
+        Serial.println("Error: Failed to allocate UI components");
+        BorneUniverselle::setPlcBroken("Formaca::Formaca Failed to allocate DropDown or VisualIndicator");
+        delete drompDownIndicator;
+        delete visu;
+        drompDownIndicator = nullptr;
+        visu = nullptr;
+        return;
+    }
+    flipFlopScie->setValue(false); // 8 février 2025 on met le flip flop de la scie à 0
+    jog->setValue(false); // 8 février 2025 on met le jog à 0
+
+    recette->setDescriptorCallback([this]() -> JsonDocument {
+        // Ce code est executé lorsque le PLC a besoin de la valeur de ce node. Attention le document ne doit contenir que le descripteur
+        return this->getDropDownDescriptorHandler();
+    });
     Serial.println("Fin du constructeur Formaca");
 }
 
@@ -237,13 +229,15 @@ bool Formaca::logiqueExecutor() {
         Serial.printf("%lu:: Drive EEPROM deactivated\r\n", millis());
     }
 
-    if (homeDone && position && homeDone->getValue() && goHome && (millis() - startDelayHome > (uint32_t)position->getRefreshInterval())) {
+    if (homeDone && homeDone->getValue() && goHome && (millis() - startDelayHome > (uint32_t)position->getRefreshInterval())) {
         goHome = false;
         homePos = position->getValue();
         saveMachineParameters();
         BorneUniverselle::prepareMessage(SUCCESS, "Position du home enregistrée");
-        if (longLength && longLength->getValue() > 1 && longLength->getValue() < 100 && !isnan(longLength->getValue())) {
+        if (longLength->getValue() > 1 && longLength->getValue() < 100 && !isnan(longLength->getValue())) {
             goToParkPosition();
+        } else {
+            BorneUniverselle::prepareMessage(ERROR, "Longueur de coupe non définie, pas de déplacement vers la position de parc");
         }
     }
 
@@ -327,7 +321,7 @@ bool Formaca::logiqueExecutor() {
         goHome = true;
     }
 
-    if (homeDone && homeDone->getIsChanged() && homeDone->getValue() && goHome) {
+    if (homeDone->getIsChanged() && homeDone->getValue() && goHome) {
         if (doHome) doHome->setValue(false);
         Serial.printf("%lu:: Just arrived at home (%lu)\r\n", millis(), (unsigned long)homePos);
         startDelayHome = millis();
@@ -340,7 +334,7 @@ bool Formaca::logiqueExecutor() {
             return true;
         }
 
-        if (longLength && (longLength->getValue() < 1 || longLength->getValue() > 100 || isnan(longLength->getValue()))) {
+        if (longLength->getValue() < 1 || longLength->getValue() > 100 || isnan(longLength->getValue())) {
             const char* currentRecipe = recette ? recette->getValue() : nullptr;
             bool recipeFound = false;
 
@@ -487,7 +481,7 @@ void Formaca::interfaceTreatment() {
         visu->setMaxValue(nbCyclesVoulus->getValue());
     }
 
-    if (goToPark && goToPark->getIsChanged() && goToPark->getValue()) {
+    if (goToPark->getIsChanged() && goToPark->getValue()) {
         Serial.println("Go to park par le bouton park");
         goToParkPosition();
     }
@@ -852,12 +846,8 @@ float Formaca::convToInch(uint32_t puu) {
     return (double)puu / (double)PULSES_PER_INCH;
 }
 
+
 bool Formaca::saveMachineParameters() {
-    File file = LittleFS.open(CONFIG_FILE_NAME, FILE_WRITE);
-    if (!file) {
-        Serial.println("Error: Failed to open config file for writing");
-        return false;
-    }
     JsonDocument doc;
     doc[MACHINE] = MACHINE_RESP;
     doc[HOME] = parameters.home;
@@ -875,9 +865,13 @@ bool Formaca::saveMachineParameters() {
         recette[NAME] = parameters.recettes[id].name;
         recette[WIDTH__LENGTH] = parameters.recettes[id].width;
     }
-
-    serializeJson(doc, file);
-    file.close();
+    
+    PLC_Persistence& persistence = PLC_Persistence::getInstance();
+    if (!persistence.saveJsonToFile(CONFIG_FILE_NAME, doc)) {
+        BorneUniverselle::prepareMessage(ERROR, "Erreur lors de la sauvegarde des paramètres de la machine");
+        return false;
+    }
+    
     BorneUniverselle::prepareMessage(SUCCESS, "Paramètres de persistance sauvgardés");
     return true;
 }
@@ -923,4 +917,21 @@ void Formaca::goToPosition(uint32_t pos) {
         triggerPending = true;
         startMovment = millis();
     }
+}
+
+JsonDocument Formaca::getDropDownDescriptorHandler(){
+    // Le fichier a peut être été modifié par le javascript, il faut le recharger
+    JsonDocument doc,docToSend;
+    if (!persistence.readJsonFromFile(CONFIG_FILE_NAME, doc)) {
+        BorneUniverselle::setPlcBroken(persistence.getLastError());
+        return docToSend;
+    }
+
+    Serial.println(" Formaca::getDropDownDescriptorHandler");
+    JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
+    for (uint8_t id = 0; id < parameters.nbRecettes; id++){
+        JsonObject recette = recettes.add<JsonObject>();
+        recette[NAME] = parameters.recettes[id].name;
+    }
+    return docToSend;
 }
