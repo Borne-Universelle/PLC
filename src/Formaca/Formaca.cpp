@@ -678,7 +678,7 @@ void Formaca::displayAlarmsAndStatus() {
 void Formaca::driveInitialisation() {
     static const uint32_t INIT_TIMEOUT = 15000; // 15 secondes
     uint32_t now = millis();
-    Serial.printf("%lu::logiqueExecutor: phase: %d\r\n", now, phase);
+    Serial.printf("%lu::logiqueExecutor: phase: %d\r\n", (unsigned long)now, phase);
 
     if (now - startInit > INIT_TIMEOUT) {
         Serial.println("Erreur : Initialisation du servo drive trop longue (>15s), forçage de la fin avec état partiel");
