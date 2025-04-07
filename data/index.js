@@ -4467,9 +4467,6 @@ class PasswordManager {
 const passwordManager = new PasswordManager();
 
 // Used in hw-dynamic.js
-function getSectionLayout(orientation) {
-    return `flex-container ${orientation === 'horizontal' ? 'horizontal-layout' : 'vertical-layout'}`;
-}
 
 const getPageLayout = (orientation) => {
     switch (orientation?.toLowerCase()) {
@@ -4484,6 +4481,7 @@ const getPageLayout = (orientation) => {
 // Add new components to log here:
 const ComponentType = {
     DEBUG: 'debug',
+    NOTIFICATION: 'notification',
     HEARTBEAT: 'heartbeat',
     SOCKET: 'socket',
     CONNECTED_ELEMENT: 'connected-element',
@@ -4502,9 +4500,11 @@ const ComponentType = {
     TX_SLIDER: 'tx-slider',
     TX_STRING: 'tx-string'
 };
+
 // And here:
 const componentLabels = {
     [ComponentType.DEBUG]: ComponentType.DEBUG,
+    [ComponentType.NOTIFICATION]: ComponentType.NOTIFICATION,
     [ComponentType.HEARTBEAT]: ComponentType.HEARTBEAT,
     [ComponentType.SOCKET]: ComponentType.SOCKET,
     [ComponentType.CONNECTED_ELEMENT]: ComponentType.CONNECTED_ELEMENT,
@@ -4562,7 +4562,7 @@ class DebugDrawer extends HTMLElement {
                 }
             </style>
             
-            <sl-icon-button name="bug-fill" id="debug-toggle" style="font-size: 1.1rem;"></sl-icon-button>
+            <sl-icon-button name="bug-fill" id="debug-toggle" style="font-size: 1.1rem; opacity: 0.6;"></sl-icon-button>
             
             <sl-drawer label="Debug Settings" placement="start" class="drawer-placement-start" style="--size: 300px;" id="debug-drawer">
                 <div class="debug-container">
@@ -4642,19 +4642,25 @@ class DebugDrawer extends HTMLElement {
         const savedSettings = localStorage.getItem('debugComponents');
         Logger.log(ComponentType.DEBUG, 'Loaded saved settings:', savedSettings);
         
+        const checkboxes = this.shadowRoot.querySelectorAll('#logging-components sl-checkbox');
+        Logger.log(ComponentType.DEBUG, 'Found checkboxes for loading:', checkboxes.length);
+        
         if (savedSettings) {
             try {
                 const settings = new Set(JSON.parse(savedSettings));
-                const checkboxes = this.shadowRoot.querySelectorAll('#logging-components sl-checkbox');
-                Logger.log(ComponentType.DEBUG, 'Found checkboxes for loading:', checkboxes.length);
-                
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = settings.has(checkbox.value);
-                    // Logger.log(ComponentType.DEBUG, `Setting ${checkbox.value} to ${checkbox.checked}`);
                 });
             } catch (error) {
                 Logger.error(ComponentType.DEBUG, 'Error parsing saved settings:', error);
+                // If there's an error parsing, enable all components by default
+                checkboxes.forEach(checkbox => checkbox.checked = true);
+                this.shadowRoot.getElementById('toggle-all').checked = true;
             }
+        } else {
+            // If no saved settings exist, enable all components by default
+            checkboxes.forEach(checkbox => checkbox.checked = true);
+            this.shadowRoot.getElementById('toggle-all').checked = true;
         }
     }
 
@@ -4700,8 +4706,12 @@ class Logger {
                 this.#enabledComponents = new Set(JSON.parse(saved));
             } catch (error) {
                 Logger.error(ComponentType.DEBUG, 'Error loading enabled components:', error);
-                this.#enabledComponents = new Set();
+                // If there's an error parsing, enable all components by default
+                this.#enabledComponents = new Set(Object.values(ComponentType));
             }
+        } else {
+            // If no saved settings exist, enable all components by default
+            this.#enabledComponents = new Set(Object.values(ComponentType));
         }
     }
 
@@ -4852,10 +4862,25 @@ class Socket {
 	disable() {
 		// Disable interface
 		if (!this.isDisabled) {
-			for (let key in this.targets){
-				if (parseInt(key))
-					this.targets[key]("disable");
+			// Call disable on all targets, not just numeric ones
+			for (let key in this.targets) {
+				// Check if the target is a function that can handle "disable"
+				if (typeof this.targets[key] === 'function') {
+					try {
+						this.targets[key]("disable");
+					} catch (e) {
+						// Some targets might not handle the "disable" string command
+						// Silent fail for targets that don't implement the expected interface
+					}
+				}
 			}
+			
+			// Also notify all ConnectedElement instances
+			ConnectedElement.instances.forEach(instance => {
+				if (instance && typeof instance.disable === 'function') {
+					instance.disable();
+				}
+			});
 		}
 		// Update state
 		this.isDisabled = true;
@@ -4864,10 +4889,24 @@ class Socket {
 	enable() {
 		// Enable interface
 		if (this.isDisabled) {
-			for (let key in this.targets){
-				if (parseInt(key))
-					this.targets[key]("enable");
+			// Call enable on all targets, not just numeric ones
+			for (let key in this.targets) {
+				// Check if the target is a function that can handle "enable"
+				if (typeof this.targets[key] === 'function') {
+					try {
+						this.targets[key]("enable");
+					} catch (e) {
+						// Silent fail for targets that don't implement the expected interface
+					}
+				}
 			}
+			
+			// Also notify all ConnectedElement instances
+			ConnectedElement.instances.forEach(instance => {
+				if (instance && typeof instance.enable === 'function') {
+					instance.enable();
+				}
+			});
 		}
 		// Update state
 		this.isDisabled = false;
@@ -5185,16 +5224,29 @@ class ConnectedElement extends HTMLElement {
     }
 
     update(val, descriptor) {
+        // Special handling for socket-level enable/disable commands
+        // These are treated as overrides that don't change the descriptor
+        if (val === "disable") {
+            this._socketDisabled = true;
+            this._applyDisabledState();
+            return;
+        } else if (val === "enable") {
+            this._socketDisabled = false;
+            this._applyDisabledState();
+            return;
+        }
+
         if (this._descriptor.hash) {
             Logger.log(ComponentType.CONNECTED_ELEMENT, `Updating element with hash: ${this._descriptor.hash}, value:`, val, 'descriptor:', descriptor);
         }
-        
+
         if (val !== undefined) {
             this.value = val;
         }
-        
+
         if (descriptor) {
             this.descriptor = descriptor;
+            // Descriptor changes will trigger _applyDisabledState via the descriptor setter
         }
     }
 
@@ -5214,33 +5266,100 @@ class ConnectedElement extends HTMLElement {
         throw new Error("ConnectedElement interface does not implement onsubmit")
     }
 
-    disable() {
-        if (this.isConnected) {
-            const overlay = document.createElement('div');
-            overlay.classList.add('overlay');
-            
-            // Handle both shadow DOM and light DOM
-            const target = this.shadowRoot || this;
-            const container = target.querySelector('.card') || this;
-            
-            if (!container.querySelector('.overlay')) {
-                container.style.position = 'relative';
-                container.appendChild(overlay);
-            }
+    /**
+     * Internal method to determine if component should be disabled
+     * Prioritizes socket state over descriptor
+     */
+    _shouldBeDisabled() {
+        // Socket disabled state overrides descriptor
+        if (this._socketDisabled === true) {
+            return true;
+        }
+        // Otherwise use descriptor value
+        return this._descriptor.disable === true;
+    }
+
+    /**
+     * Apply the correct disabled state based on socket state and descriptor
+     */
+    _applyDisabledState() {
+        if (this._socketDisabled) {
+            // Disabled by socket - use red overlay
+            this._updateOverlayClass('overlay-red');
+        } else if (this._descriptor.disable === true) {
+            // Disabled by descriptor - use gray overlay
+            this._updateOverlayClass('overlay-gray');
+        } else {
+            // Not disabled - remove any overlay
+            this._removeDisabledOverlay();
         }
     }
 
-    enable() {
-        if (this.isConnected) {
-            // Handle both shadow DOM and light DOM
-            const target = this.shadowRoot || this;
-            const container = target.querySelector('.card') || this;
-            const overlay = container.querySelector('.overlay');
-            
-            if (overlay) {
-                overlay.remove();
-            }
+    /**
+     * Updates overlay with the appropriate class without creating duplicates
+     */
+    _updateOverlayClass(desiredClass) {
+        if (!this.isConnected) return;
+
+        const target = this.shadowRoot || this;
+        const container = target.querySelector('.card') || this;
+
+        // Ensure container has relative positioning
+        container.style.position = 'relative';
+
+        // Check if overlay already exists
+        let overlay = container.querySelector('.overlay');
+
+        if (!overlay) {
+            // Create new overlay if none exists
+            overlay = document.createElement('div');
+            overlay.classList.add('overlay');
+            container.appendChild(overlay);
         }
+
+        // Update class - remove any existing overlay classes first
+        overlay.classList.remove('overlay-red', 'overlay-gray');
+        overlay.classList.add(desiredClass);
+
+        Logger.log(ComponentType.CONNECTED_ELEMENT,
+            `Overlay updated to ${desiredClass} for: ${this._descriptor.hash || 'unknown'}`);
+    }
+
+    /**
+     * Internal method to remove the disabled overlay
+     */
+    _removeDisabledOverlay() {
+        if (!this.isConnected) return;
+
+        const target = this.shadowRoot || this;
+        const container = target.querySelector('.card') || this;
+        const overlay = container.querySelector('.overlay');
+
+        if (overlay) {
+            overlay.remove();
+            Logger.log(ComponentType.CONNECTED_ELEMENT, `Overlay removed from: ${this._descriptor.hash || 'unknown'}`);
+        }
+    }
+
+    /**
+     *  Updates component overlay state
+     */
+    updateDisabledState() {
+        this._applyDisabledState();
+    }
+
+    /**
+     * Legacy method maintained for compatibility with components TODO: remove and use instead updateDisabledState()
+     */
+    disable() {
+        this._applyDisabledState();
+    }
+
+    /**
+     * Legacy method maintained for compatibility with components TODO: remove and use instead updateDisabledState()
+     */
+    enable() {
+        this._applyDisabledState();
     }
 
     set value(val) {
@@ -5257,16 +5376,25 @@ class ConnectedElement extends HTMLElement {
     }
 
     set descriptor(val) {
+        const oldDescriptor = { ...this._descriptor };
+
         if (!this._descriptor.hash && val.hash) {
             this.socket.setTarget(val.hash, this.update);
         }
-        
+
         this._descriptor = { ...this._descriptor, ...val };
-        
+
         if (val.hash) {
             this._descriptor.hash = val.hash;
         }
-        
+
+        // Check if the disable property has changed
+        if (oldDescriptor.disable !== this._descriptor.disable) {
+            Logger.log(ComponentType.CONNECTED_ELEMENT,
+                `Disable state changed in descriptor: ${oldDescriptor.disable} -> ${this._descriptor.disable} for ${this._descriptor.hash || 'unknown'}`);
+            this._applyDisabledState();
+        }
+
         if (this.isConnected) {
             this.render();
         }
@@ -5296,6 +5424,10 @@ class ConnectedElement extends HTMLElement {
 
     connectedCallback() {
         this.render();
+
+        // Apply the correct disabled state after connection
+        this._applyDisabledState();
+
         if (this._descriptor.hash) {
             this.socket.sendMessage("get", this._descriptor.hash);
         }
@@ -5310,8 +5442,8 @@ class ConnectedElement extends HTMLElement {
     }
 }
 
-const template$h = document.createElement('template');
-template$h.innerHTML = `
+const template$e = document.createElement('template');
+template$e.innerHTML = `
     
 <style>
     .edit-controls {
@@ -5533,7 +5665,7 @@ class EditMode extends ConnectedElement {
 
         this.attachShadow({ mode: 'open' });
         
-        this.shadowRoot.appendChild(template$h.content.cloneNode(true));
+        this.shadowRoot.appendChild(template$e.content.cloneNode(true));
     }
 
     async connectedCallback() {
@@ -6164,9 +6296,9 @@ class EditMode extends ConnectedElement {
 }
 window.customElements.define('edit-mode', EditMode);
 
-const template$g = document.createElement('template');
+const template$d = document.createElement('template');
 
-template$g.innerHTML = `
+template$d.innerHTML = `
     <style>
         @import url("static/css/style.css");
         @import url("static/css/layout.css");
@@ -6237,7 +6369,6 @@ template$g.innerHTML = `
         }
     </style>
     <div class="dynamic-layout">
-        <interface-editor></interface-editor>
         <nav class="tab-navigation"></nav>
         <div class="page-content"></div>
     </div>
@@ -6257,7 +6388,7 @@ class HwDynamic extends HTMLElement {
     }
 
     connectedCallback() {
-        this.appendChild(template$g.content.cloneNode(true));
+        this.appendChild(template$d.content.cloneNode(true));
         this.loadConfigurations();
     }
 
@@ -6300,7 +6431,7 @@ class HwDynamic extends HTMLElement {
         const sectionEl = document.createElement('div');
         sectionEl.className = 'section locked';
         
-        const title = document.createElement('h3');
+        //const title = document.createElement('h3');
         title.textContent = section.SectionName + ' (Protected)';  // Added '(Protected)' to show it's locked
         
         sectionEl.appendChild(title);
@@ -6339,8 +6470,8 @@ class HwDynamic extends HTMLElement {
             return this.createLockedSection(section);
         }
     
-        // If no custom component specified or if it's hw-section, create default section
-        if (!section.component || section.component === 'hw-section') {
+        // If no custom component specified, create default section
+        if (!section.component) {
             const sectionEl = document.createElement('div');
             sectionEl.className = 'section';
             
@@ -6574,7 +6705,7 @@ class HwDynamic extends HTMLElement {
         currentPage.sections.forEach(section => {
             pageContent.appendChild(this.createSection(section));
         });
-    } 
+    }
 
     render() {
         if (!this._interface || !this._config) return;
@@ -6603,14 +6734,15 @@ class HwDynamic extends HTMLElement {
 
 window.customElements.define('hw-dynamic', HwDynamic);
 
-const template$f = document.createElement('template');
+const template$c = document.createElement('template');
 
-template$f.innerHTML = `
+template$c.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
     <div class="card">
-        <div class="details row"> 
+        <div class="details row">
+           
         </div>
         <div class="children">
         </div>
@@ -6653,8 +6785,8 @@ class HwDock extends HTMLElement {
   }
 
   render(){
-      let $template = template$f.content.cloneNode(true);
-
+      let $template = template$c.content.cloneNode(true);
+      // Append children
       this.children.map((child) => {
           $template.querySelector(".children").appendChild(child);
       });
@@ -6668,49 +6800,20 @@ class HwDock extends HTMLElement {
 
 window.customElements.define('hw-dock', HwDock);
 
-// Used in hw-notification.js
-Object.defineProperty( Date.prototype,
-    'toStringDM', {value:
-            (date) => {
-                return date.getDate() + '-' + date.getMonth();
-            }
-    });
-
-Object.defineProperty( Date.prototype,
-    'toStringDMY', {value:
-            (date) => {
-                return date.getDate() + '-' + date.getMonth() +'-' + date.getFullYear();
-            }
-    });
-
-Object.defineProperty(Date.prototype, 'timeNow', {value: getCurrentTime});
-
-function getCurrentTime() {
-  let now = new Date();
-  let hour = now.getHours();
-  let minute = now.getMinutes();
-  if (minute < 10)
-      minute = "0" + minute;
-  if (hour < 10)
-      hour = "0" + hour;
-  return hour + ":" + minute;
-}
-
-const template$e = document.createElement('template');
-template$e.innerHTML = `
+const template$b = document.createElement('template');
+template$b.innerHTML = `
      <style>
        @import url("static/css/style.css")
      </style>
       
-     <div class="alert-toast">
-    </div>
+     <div class="alert-toast"></div>
 `;
 
 class HwNotification extends HTMLElement {
     constructor() {
         super();
         // Create a div element to represent the card
-        this.appendChild(template$e.content.cloneNode(true));
+        this.appendChild(template$b.content.cloneNode(true));
         this.socket = this.getAttribute('socket');
         this.url = this.getAttribute('url');
         // Bind functions
@@ -6725,17 +6828,12 @@ class HwNotification extends HTMLElement {
         window.success = this.success;
     }
 
-
-   // set socket(val){
-      //  this._socket = val
-      //  val.addTarget("notification", this.notify)
-   // }
     connectedCallback() {
         // Get the JSON URL from the "url" parameter
-        if (Socket.defaultSocket){
+        if (Socket.defaultSocket) {
             Socket.defaultSocket.setTarget("notification", this.notify);
         } else {
-            console.warn("No default socket when trying to register hw-notification");
+            Logger.warn(ComponentType.NOTIFICATION, "No default socket when trying to register hw-notification");
         }
     }
 
@@ -6745,51 +6843,72 @@ class HwNotification extends HTMLElement {
         return div.innerHTML;
     }
 
-    error(message, duration=10000){
-        let msg = {type:"error", name:"Error", desc:message};
+    error(message, duration = 10000) {
+        let msg = { type: "error", name: "Error", desc: message };
         let variant = "danger";
         let icon = "exclamation-circle";
-        msg.desc = msg.desc +  " at " + getCurrentTime();
         this.notify(msg, variant, icon, duration);
+        Logger.log(ComponentType.NOTIFICATION, "Error: ", {"msg":msg, "variant":variant, "icon":icon,});
     }
 
-    warn(message, duration=5000){
-        let msg = {type:"warning", name:"Warning", desc:message};
+    warn(message, duration = 5000) {
+        let msg = { type: "warning", name: "Warning", desc: message };
         console.info("Warning notification:\n", message);
         let variant = "warning";
         let icon = "exclamation-triangle";
         this.notify(msg, variant, icon, duration);
+        Logger.log(ComponentType.NOTIFICATION, "Warn: ", {"msg":msg, "variant":variant, "icon":icon,});
     }
 
-    success(message, duration=2000){
-        let msg = {type:"success", name:"Success", desc:message};
+    success(message, duration = 2000) {
+        let msg = { type: "success", name: "Success", desc: message };
         let variant = "success";
         let icon = "check-circle";
         this.notify(msg, variant, icon, duration);
+        Logger.log(ComponentType.NOTIFICATION, "Success: ", {"msg":msg, "variant":variant, "icon":icon,});
     }
     // Custom function to emit toast notifications
     notify(message, variant = 'primary', icon = 'info-circle', duration = 10000) {
+        // Ensure message is an object with required properties
+        if (typeof message === 'string') {
+            // Convert string messages to proper format
+            message = {
+                type: "info",
+                name: "Information",
+                desc: message
+            };
+        } else if (!message.desc) {
+            // Skip notifications with missing required fields
+            console.warn("Notification received without required name/desc fields:", message);
+            return;
+        }
+
         switch (message["type"]) {
             case "error":
             case "danger":
                 variant = "danger";
                 icon = "exclamation-circle";
-                duration = 7200000;
+                duration = 10000;
+                Logger.log(ComponentType.NOTIFICATION, "Error: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
             case "warning":
                 variant = "warning";
                 icon = "exclamation-triangle";
-                duration = 99000;
+                duration = 10000;
+                Logger.log(ComponentType.NOTIFICATION, "Warning: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
             case "info":
             case "primary":
                 variant = "primary";
                 icon = "info-circle";
+                duration = 4000;
+                Logger.log(ComponentType.NOTIFICATION, "Info: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
             case "success":
                 variant = "success";
                 icon = "check-circle";
-                duration = 5000;
+                duration = 4000;
+                Logger.log(ComponentType.NOTIFICATION, "Success: ", {"msg":message, "variant":variant, "icon":icon,});
                 break;
         }
 
@@ -6805,124 +6924,59 @@ class HwNotification extends HTMLElement {
             `
         });
 
-      document.body.append($alert);
-      $alert.toast();
-      return
+        document.body.append($alert);
+        $alert.toast();
+        return
     }
 
-    render(){
+    render() {
     }
 
 }
 
 customElements.define('hw-notification', HwNotification);
 
-const template$d = document.createElement('template');
+/**
+ * RxTooltip Web Component
+ * 
+ * This custom element creates a tooltip that displays additional information 
+ * when clicked. It is designed to be lightweight and easily integrated with 
+ * other components that require tooltips.
+ * 
+ * Features:
+ * - Uses a small "info" icon button to trigger the tooltip
+ * - Displays a tooltip with customizable content on click
+ * - Automatically hides itself when no valid content is provided
+ * - Integrates seamlessly with other components like `rx-label`
+ * 
+ * Attributes:
+ * - tooltip-content (string): The text content to display inside the tooltip
+ * 
+ * Usage Example:
+ * 
+ * ```html
+ * <rx-tooltip tooltip-content="This is a tooltip!"></rx-tooltip>
+ * ```
+ * 
+ * Integration Example (inside another component like `rx-label`):
+ * Add in the innerHTML:
+ * * ```innerHTML
+ * <rx-tooltip></rx-tooltip>
+ * ```
+ * ```javascript
+ * import { tooltipUpdate } from "./rx-tooltip.js";
+ * 
+ * In the render function:
+ * use this if shadowRoot available:
+ * tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+ * Or use this if template available:
+ * tooltipUpdate(template.querySelector("rx-tooltip"), this._descriptor.tooltip);
+ * ```
+ */
 
-template$d.innerHTML = `
-    <style>
-        @import url("static/css/style.css");
-        @import url("static/css/layout.css");
-        .hw-section {
-            flex-wrap: wrap;
-            width: 100%;
-        }
-        .hidden {
-            visibility: hidden;
-            height: 0;
-            width: 0;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
-    <div class="hw-section">
-        <button id="toggle-visibility"><span id="buttonText">Toggle</span></button>
-        <div class="card">
-            <h2>Section title</h2>
-            <div class="details row"></div>
-            <div class="children"></div>
-        </div>
-    </div>
-`;
 
-class HwSection extends HTMLElement {
-    constructor() {
-        super();
-        this._descriptor = { name: "", type: "", component: "", children: [] };
-        this._isVisible = true;
-    }
-
-    set descriptor(val) {
-        this._descriptor = val;
-        this.render();
-    }
-
-    set value(val) {
-        this._value = val;
-        this.render();
-    }
-
-    get children() {
-        let $children = [];
-        for (let child of this._descriptor.children) {
-            if (customElements.get(child.component) === undefined) {
-                console.error(`Component ${child.component} not found`);
-                continue;
-            }
-            let $child = document.createElement("div", { is: child.component });
-            $child.innerHTML = `<${child.component}></${child.component}>`;
-            $child.firstChild.descriptor = child;
-            $children.push($child);
-        }
-        return $children;
-    }
-
-    connectedCallback() {
-        const toggleButton = this.querySelector("#toggle-visibility");
-        if (toggleButton) {
-            toggleButton.addEventListener('click', () => this.toggleVisibility());
-        }
-    }
-
-    toggleVisibility() {
-        this._isVisible = !this._isVisible;
-        this.updateVisibility();
-    }
-
-    updateVisibility() {
-        const buttonText = this.querySelector("#buttonText");
-        const card = this.querySelector('.card');
-        if (card) {
-            if (this._isVisible) {
-                card.classList.remove('hidden');
-                buttonText.textContent = "Toggle";
-            } else {
-                card.classList.add('hidden');
-                buttonText.innerHTML = this._descriptor.name.replace(/ /g, "<br>");
-            }
-        }
-    }
-
-    render() {
-        // Clean component and append template
-        while (this.firstChild) {
-            this.removeChild(this.firstChild);
-        }
-        let $template = template$d.content.cloneNode(true);
-
-        const childrenContainer = $template.querySelector(".children");
-        childrenContainer.className = getSectionLayout(this._descriptor.orientation);
-
-        this.appendChild($template);
-        // Apply the hidden class if necessary
-        this.updateVisibility();
-    }
-}
-
-window.customElements.define('hw-section', HwSection);
-
-const template$c = document.createElement('template');
-template$c.innerHTML = `
+const template$a = document.createElement('template');
+template$a.innerHTML = `
     <style>
         :host {
             display: inline-block;
@@ -6944,7 +6998,7 @@ class RxTooltip extends ConnectedElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$c.content.cloneNode(true));
+        this.shadowRoot.appendChild(template$a.content.cloneNode(true));
         this._tooltip = this.shadowRoot.querySelector('sl-tooltip');
         this._iconButton = this.shadowRoot.querySelector('sl-icon-button');
     }
@@ -6997,8 +7051,8 @@ function tooltipUpdate($tooltip, tooltipContent) {
 
 window.customElements.define('rx-tooltip', RxTooltip);
 
-const template$b = document.createElement('template');
-template$b.innerHTML = `
+const template$9 = document.createElement('template');
+template$9.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -7017,33 +7071,33 @@ class RxBool extends ConnectedElement {
     constructor() {
         super();
         this._value = false;
+        
+        // Clone template once
+        this.appendChild(template$9.content.cloneNode(true));
+        
+        // Store references
+        this.$switch = this.querySelector("sl-switch");
+        this.$label = this.querySelector(".label");
+        
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
     }
-
-
+    
     render() {
-        let $template = template$b.content.cloneNode(true);
-        let $switch = $template.querySelector("sl-switch");
-
-        tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
-
-        // 1. Set label for switch
+        // Update existing elements instead of recreating
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        
+        // Update content
         let name = this._descriptor.name[0].toUpperCase() + this._descriptor.name.slice(1);
+        this.$label.innerText = name;
+        this.$switch.checked = this._value;
+        
         const disable = this._descriptor.disable;
-        $template.querySelector(".label").innerText = name;
-        // 2. Set checked value for switch
-        $switch.checked = this._value;
         if (disable) {
             this.disable();
         } else {
             this.enable();
         }
-        // Clean component and append template
-        while (this.firstChild) {
-            this.removeChild(this.firstChild);
-        }
-        this.appendChild($template);
     }
 }
 
@@ -7066,8 +7120,8 @@ The blinking effect occurs based on the internal state and is refreshed periodic
  */
 
 
-const template$a = document.createElement('template');
-template$a.innerHTML = `
+const template$8 = document.createElement('template');
+template$8.innerHTML = `
     <style>
         .dot {
             height: 2rem;
@@ -7117,7 +7171,7 @@ class RxIndicator extends ConnectedElement {
         const inverse = this._descriptor.inverse;
         const blinkactive = this._descriptor.blink;
         const color = this._descriptor.color|| "lime";
-        let $template = template$a.content.cloneNode(true);
+        let $template = template$8.content.cloneNode(true);
         let $indicator = $template.querySelector(".dot");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -7177,7 +7231,6 @@ window.customElements.define('rx-indicator', RxIndicator);
     {
       "name": "States Routines",
       "hardware": "Kincony_KC868_A8S",
-      "component": "hw-section",
       "type": "ModbusWriteHoldingRegister",
       "address": 2,
       "children": [
@@ -7187,15 +7240,16 @@ window.customElements.define('rx-indicator', RxIndicator);
           "state": "neutral",
           "isBlinking": false,
           "component": "rx-label",
-          "hash": 1708159393
+          "hash": 1708159393,
+          "tooltip": "This is a tooltip!"
         }
       ]
     },
  */
 
 
-const template$9 = document.createElement('template');
-template$9.innerHTML = `
+const templateLabel = document.createElement('template');
+templateLabel.innerHTML = `
         <style>
             .state-tag {
                 --sl-color-neutral-0: white;
@@ -7206,35 +7260,44 @@ template$9.innerHTML = `
                 padding: 0.1rem;
                 border-radius: var(--sl-border-radius-medium);
             }
+            
             @keyframes blink {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.5; }
             }
+            
             .blinking {
                 animation: blink 1s ease-in-out infinite;
             }
+            
             .label-name {
                 font-weight: bold;
             }
         </style>
+        
         <div class="card">
             <div class="tooltip-container">
                 <span class="label-name">Current State:</span>
                 <rx-tooltip></rx-tooltip>
             </div>
-            <span id="stateTag" class="state-tag"></span>
+            <span class="state-tag"></span>
         </div>
-        `;
+    `;
 
 class RxLabel extends ConnectedElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$9.content.cloneNode(true));
+
+        // Initialize the component once
+        this.appendChild(templateLabel.content.cloneNode(true));
+
+        // Store references to DOM elements
+        this.stateTag = this.querySelector('.state-tag');
+        this.labelName = this.querySelector('.label-name');
+
+        // Bind methods
         this.update = this.update.bind(this);
         this.render = this.render.bind(this);
-        this.stateTag = this.shadowRoot.getElementById('stateTag');
-        this.labelName = this.shadowRoot.querySelector('.label-name');
     }
 
     render() {
@@ -7244,17 +7307,14 @@ class RxLabel extends ConnectedElement {
         const isBlinking = this._descriptor.isBlinking;
         const disable = this._descriptor.disable;
 
-        tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        // Update tooltip
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
+        // Update content
         this.labelName.textContent = name;
         this.stateTag.textContent = value;
 
-        if (disable) {
-            this.disable();
-        } else {
-            this.enable();
-        }
-        // Set color based on state
+        // Update state color
         switch (state) {
             case "success":
                 this.stateTag.style.color = 'var(--sl-color-success-600)';
@@ -7269,11 +7329,18 @@ class RxLabel extends ConnectedElement {
                 this.stateTag.style.color = 'var(--sl-color-neutral-0)';
         }
 
-        // Toggle blinking animation
+        // Update blinking state
         if (isBlinking) {
             this.stateTag.classList.add('blinking');
         } else {
             this.stateTag.classList.remove('blinking');
+        }
+
+        // Handle disable state
+        if (disable) {
+            this.disable();
+        } else {
+            this.enable();
         }
     }
 }
@@ -7513,8 +7580,8 @@ class GraphRenderer {
     }
 }
 
-const template$8 = document.createElement('template');
-template$8.innerHTML = `
+const template$7 = document.createElement('template');
+template$7.innerHTML = `
     <style>
         .card {
             position: relative;
@@ -7646,7 +7713,7 @@ class RxGraph extends ConnectedElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$8.content.cloneNode(true));
+        this.shadowRoot.appendChild(template$7.content.cloneNode(true));
         
         this._nodes = new Map();
         this._maxPoints = 50;
@@ -7804,7 +7871,6 @@ window.customElements.define('rx-graph', RxGraph);
    {
       "name": "Analogic Level",
       "hardware": "Kincony_KC868_A8S",
-      "component": "hw-section",
       "type": "ModbusWriteHoldingRegister",
       "address": 2,
       "children": [
@@ -7828,9 +7894,9 @@ window.customElements.define('rx-graph', RxGraph);
     },
  */
 
-const template$7 = document.createElement('template');
+const template$6 = document.createElement('template');
 
-template$7.innerHTML = `
+template$6.innerHTML = `
 <style>
     .card {
         display: flex;
@@ -7975,8 +8041,7 @@ template$7.innerHTML = `
 class RxLevelBar extends ConnectedElement {
     constructor() {
         super();
-        this.attachShadow({mode: 'open'});
-        this.shadowRoot.appendChild(template$7.content.cloneNode(true));
+        this.innerHTML = template$6.innerHTML;
         this._current = parseFloat(this.getAttribute('current'));
         this._max = parseFloat(this.getAttribute('max'));
         this._min = parseFloat(this.getAttribute('min'));
@@ -7992,26 +8057,26 @@ class RxLevelBar extends ConnectedElement {
     // ------------------ Callback Methods ------------------ //
     render() {
         const disable = this._descriptor.disable;
-        const container = this.shadowRoot.querySelector('.container');
-        const labelsContainer = this.shadowRoot.querySelector('.labels-container');
-        const barContainer = this.shadowRoot.querySelector('.bar-container');
-        const levelIndicator = this.shadowRoot.querySelector('.level-indicator');
-        const bar = this.shadowRoot.querySelector('.level-bar');
-        const title = this.shadowRoot.querySelector('.title');
+        const container = this.querySelector('.container');
+        const labelsContainer = this.querySelector('.labels-container');
+        const barContainer = this.querySelector('.bar-container');
+        const levelIndicator = this.querySelector('.level-indicator');
+        const bar = this.querySelector('.level-bar');
+        const title = this.querySelector('.title');
 
-        const alarm_high_label = this.shadowRoot.querySelector('.alarm-high-label');
-        const warning_high_label = this.shadowRoot.querySelector('.warning-high-label');
-        const warning_low_label = this.shadowRoot.querySelector('.warning-low-label');
-        const alarm_low_label = this.shadowRoot.querySelector('.alarm-low-label');
+        const alarm_high_label = this.querySelector('.alarm-high-label');
+        const warning_high_label = this.querySelector('.warning-high-label');
+        const warning_low_label = this.querySelector('.warning-low-label');
+        const alarm_low_label = this.querySelector('.alarm-low-label');
 
-        const max_label = this.shadowRoot.querySelector('.max');
-        const alarm_high_indicator = this.shadowRoot.querySelector('.alarm-high');
-        const warning_high_indicator = this.shadowRoot.querySelector('.warning-high');
-        const warning_low_indicator = this.shadowRoot.querySelector('.warning-low');
-        const alarm_low_indicator = this.shadowRoot.querySelector('.alarm-low');
-        const min_label = this.shadowRoot.querySelector('.min');
-        const current_label = this.shadowRoot.querySelector('.current');
-        const unit_label = this.shadowRoot.querySelector('.unit');
+        const max_label = this.querySelector('.max');
+        const alarm_high_indicator = this.querySelector('.alarm-high');
+        const warning_high_indicator = this.querySelector('.warning-high');
+        const warning_low_indicator = this.querySelector('.warning-low');
+        const alarm_low_indicator = this.querySelector('.alarm-low');
+        const min_label = this.querySelector('.min');
+        const current_label = this.querySelector('.current');
+        const unit_label = this.querySelector('.unit');
 
         alarm_high_indicator.style.display = 'none';
         warning_high_indicator.style.display = 'none';
@@ -8044,7 +8109,7 @@ class RxLevelBar extends ConnectedElement {
         const dangerCurrentColor = "var(--sl-color-danger-600)";
         const warningCurrentColor = "var(--sl-color-warning-600)";
 
-        tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
         title.textContent = name;
         if (disable) {
@@ -8175,8 +8240,8 @@ class RxLevelBar extends ConnectedElement {
 
 window.customElements.define('rx-level-bar', RxLevelBar);
 
-const template$6 = document.createElement('template');
-template$6.innerHTML = `
+const template$5 = document.createElement('template');
+template$5.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -8197,22 +8262,45 @@ class RxNumeric extends ConnectedElement {
         this.render = this.render.bind(this);
     }
 
+    formatNumber(number, digits) {
+        // If it's an integer, return it as is
+        if (Number.isInteger(number)) {
+            return number.toString();
+        }
+        
+        // Otherwise, format with specified decimal places
+        return number.toFixed(digits);
+    }
+
     render() {
         const disable = this._descriptor.disable;
-        let $template = template$6.content.cloneNode(true);
+        let $template = template$5.content.cloneNode(true);
         let $input = $template.querySelector("sl-input");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
         // 1. Set label for switch
         $template.querySelector(".label").innerText = this._descriptor.name;
-        // 2. Set the float value with two decimal places
-        $input.value = this._value ? parseFloat(this._value).toFixed(2) : '0.00';
+        
+        // Get the number of decimal places from descriptor, default to 2
+        const nbDigitsAp = this._descriptor.nb_digits_ap !== undefined ? 
+            this._descriptor.nb_digits_ap : 2;
+        
+        // Format the numeric value
+        let displayValue = '0';
+        if (this._value) {
+            const number = parseFloat(this._value);
+            displayValue = this.formatNumber(number, nbDigitsAp);
+        }
+        
+        $input.value = displayValue;
+
         // Clean component and append template
         while (this.firstChild) {
             this.removeChild(this.firstChild);
         }
         this.appendChild($template);
+        
         if (disable) {
             this.disable();
         } else {
@@ -8223,8 +8311,8 @@ class RxNumeric extends ConnectedElement {
 
 window.customElements.define('rx-numeric', RxNumeric);
 
-const template$5 = document.createElement('template');
-template$5.innerHTML = `
+const template$4 = document.createElement('template');
+template$4.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -8251,13 +8339,12 @@ class TxBool extends ConnectedElement {
         //this.define(this._value)
         let hash = this._descriptor.hash;
         let value = e.target.checked;
-        //Logger.debug(ComponentType.TX_BOOL, `onclick: ${hash}:${value}`);
-        console.log()
+        Logger.log(ComponentType.TX_BOOL, `(onclick) hash, value : ${hash}, ${value}`);
         Socket.defaultSocket.sendMessage("states", [{hash:hash, value:value}]);
     }
 
     render() {
-        let $template = template$5.content.cloneNode(true);
+        let $template = template$4.content.cloneNode(true);
         let $switch = $template.querySelector("sl-switch");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -8330,8 +8417,8 @@ window.customElements.define('tx-bool', TxBool);
  */
 
 
-const template$4 = document.createElement('template');
-template$4.innerHTML = `
+const template$3 = document.createElement('template');
+template$3.innerHTML = `
     <style>
         @import url("static/css/style.css")
     </style>
@@ -8355,19 +8442,19 @@ class TxButtonHold extends ConnectedElement {
 
     onmousedown(e) {
         let hash = this._descriptor.hash;
-        //Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmousedown: ${hash}:${true}`);
+        Logger.log(ComponentType.TX_BUTTON_HOLD, `(onmousedown) hash, value : ${hash}, ${true}`);
         Socket.defaultSocket.sendMessage("states", [{hash:hash, value:true}]);
     }
     onmouseup(e) {
         let hash = this._descriptor.hash;
-        //Logger.debug(ComponentType.TX_BUTTON_HOLD, `onmouseup: ${hash}:${false}`);
+        Logger.log(ComponentType.TX_BUTTON_HOLD, `(onmouseup) hash, value : ${hash}, ${false}`);
         Socket.defaultSocket.sendMessage("states", [{ hash: hash, value: false }]);
     }
 
     render() {
         const disable = this._descriptor.disable;
         const color = this._descriptor.color;
-        let $template = template$4.content.cloneNode(true);
+        let $template = template$3.content.cloneNode(true);
         let $button = $template.querySelector("sl-button");
 
         tooltipUpdate($template.querySelector("rx-tooltip"), this._descriptor.tooltip);
@@ -8408,52 +8495,22 @@ class TxButtonHold extends ConnectedElement {
 
 window.customElements.define('tx-button-hold', TxButtonHold);
 
-/**
- * TxDropdown Component
- * 
- * This component creates a customizable dropdown menu using Shoelace elements.
- * It's designed to allow users to select from a list of predefined options,
- * with the ability to update a remote state via a socket connection upon selection.
- * The component updates its state and sends a message through a Socket
- * connection whenever a new item is selected. It also maintains the selected
- * state visually using checkboxes.
- * 
- * Configuration Parameters:
- * - name: String that appears as the default text on the dropdown button
- *         and serves as a label for the dropdown.
- *         Example: "Routines de découpage"
- * 
- * - items: Array of strings representing the selectable options in the dropdown.
- *          Each item will be displayed as a checkbox menu item.
- *          Example: ["Cut 1", "Cut 2", "Cut 3"]
- * 
- * JSON config example:
-    {
-      "name": "Dropdowns Routines",
-      "hardware": "Kincony_KC868_A8S",
-      "component": "hw-section",
-      "type": "ModbusWriteHoldingRegister",
-      "address": 2,
-      "children": [
-        {
-          "id": 1,
-          "name": "Cutting routines",
-          "component": "tx-dropdown",
-          "items": ["Cut 1", "Cut 2", "Cut 3"],
-          "default": "Cut 2",
-          "hash": 1708159392
+const templateDropdown = document.createElement('template');
+templateDropdown.innerHTML = `
+    <style>
+        sl-dropdown {
+            width: 100%;
         }
-      ]
-    },
- */
 
+        sl-button {
+            width: 100%;
+        }
+    </style>
 
-const template$3 = document.createElement('template');
-template$3.innerHTML = `
-    <div class="dropdown-selection">
+    <div class="card">
         <div class="tooltip-container">
             <sl-dropdown>
-                <sl-button slot="trigger" caret></sl-button>
+                <sl-button slot="trigger" caret>Select</sl-button>
                 <sl-menu class="dropdown-menu">
                 </sl-menu>
             </sl-dropdown>
@@ -8463,97 +8520,164 @@ template$3.innerHTML = `
 `;
 
 class TxDropdown extends ConnectedElement {
+    // Cache statique pour persister les valeurs sélectionnées par hash
+    static selectedValues = new Map();
+
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
-        this.shadowRoot.appendChild(template$3.content.cloneNode(true));
-
-        this.dropdown = this.shadowRoot.querySelector('sl-dropdown');
-        this.buttonTitle = this.shadowRoot.querySelector('sl-button');
-        this.menu = this.shadowRoot.querySelector('.dropdown-menu');
+        this._items = [];
+        this._selectedValue = null;
         
-        this.items = [];
-        this.selectedValue = null;
-
-        // Bind the event handler to the class instance
-        this.handleItemClick = this.handleItemClick.bind(this);
+        // Clone template once during construction
+        this.appendChild(templateDropdown.content.cloneNode(true));
+        
+        // Store references to DOM elements
+        this.dropdown = this.querySelector('sl-dropdown');
+        this.button = this.querySelector('sl-button');
+        this.menu = this.querySelector('.dropdown-menu');
+        
+        // Bind methods
+        this.update = this.update.bind(this);
+        this.render = this.render.bind(this);
+        this.handleSelect = this.handleSelect.bind(this);
+        
+        // Add event listener
+        this.menu.addEventListener('sl-select', this.handleSelect);
     }
 
     connectedCallback() {
-        this.updateFromDescriptor();
-        // Add event listener here, only once
-        this.menu.addEventListener('sl-select', this.handleItemClick);
+        super.connectedCallback();
+        // Restaurer la valeur sélectionnée depuis le cache si elle existe
+        if (this._descriptor?.hash) {
+            const cachedValue = TxDropdown.selectedValues.get(this._descriptor.hash);
+            if (cachedValue && this._descriptor.items?.includes(cachedValue)) {
+                this._selectedValue = cachedValue;
+            }
+        }
+        this.render(); // Rendre immédiatement avec la valeur restaurée ou par défaut
     }
 
     disconnectedCallback() {
-        // Remove event listener when component is disconnected
-        this.menu.removeEventListener('sl-select', this.handleItemClick);
+        super.disconnectedCallback();
+        // Nettoyer l’écouteur d’événement
+        this.menu.removeEventListener('sl-select', this.handleSelect);
     }
 
-    updateFromDescriptor() {
-        if (this._descriptor) {
-            this.name = this._descriptor.name || "Selection";
-            this.items = this._descriptor.items || [];
-            
-            // Check for default value in descriptor
-            if (this._descriptor.default && this.items.includes(this._descriptor.default)) {
-                this.selectedValue = this._descriptor.default;
-                this.buttonTitle.textContent = this.selectedValue;
-            } else {
-                this.buttonTitle.textContent = this.name;
-            }
-            
-            this.populateMenu();
-        }
-    }
-
-    populateMenu() {
-        this.menu.innerHTML = '';
-        this.items.forEach(item => {
-            const menuItem = document.createElement('sl-menu-item');
-            menuItem.textContent = item;
-            menuItem.value = item;
-            menuItem.type = 'checkbox';
-            menuItem.checked = item === this.selectedValue;
-            this.menu.appendChild(menuItem);
-        });
-    }
-
-    handleItemClick(event) {
+    handleSelect(event) {
         const selectedItem = event.detail.item;
         
-        if (selectedItem.value === this.selectedValue) {
-            return; // Do nothing if the same item is selected again
+        if (selectedItem.value === this._selectedValue) {
+            return;
         }
 
+        this._selectedValue = selectedItem.value;
+        this.button.textContent = this._selectedValue;
+        
+        // Mettre à jour les coches dans le menu
         this.menu.querySelectorAll('sl-menu-item').forEach(item => {
-            item.checked = item === selectedItem;
+            item.checked = item.value === this._selectedValue;
         });
 
-        this.selectedValue = selectedItem.value;
-        this.buttonTitle.textContent = selectedItem.textContent;
-
-        if (this._descriptor && this._descriptor.hash) {
-            let hash = this._descriptor.hash;
-            let value = selectedItem.value;
-            console.log("Sending value: ", value);
-            Socket.defaultSocket.sendMessage("states", [{ "hash": hash, "value": value }]);
+        // Persister la valeur sélectionnée dans le cache
+        if (this._descriptor?.hash) {
+            TxDropdown.selectedValues.set(this._descriptor.hash, this._selectedValue);
+            Logger.log(ComponentType.TX_DROPDOWN, `Persisted selected value for hash ${this._descriptor.hash}: ${this._selectedValue}`);
+            
+            // Envoyer la mise à jour à l’ESP32
+            Socket.defaultSocket.sendMessage("states", [{ 
+                "hash": this._descriptor.hash, 
+                "value": this._selectedValue 
+            }]);
         }
 
         this.dropdown.hide();
     }
 
+    update(val, descriptor) {
+        // Gestion des commandes socket enable/disable
+        if (val === "disable") {
+            this._socketDisabled = true;
+            this._applyDisabledState();
+            return;
+        } else if (val === "enable") {
+            this._socketDisabled = false;
+            this._applyDisabledState();
+            return;
+        }
+
+        // Mise à jour de la valeur sélectionnée si fournie
+        if (val !== undefined && this._descriptor.items?.includes(val)) {
+            this._selectedValue = val;
+            if (this._descriptor?.hash) {
+                TxDropdown.selectedValues.set(this._descriptor.hash, this._selectedValue);
+            }
+        }
+
+        // Mise à jour du descripteur si fourni
+        if (descriptor) {
+            this.descriptor = descriptor;
+        }
+
+        if (this.isConnected) {
+            this.render();
+        }
+    }
+
     render() {
         const disable = this._descriptor.disable;
+        
+        // Mettre à jour le tooltip
+        tooltipUpdate(this.querySelector("rx-tooltip"), this._descriptor.tooltip);
 
-        tooltipUpdate(this.shadowRoot.querySelector("rx-tooltip"), this._descriptor.tooltip);
+        // Utiliser les items statiques du descripteur
+        const newItems = this._descriptor.items || [];
+        
+        // Reconstruire le menu si les items ont changé
+        if (JSON.stringify(this._items) !== JSON.stringify(newItems)) {
+            this._items = newItems;
+            this.menu.innerHTML = '';
+            if (this._items.length === 0) {
+                const placeholder = document.createElement('sl-menu-item');
+                placeholder.textContent = "No items available";
+                placeholder.disabled = true;
+                this.menu.appendChild(placeholder);
+            } else {
+                this._items.forEach(item => {
+                    const menuItem = document.createElement('sl-menu-item');
+                    menuItem.textContent = item;
+                    menuItem.value = item;
+                    menuItem.type = 'checkbox';
+                    menuItem.checked = item === this._selectedValue;
+                    this.menu.appendChild(menuItem);
+                });
+            }
+        }
+        
+        // Définir la valeur par défaut si aucune sélection n’existe
+        if (!this._selectedValue && this._descriptor.default && this._items.includes(this._descriptor.default)) {
+            this._selectedValue = this._descriptor.default;
+            if (this._descriptor?.hash) {
+                TxDropdown.selectedValues.set(this._descriptor.hash, this._selectedValue);
+            }
+        }
 
-        this.updateFromDescriptor();
+        // Mettre à jour le texte du bouton
+        this.button.textContent = this._selectedValue || this._descriptor.name || "Select";
+        
+        // Mettre à jour les coches
+        this.menu.querySelectorAll('sl-menu-item').forEach(item => {
+            item.checked = item.value === this._selectedValue;
+        });
+
+        // Gérer l’état désactivé
         if (disable) {
             this.disable();
         } else {
             this.enable();
         }
+
+        Logger.log(ComponentType.TX_DROPDOWN, `Rendered with items:`, this._items);
+        Logger.log(ComponentType.TX_DROPDOWN, `Selected value:`, this._selectedValue);
     }
 }
 
@@ -8959,7 +9083,6 @@ class TxSlider extends ConnectedElement {
     }
 
     handleChange(event) {
-        
         const slider = event.target;
         this._value = parseFloat(slider.value);
         const hash = this._descriptor.hash;
@@ -9180,29 +9303,32 @@ window.customElements.define('tx-string', TxString);
 class InterfaceEditor extends ConnectedElement {
     constructor() {
         super();
-        this.versions = [];
-        this.maxVersions = 10;
-        
+        this.availableNodes = [];
+        this.configData = null;
+        this.interfaceData = null;
+        this.rendererDescriptors = null;
+        this.currentFile = 'interface.json'; // Fichier par défaut
+        this.jsonFiles = ['interface.json', 'config.json']; // Liste initiale
+
         const template = document.createElement('template');
         template.innerHTML = `
             <style>
                 .edit-btn {
                     --sl-button-font-size-medium: 0.5rem;
-                    --sl-button-height-medium: .5rem;
+                    --sl-button-height-medium: 0.5rem;
                     --sl-button-padding-x: 0.5rem;
                 }
 
                 .interface-edit-card {
-                    position: fixed;
-                    top: 10px;
-                    right: 10px;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.3);
-                    padding: 4px;
-                    border-radius: 4px;
-                    opacity: 0.2;
+                    padding: 1px;
+                    opacity: 0.6;
                     transition: all 0.3s ease;
                     backdrop-filter: blur(4px);
                     transform: scale(0.85);
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    z-index: 1000;
                 }
 
                 .interface-edit-card:hover {
@@ -9210,32 +9336,79 @@ class InterfaceEditor extends ConnectedElement {
                     background: rgba(var(--sl-color-neutral-0-rgb), 0.8);
                     transform: scale(1);
                 }
-                
-                dialog {
-                    width: 40vw;
-                    height: 60vh;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.5);
+
+                .main-editor {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 80vw;
+                    height: 80vh;
+                    background: rgba(var(--sl-color-neutral-0-rgb), 0.95);
                     border: 1px solid var(--sl-color-neutral-300);
                     border-radius: 8px;
                     padding: 20px;
-                    resize: both;
-                    overflow: auto;
-                    min-width: 10vw;
-                    min-height: 10vh;
+                    display: flex;
+                    flex-direction: column;
+                    z-index: 9000;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+                }
+
+                .main-editor-backdrop {
                     position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 8999;
                 }
 
-                dialog::backdrop {
-                    background: rgba(0, 0, 0, 0.75);
+                .edit-tools {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 10px;
+                    flex-wrap: wrap;
                 }
 
-                dialog:hover {
-                    border-color: var(--sl-color-neutral-400);
+                .edit-tools sl-button {
+                    --sl-button-font-size-medium: 0.5rem !important;
+                    --sl-button-height-medium: 0.5rem !important;
+                    --sl-button-padding-x: 0.5rem !important;
+                    white-space: nowrap;
+                    width: auto !important;
+                }
+
+                sl-button::part(base) {
+                    font-size: 0.5rem !important;
+                    height: 0.5rem !important;
+                    padding: 0 0.5rem !important;
+                    width: auto !important;
+                }
+
+                .file-selector {
+                    margin-bottom: 10px;
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                }
+
+                .file-selector select {
+                    width: 250px;
+                    padding: 8px;
+                    font-size: 14px;
+                    border: 1px solid var(--sl-color-neutral-300);
+                    border-radius: 4px;
+                    background: rgba(var(--sl-color-neutral-50-rgb), 0.7);
+                    color: var(--sl-color-neutral-1000);
+                }
+
+                .file-selector sl-button {
+                    width: auto !important;
                 }
 
                 textarea {
-                    width: 100%;
-                    height: calc(90% - 100px);
+                    flex: 1;
                     font-family: monospace;
                     font-size: 14px;
                     padding: 10px;
@@ -9246,414 +9419,462 @@ class InterfaceEditor extends ConnectedElement {
                     resize: none;
                 }
 
-                .version-controls {
-                    margin-bottom: 10px;
-                    display: flex;
-                    gap: 10px;
-                    align-items: center;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.8);
-                    padding: 8px;
-                    border-radius: 4px;
-                }
-
-                .version-info {
-                    color: var(--sl-color-neutral-600);
-                    font-size: 14px;
-                }
-
                 .dialog-footer {
                     margin-top: 20px;
                     display: flex;
-                    justify-content: space-between;
-                    background: rgba(var(--sl-color-neutral-0-rgb), 0.8);
-                    padding: 8px;
-                    border-radius: 4px;
+                    justify-content: flex-end;
+                    gap: 10px;
                 }
 
                 .dialog-footer sl-button {
-                    margin-left: 10px;
+                    width: auto !important;
                 }
 
-                sl-select {
-                    min-width: 300px;
+                .modal-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                    background: rgba(0, 0, 0, 0.5);
                 }
 
-                /* Custom resize handle */
-                dialog::after {
-                    content: '';
-                    position: absolute;
-                    bottom: 0;
-                    right: 0;
-                    width: 20px;
-                    height: 20px;
-                    cursor: se-resize;
-                    background: linear-gradient(
-                        135deg,
-                        transparent 50%,
-                        var(--sl-color-neutral-300) 50%
-                    );
-                    border-bottom-right-radius: 4px;
+                .modal-dialog {
+                    width: 500px;
+                    max-width: 90vw;
+                    max-height: 80vh;
+                    background: var(--sl-color-neutral-0);
+                    border-radius: 8px;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+                    overflow-y: auto;
+                }
+
+                .modal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--sl-color-neutral-200);
+                    padding-bottom: 10px;
+                }
+
+                .modal-header h3 {
+                    margin: 0;
+                }
+
+                .modal-body {
+                    flex: 1;
+                    overflow-y: auto;
+                }
+
+                .modal-footer {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    margin-top: 20px;
+                    border-top: 1px solid var(--sl-color-neutral-200);
+                    padding-top: 10px;
+                }
+
+                .form-row {
+                    margin-bottom: 15px;
+                }
+
+                .component-properties {
+                    margin-top: 15px;
+                    padding: 15px;
+                    border: 1px solid var(--sl-color-neutral-300);
+                    border-radius: 4px;
+                }
+
+                .component-properties-title {
+                    margin-bottom: 10px;
+                    font-weight: bold;
+                }
+
+                .component-property {
+                    margin-bottom: 10px;
+                }
+
+                .hidden {
+                    display: none !important;
+                }
+
+                select {
+                    width: 100%;
+                    padding: 8px;
+                    font-size: 14px;
+                    border: 1px solid var(--sl-color-neutral-300);
+                    border-radius: 4px;
+                    background: rgba(var(--sl-color-neutral-50-rgb), 0.7);
+                    color: var(--sl-color-neutral-1000);
+                }
+
+                select:required:invalid {
+                    border-color: var(--sl-color-danger-500);
                 }
             </style>
+
             <div class="interface-edit-card">
-                <sl-button class="edit-btn" variant="primary">Edit Interface</sl-button>
+                <sl-icon-button name="pencil" class="edit-btn" style="font-size: 1.1rem;"></sl-icon-button>
             </div>
-            <dialog>
-                <div class="version-controls">
-                    <sl-button class="save-ref-btn" variant="warning">Save Reference Version</sl-button>
-                    <sl-button class="delete-version-btn" variant="danger" disabled>Delete Version</sl-button>
-                    <span class="version-info"></span>
+        `;
+
+        this.appendChild(template.content.cloneNode(true));
+    }
+
+    async fetchJsonFiles() {
+        try {
+            const isESP32 = this.socket?.url?.includes('/ws');
+            let files = [];
+
+            if (isESP32) {
+                const response = await fetch('/fs/list');
+                if (!response.ok) throw new Error('No file listing endpoint');
+                const data = await response.json();
+                files = data.files.filter(f => f.endsWith('.json'));
+            }
+
+            this.jsonFiles = files.length > 0 ? files : ['interface.json', 'config.json'];
+            if (!this.jsonFiles.includes(this.currentFile)) {
+                this.currentFile = this.jsonFiles[0];
+            }
+            return this.jsonFiles;
+        } catch (err) {
+            console.warn('Falling back to default files:', err);
+            this.jsonFiles = ['interface.json', 'config.json'];
+            return this.jsonFiles;
+        }
+    }
+
+    createInterface() {
+        this.removeExistingInterfaces();
+
+        const mainEditor = document.createElement('div');
+        mainEditor.className = 'main-editor-backdrop';
+        mainEditor.innerHTML = `
+            <div class="main-editor">
+                <div class="file-selector">
+                    <label for="json-file-select">Select JSON File:</label>
+                    <select id="json-file-select" required></select>
+                    <sl-button class="upload-btn" variant="default">Upload JSON</sl-button>
+                    <sl-button class="download-btn" variant="default">Download JSON</sl-button>
+                    <input type="file" id="json-upload" accept=".json" style="display: none;">
+                </div>
+                <div class="edit-tools">
                 </div>
                 <textarea spellcheck="false"></textarea>
                 <div class="dialog-footer">
-                    <div class="version-actions">
-                        <sl-select class="version-select" placeholder="Load Version" hoist>
-                            <sl-menu>
-                                <sl-menu-item value="">Current</sl-menu-item>
-                            </sl-menu>
-                        </sl-select>
-                    </div>
-                    <div>
-                        <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
-                        <sl-button class="save-btn" variant="primary">Save</sl-button>
-                    </div>
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="save-btn" variant="primary">Save</sl-button>
                 </div>
-            </dialog>
+            </div>
         `;
-        
-        this.appendChild(template.content.cloneNode(true));
-        this.initElements();
-        this.initListeners();
-        this.loadVersions();
-    }
 
-    initElements() {
-        this.dialog = this.querySelector('dialog');
-        this.textarea = this.querySelector('textarea');
-        this.versionInfo = this.querySelector('.version-info');
-        this.versionSelect = this.querySelector('.version-select');
+        document.body.appendChild(mainEditor);
+        this.mainEditorBackdrop = mainEditor;
+        this.mainEditor = mainEditor.querySelector('.main-editor');
+        this.textarea = mainEditor.querySelector('textarea');
+        this.editTools = mainEditor.querySelector('.edit-tools');
+        this.fileSelect = mainEditor.querySelector('#json-file-select');
+        this.uploadBtn = mainEditor.querySelector('.upload-btn');
+        this.downloadBtn = mainEditor.querySelector('.download-btn');
+        this.fileInput = mainEditor.querySelector('#json-upload');
+        this.cancelBtn = mainEditor.querySelector('.cancel-btn');
+        this.saveBtn = mainEditor.querySelector('.save-btn');
+
+        this.populateFileSelector();
+        this.updateEditorState(this.currentFile);
+
+        this.uploadBtn.addEventListener('click', () => this.fileInput.click());
+        this.fileInput.addEventListener('change', () => this.uploadFile());
+        this.downloadBtn.addEventListener('click', () => this.downloadFile());
+        this.cancelBtn.addEventListener('click', () => this.closeEditor());
+        this.saveBtn.addEventListener('click', () => this.saveChanges());
+
+        this.mainEditorBackdrop.addEventListener('click', (event) => {
+            if (event.target === this.mainEditorBackdrop) this.closeEditor();
+        });
+
         this.editBtn = this.querySelector('.edit-btn');
-        this.saveVersionBtn = this.querySelector('.save-version-btn');
-        this.saveRefBtn = this.querySelector('.save-ref-btn');
-        this.cancelBtn = this.querySelector('.cancel-btn');
-        this.saveBtn = this.querySelector('.save-btn');
-        this.deleteVersionBtn = this.querySelector('.delete-version-btn');
+        this.editBtn.addEventListener('click', () => this.openEditor());
 
-        // Verify all elements are found
-        const elements = {
-            dialog: this.dialog,
-            textarea: this.textarea,
-            versionInfo: this.versionInfo,
-            versionSelect: this.versionSelect,
-            editBtn: this.editBtn,
-            saveRefBtn: this.saveRefBtn,
-            deleteVersionBtn: this.deleteVersionBtn,
-            cancelBtn: this.cancelBtn,
-            saveBtn: this.saveBtn
-        };
-        // Check if any element is missing
-        for (const [name, element] of Object.entries(elements)) {
-            if (!element) {
-                console.error(`Missing element: ${name}`);
-            }
-        }
+        this.fileSelect.addEventListener('change', (event) => {
+            this.currentFile = event.target.value;
+            this.updateEditorState(this.currentFile);
+            this.loadFileContent();
+        });
     }
 
-    initListeners() {
-        if (this.editBtn) {
-            this.editBtn.addEventListener('click', () => this.openEditor());
+    async uploadFile() {
+        const file = this.fileInput.files[0];
+        if (!file || !file.name.endsWith('.json')) {
+            window.notify({ type: "error", name: "Error", desc: "Please select a .json file" });
+            console.log('Fichier invalide ou non sélectionné:', file);
+            return;
         }
-        if (this.saveRefBtn) {
-            this.saveRefBtn.addEventListener('click', () => this.saveRefVersion());
-        }
-        if (this.deleteVersionBtn) {
-            this.deleteVersionBtn.addEventListener('click', () => {
-                // Get currently loaded version from version info
-                const currentVersionText = this.versionInfo.textContent;
-                console.log("Current version info:", currentVersionText);
-                this.deleteVersion(currentVersionText);
-            });
-        }
-        if (this.cancelBtn) {
-            this.cancelBtn.addEventListener('click', () => this.closeEditor());
-        }
-        if (this.saveBtn) {
-            this.saveBtn.addEventListener('click', () => this.saveChanges());
-        }
-        if (this.versionSelect) {
-            this.versionSelect.addEventListener('sl-select', (event) => {
-                const selectedValue = event.detail.item.value;
-                console.log('Version selected:', selectedValue);
-                this.loadVersion(selectedValue);
-                if (this.deleteVersionBtn) {
-                    this.deleteVersionBtn.disabled = !selectedValue;
+        console.log('Fichier sélectionné:', file.name, 'Taille:', file.size);
+    
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const content = e.target.result;
+            console.log('1. Contenu brut lu par FileReader:', content);
+    
+            try {
+                // Étape 1 : Vérification du JSON
+                console.log('2. Tentative de parsing JSON...');
+                const parsedJson = JSON.parse(content);
+                console.log('3. JSON parsé avec succès:', parsedJson);
+    
+                // Étape 2 : Mise à jour de l'interface (sans upload serveur)
+                window.notify({ type: "success", name: "Success", desc: `${file.name} loaded locally` });
+                console.log('4. Mise à jour des fichiers JSON locaux...');
+                if (!this.jsonFiles.includes(file.name)) {
+                    this.jsonFiles.push(file.name); // Ajouter le fichier à la liste locale
                 }
-                // Store current selection for delete operation
-                this.currentSelectedVersion = selectedValue;
-            });
-        }
-    }
-
-    async saveRefVersion() {
-        const version = {
-            content: this.textarea.value,
-            timestamp: new Date().toISOString(),
-            number: this.versions.length + 1
+                this.populateFileSelector();
+                this.currentFile = file.name;
+                this.fileSelect.value = file.name;
+    
+                if (!this.mainEditorBackdrop || !this.textarea) {
+                    console.log('5. Éditeur non existant, création...');
+                    this.createInterface();
+                }
+                this.textarea.value = content;
+                console.log('6. Textarea mis à jour avec:', this.textarea.value);
+                this.updateEditorState(this.currentFile);
+                console.log('7. État de l\'éditeur mis à jour pour:', this.currentFile);
+            } catch (err) {
+                window.notify({ type: "error", name: "Error", desc: "Invalid JSON format" });
+                console.error('Erreur détectée:', err.message);
+                console.error('Détails de l\'erreur:', err);
+            }
         };
-    
+        reader.onerror = (e) => {
+            window.notify({ type: "error", name: "Error", desc: "Erreur lors de la lecture du fichier" });
+            console.error('Erreur de FileReader:', e);
+        };
+        console.log('Lecture du fichier en cours...');
+        reader.readAsText(file);
+    }
+
+    downloadFile() {
+        const content = this.textarea.value;
         try {
-            JSON.parse(version.content);
-            
-            if (this.versions.length >= this.maxVersions) {
-                window.notify({
-                    type: "warning",
-                    name: "Version Limit",
-                    desc: `Maximum ${this.maxVersions} versions reached. Delete old versions to save new ones.`
-                });
-                return;
-            }
-    
-            this.versions.push(version);
-            localStorage.setItem('interfaceVersions', JSON.stringify(this.versions));
-            this.updateVersionSelect();
-    
-            window.notify({
-                type: "success",
-                name: "Version Saved",
-                desc: `Version ${version.number} saved successfully`
-            });
+            JSON.parse(content);
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = this.currentFile;
+            a.click();
+            URL.revokeObjectURL(url);
+            window.notify({ type: "success", name: "Success", desc: `${this.currentFile} downloaded` });
         } catch (err) {
-            window.notify({
-                type: "error",
-                name: "Version Save Failed",
-                desc: "Invalid JSON format"
-            });
+            window.notify({ type: "error", name: "Error", desc: "Invalid JSON format" });
         }
     }
 
-    deleteVersion(versionInfo) {
-        console.log("Attempting to delete version", versionInfo);
-        
-        // If no version is loaded, we can't delete
-        if (!versionInfo || versionInfo === 'Current Version') {
-            console.log("No version selected for deletion");
-            return;
-        }
-    
-        // Extract version number from version info (e.g., "Version 1 - 2024...")
-        const match = versionInfo.match(/Version (\d+)/);
-        if (!match) {
-            console.log("Could not extract version number from:", versionInfo);
-            return;
-        }
-    
-        const versionNumber = parseInt(match[1]);
-        console.log("Deleting version number:", versionNumber);
-    
-        // Find version index by number
-        const versionIndex = this.versions.findIndex(v => v.number === versionNumber);
-        if (versionIndex === -1) {
-            console.log("Version not found:", versionNumber);
-            return;
-        }
-    
-        if (confirm(`Are you sure you want to delete version ${versionNumber}?`)) {
-            // Remove the version
-            this.versions.splice(versionIndex, 1);
-            
-            // Renumber remaining versions
-            this.versions.forEach((v, i) => {
-                v.number = i + 1;
-            });
-    
-            // Save to localStorage
-            localStorage.setItem('interfaceVersions', JSON.stringify(this.versions));
-            
-            // Update the UI
-            this.updateVersionSelect();
-            this.deleteVersionBtn.disabled = true;
-            this.versionSelect.value = '';
-            
-            // Reset to current version
-            this.reloadCurrentVersion();
-            
-            window.notify({
-                type: "success",
-                name: "Version Deleted",
-                desc: `Version ${versionNumber} deleted successfully`
-            });
-        }
-    }
-
-    loadVersion(index) {
-        console.log('Loading version index:', index);
-        if (index === '' || index === undefined) {
-            // Reset to current version
-            this.reloadCurrentVersion();
-            return;
-        }
-        
-        const version = this.versions[parseInt(index)];
-        console.log('Loading version:', version);
-        if (version) {
-            this.textarea.value = version.content;
-            const date = new Date(version.timestamp).toLocaleString();
-            this.versionInfo.textContent = `Version ${version.number} - ${date}`;
-        }
-    }
-
-    async reloadCurrentVersion() {
-    try {
-        const response = await fetch('/interface.json');
-        const content = await response.text();
-        const parsedContent = JSON.parse(content);
-        this.textarea.value = JSON.stringify(parsedContent, null, 2);
-        this.versionInfo.textContent = 'Current Version';
-    } catch (err) {
-        console.error('Error loading current version:', err);
-        window.notify({
-            type: "error",
-            name: "Error",
-            desc: "Failed to load current version"
+    populateFileSelector() {
+        this.fileSelect.innerHTML = '';
+        this.jsonFiles.forEach(file => {
+            const option = document.createElement('option');
+            option.value = file;
+            option.textContent = file;
+            this.fileSelect.appendChild(option);
         });
-    }
-}
-
-    updateVersionSelect() {
-        const menu = document.createElement('sl-menu');
-        menu.innerHTML = `<sl-menu-item value="">Current</sl-menu-item>`;
-        
-        this.versions.forEach((v, i) => {
-            const date = new Date(v.timestamp).toLocaleString();
-            const menuItem = document.createElement('sl-menu-item');
-            menuItem.value = i.toString();
-            menuItem.textContent = `Version ${v.number} - ${date}`;
-            menu.appendChild(menuItem);
-        });
-        
-        this.versionSelect.innerHTML = '';
-        this.versionSelect.appendChild(menu);
+        this.fileSelect.value = this.currentFile;
     }
 
+    updateEditorState(file) {
+        this.updateToolsBasedOnFile(file);
+        if (file === 'config.json') {
+            this.textarea.setAttribute('readonly', 'true');
+        } else {
+            this.textarea.removeAttribute('readonly');
+        }
+    }
 
-    async loadVersions() {
-        try {
-            const stored = localStorage.getItem('interfaceVersions');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                this.versions = Array.isArray(parsed) ? parsed : [];
-            } else {
-                this.versions = [];
+    updateToolsBasedOnFile(file) {
+        this.editTools.innerHTML = '';
+
+        if (file === 'interface.json') {
+            this.editTools.innerHTML = `
+                <sl-button class="add-section-btn" variant="success">Add Section</sl-button>
+                <sl-button class="add-node-btn" variant="primary">Add Node to Section</sl-button>
+                <sl-button class="remove-node-btn" variant="danger">Remove Node</sl-button>
+                <sl-button class="remove-section-btn" variant="danger">Remove Section</sl-button>
+            `;
+        } else if (file === 'config.json') {
+            this.editTools.innerHTML = `
+                <sl-button class="add-wifi-btn" variant="success">Add WiFi</sl-button>
+                <sl-button class="edit-wifi-btn" variant="primary">Edit WiFi</sl-button>
+                <sl-button class="remove-wifi-btn" variant="danger">Remove WiFi</sl-button>
+                <sl-button class="edit-node-name-btn" variant="primary">Edit Node Names</sl-button>
+                <sl-button class="edit-password-btn" variant="primary">Edit Passwords</sl-button>
+            `;
+        }
+
+        this.forceButtonStyles();
+
+        this.mainEditor.querySelector('.add-section-btn')?.addEventListener('click', () => this.showAddSectionDialog());
+        this.mainEditor.querySelector('.add-node-btn')?.addEventListener('click', () => this.showAddNodeDialog());
+        this.mainEditor.querySelector('.remove-node-btn')?.addEventListener('click', () => this.showRemoveNodeDialog());
+        this.mainEditor.querySelector('.remove-section-btn')?.addEventListener('click', () => this.showRemoveSectionDialog());
+        this.mainEditor.querySelector('.add-wifi-btn')?.addEventListener('click', () => this.showAddWifiDialog());
+        this.mainEditor.querySelector('.edit-wifi-btn')?.addEventListener('click', () => this.showEditWifiDialog());
+        this.mainEditor.querySelector('.remove-wifi-btn')?.addEventListener('click', () => this.showRemoveWifiDialog());
+        this.mainEditor.querySelector('.edit-node-name-btn')?.addEventListener('click', () => this.showEditNodeNameDialog());
+        this.mainEditor.querySelector('.edit-password-btn')?.addEventListener('click', () => this.showEditPasswordDialog());
+    }
+
+    forceButtonStyles() {
+        const buttons = this.mainEditor?.querySelectorAll('.edit-tools sl-button, .file-selector sl-button, .dialog-footer sl-button') || [];
+        buttons.forEach(button => {
+            button.style.setProperty('--sl-button-font-size-medium', '0.5rem', 'important');
+            button.style.setProperty('--sl-button-height-medium', '0.5rem', 'important');
+            button.style.setProperty('--sl-button-padding-x', '0.5rem', 'important');
+
+            const shadowRoot = button.shadowRoot;
+            if (shadowRoot) {
+                const base = shadowRoot.querySelector('.button__base');
+                if (base) {
+                    base.style.fontSize = '0.5rem';
+                    base.style.height = '0.5rem';
+                    base.style.padding = '0 0.5rem';
+                    base.style.width = 'auto';
+                }
             }
-            this.updateVersionSelect();
-        } catch (err) {
-            console.error('Error loading versions:', err);
-            this.versions = [];
-            localStorage.removeItem('interfaceVersions');
-        }
+        });
     }
 
     async openEditor() {
         try {
-            const response = await fetch('/interface.json');
-            const content = await response.text();
-            const parsedContent = JSON.parse(content);
-            this.textarea.value = JSON.stringify(parsedContent, null, 2);
-            this.versionInfo.textContent = 'Current Version';
-            this.dialog.showModal();
+            await this.fetchJsonFiles();
+            this.createInterface();
+            await this.loadFileContent();
+            await this.loadConfigData();
+            await this.loadRendererDescriptors();
+            this.forceButtonStyles();
         } catch (err) {
             console.error('Editor error:', err);
             window.notify({
                 type: "error",
                 name: "Error",
-                desc: "Failed to load interface configuration"
+                desc: `Failed to load ${this.currentFile} configuration`
+            });
+            this.removeExistingInterfaces();
+        }
+    }
+
+    async loadFileContent() {
+        try {
+            const response = await fetch(`/${this.currentFile}`);
+            const content = await response.text();
+            const parsedContent = JSON.parse(content);
+            this.textarea.value = JSON.stringify(parsedContent, null, 2);
+            if (this.currentFile === 'config.json') {
+                this.configData = parsedContent;
+            } else if (this.currentFile === 'interface.json') {
+                this.interfaceData = parsedContent;
+            }
+        } catch (err) {
+            console.error('Error loading file:', err);
+            window.notify({
+                type: "error",
+                name: "Error",
+                desc: `Failed to load ${this.currentFile}`
             });
         }
     }
 
     closeEditor() {
-        this.dialog.close();
-        this.versionInfo.textContent = '';
-        this.versionSelect.value = '';
+        if (this.mainEditorBackdrop) {
+            this.mainEditorBackdrop.remove();
+            this.mainEditorBackdrop = null;
+        }
+        document.querySelectorAll('.modal-container').forEach(modal => modal.remove());
     }
 
     async saveChanges() {
         try {
             const content = this.textarea.value;
-            // Validate JSON
             JSON.parse(content);
-            
-            // Check if we're using ESP32 by examining socket URL
             const isESP32 = this.socket?.url?.includes('/ws');
-            if (isESP32) {
-              // S'assurer que content est une chaîne JSON valide
-                const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-                
-                // Créer le message dans le format attendu
-                const messageData = {
-                    path: "/interface.json",
-                    data: contentStr
-                };
 
-                console.log("Message size:", JSON.stringify(messageData).length);
-                
-                // Utiliser sendMessage avec la clé et les données
-                this.socket.sendMessage("saveFile", [messageData]);
-                
-                window.notify({
-                    type: "success",
-                    name: "Success",
-                    desc: "Interface configuration sent to ESP32"
-                });
+            if (isESP32) {
+                this.socket.sendMessage("saveFile", [{ path: `/${this.currentFile}`, data: content }]);
+                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} saved to ESP32` });
             } else {
-                // Send via HTTP POST for development server
-                const response = await fetch('/api/save-interface', {
+                const response = await fetch(`/fs/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content })
+                    body: JSON.stringify({ path: `/${this.currentFile}`, content })
                 });
-                
                 if (!response.ok) throw new Error('Save failed');
-                
-                window.notify({
-                    type: "success",
-                    name: "Success",
-                    desc: "Interface configuration saved successfully"
-                });
+                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} saved successfully` });
             }
-            
+
             this.closeEditor();
-            
-            if (this.socket) {
-                this.socket.sendMessage("allStatesRequest", true);
-            }
+            if (this.socket) this.socket.sendMessage("allStatesRequest", true);
         } catch (err) {
             console.error('Save failed:', err);
             window.notify({
                 type: "error",
                 name: "Error",
-                desc: err instanceof SyntaxError ? "Invalid JSON format" : "Failed to save changes"
+                desc: err instanceof SyntaxError ? "Invalid JSON format" : `Failed to save ${this.currentFile}`
             });
         }
     }
 
-    disconnectedCallback() {
-        if (this.dialog && this.dialog.parentNode) {
-            this.dialog.parentNode.removeChild(this.dialog);
+    connectedCallback() {
+        this.editBtn = this.querySelector('.edit-btn');
+        if (this.editBtn) {
+            this.editBtn.addEventListener('click', () => this.openEditor());
         }
-        // Remove all event listeners
-        this.editBtn?.removeEventListener('click', this.openEditor);
-        this.saveVersionBtn?.removeEventListener('click', this.saveVersion);
-        this.saveRefBtn?.removeEventListener('click', () => this.saveVersion(true));
-        this.cancelBtn?.removeEventListener('click', this.closeEditor);
-        this.saveBtn?.removeEventListener('click', this.saveChanges);
-        this.versionSelect?.removeEventListener('sl-change', this.loadVersion);
     }
 
-    // Required ConnectedElement overrides
-    connectedCallback() {}
+    disconnectedCallback() {
+        this.removeExistingInterfaces();
+        this.editBtn?.removeEventListener('click', this.openEditor);
+        if (this.uploadBtn) this.uploadBtn.removeEventListener('click', () => this.fileInput.click());
+        if (this.fileInput) this.fileInput.removeEventListener('change', () => this.uploadFile());
+        if (this.downloadBtn) this.downloadBtn.removeEventListener('click', () => this.downloadFile());
+        if (this.cancelBtn) this.cancelBtn.removeEventListener('click', () => this.closeEditor());
+        if (this.saveBtn) this.saveBtn.removeEventListener('click', () => this.saveChanges());
+        if (this.fileSelect) this.fileSelect.removeEventListener('change', (event) => {
+            this.currentFile = event.target.value;
+            this.updateEditorState(this.currentFile);
+            this.loadFileContent();
+        });
+    }
+
     render() {}
     update() {}
+
+    // Méthodes placeholders pour éviter les erreurs (à implémenter selon vos besoins)
+    showAddSectionDialog() { console.log('Add Section Dialog'); }
+    showAddNodeDialog() { console.log('Add Node Dialog'); }
+    showRemoveNodeDialog() { console.log('Remove Node Dialog'); }
+    showRemoveSectionDialog() { console.log('Remove Section Dialog'); }
+    showAddWifiDialog() { console.log('Add WiFi Dialog'); }
+    showEditWifiDialog() { console.log('Edit WiFi Dialog'); }
+    showRemoveWifiDialog() { console.log('Remove WiFi Dialog'); }
+    showEditNodeNameDialog() { console.log('Edit Node Name Dialog'); }
+    showEditPasswordDialog() { console.log('Edit Password Dialog'); }
+    async loadConfigData() { console.log('Load Config Data'); }
+    async loadRendererDescriptors() { console.log('Load Renderer Descriptors'); }
+    removeExistingInterfaces() { 
+        document.querySelectorAll('.main-editor-backdrop').forEach(el => el.remove());
+        this.mainEditorBackdrop = null;
+    }
 }
 
 customElements.define('interface-editor', InterfaceEditor);
@@ -10098,230 +10319,6 @@ class ImageSection extends ConnectedElement {
 }
 
 window.customElements.define('image-section', ImageSection);
-
-let HTTP$1 = class HTTP {
-    
-    constructor() {
-        console.log("HTTPPPPPP");
-    }
-    
-    static baseURL(action) {
-        return "/api/";
-    }
-    
-    static rpc(method_name, args={}, kwargs={}, onSuccess=()=>{}) {
-        let data= JSON.stringify({method_name: method_name, args:args, kwargs:kwargs});
-        HTTP.post('rpc', data, onSuccess, ()=>{alert("FAIL");});
-        
-    }
-    
-
-    static get(url, onSuccess, onError) {
-        console.log("GET: "+ url);
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-        if(token) {
-            header.append('x-access-token', `${token}`);
-        }
-
-        fetch(url, {
-            method: 'GET',
-            headers: header
-        }).then((resp) => {
-            if(resp.ok) {
-                console.log(resp);
-                console.log(resp.body);
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error);
-                });
-            }
-        }).then((resp) => {
-            let response = resp; console.log(resp);
-            if(response && response.hasOwnProperty('token')) {
-                window.localStorage['jwtToken'] = response.token;
-            }
-            console.log(url, onSuccess);
-            onSuccess(response);
-
-        });/*.catch((e) => {
-            console.log(e)
-            console.log(e.lineNumber)
-            console.log(e.filename)
-            onError(e.message);
-        });
-
-        */
-    }
-
-    static put(url, data, onSuccess, onError) {
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-    
-        // 0.0 Authorization
-        if(token)
-            header.append('x-access-token', `${token}`);
-        // 0.1 Stringify if data is object
-        if (typeof data == "object")
-            data = JSON.stringify(data);
-        // 0.2 Header
-        header.append('Content-Type', 'application/json');
-        // 0.3 Debug print
-        console.log("PUT: "+ url);
-        console.log(JSON.parse(data));
-
-        fetch(url, {
-            method: 'PUT',
-            headers: header,
-            body: JSON.stringify(data)
-        }).then((resp) => {
-            if(resp.ok) {
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error);
-                });
-            }
-        }).then((resp) => {
-            if(resp.hasOwnProperty('token')) {
-                window.localStorage['jwtToken'] = resp.token;
-            }
-            onSuccess(resp);
-        }).catch((e) => {
-            console.log(e);
-            onError(e.message);
-        });
-    }
-
-    static post(url, data, onSuccess, onError) {
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-    
-        // 0.0 Authorization
-        if(token)
-            header.append('x-access-token', `${token}`);
-        // 0.1 Stringify if data is object
-        if (typeof data == "object")
-            data = JSON.stringify(data);
-        // 0.2 Header
-        header.append('Content-Type', 'application/json');
-        // 0.3 Debug print
-        console.log("POST: "+ url, JSON.parse(data));
-
-        fetch(url, {
-            method: 'POST',
-            headers: header,
-            body: JSON.stringify(data)
-        }).then((resp) => {
-            if(resp.ok) {
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error + resp.toString());
-                });
-            }
-        }).then((resp) => {
-            if(resp.hasOwnProperty('token')) {
-                window.localStorage['jwtToken'] = resp.token;
-            }
-            onSuccess(resp);
-        }).catch((e) => {
-            console.log(e);
-            onError(e.message);
-        });
-    }
-
-    static remove(url, onSuccess, onError) {
-        let token = window.localStorage['jwtToken'];
-        let header = new Headers();
-        if(token) {
-            header.append('x-access-token', `${token}`);
-        }
-
-        fetch(url, {
-            method: 'DELETE',
-            headers: header
-        }).then((resp) => {
-            if(resp.ok) {
-                return resp.json();
-            }
-            else if(this.checkIfUnauthorized(resp)) {
-                window.location = "/#login";
-            }
-            else {
-                resp.json().then((json) => {
-                    onError(json.error);
-                });
-            }
-        }).then((resp) => {
-            onSuccess(resp);
-        }).catch((e) => {
-            onError(e.message);
-        });
-    }
-
-    static checkIfUnauthorized(res) {
-        if(res.status == 401) {
-            return true;
-        }
-        return false;
-    }
-    
-    static checkValidCode(res) {
-        if (res.status==200){
-            console.log("OK");
-            return true
-        }
-        else if (res.status==201){
-            console.log("CREATED");
-            return true
-        }
-        else if (res.status==203){
-            console.log("ACCEPTED");
-            return true
-        }
-        else if (res.status >= 200 && res.status < 300) {
-            return true;
-        }
-        return false;
-    }
-    
-    static checkRessource(res){
-        switch (res.status) {
-            case 404:
-                console.log("Ressource not found");
-                return false
-            case 301:
-                console.log("Moved permanently");
-                return false
-            case 308:
-                console.log("Permanent redirect");
-                return false
-            case 400:
-                console.log("Bad Request");
-                return false
-            case 500:
-                console.log("Internal Server Error");
-                return false
-        }
-        return true
-    }
-};
-
-window.Http = HTTP$1;
 
 // Complete Shoelace Bundle Compressed:
 // import "./build/shoelace.bundle.min.js";

@@ -125,6 +125,7 @@ Formaca::Formaca() {
     Serial.printf("Butée droite: %.2f\r\n", parameters.rightStop);
 
     Serial.printf("Nb recettes: %u\r\n", parameters.nbRecettes);
+    bool recetteFound = false;
     Serial.println("Recettes");
     Serial.println("--------");
     for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
@@ -133,7 +134,22 @@ Formaca::Formaca() {
         Serial.printf("    Angle: %.2f\r\n", parameters.recettes[id].angle);
         Serial.printf("    Width: %.2f\r\n", parameters.recettes[id].width);
         Serial.println();
+        if (strcmp(parameters.recettes[id].name, parameters.selectedRecette) == 0) {
+            recetteFound = true;
+        }
     }
+
+    Serial.printf("Selected recette: %s\r\n", parameters.selectedRecette);
+    if (!recetteFound) {
+        Serial.println("Selected recette not found in list, using first one");
+        strlcpy(parameters.selectedRecette, parameters.recettes[0].name, sizeof(parameters.selectedRecette));
+        saveMachineParameters();
+    } else {
+        Serial.printf("Selected recette found: %s\r\n", parameters.selectedRecette);
+        recette->setValue(parameters.selectedRecette);
+    }
+
+    recette->setValue(parameters.selectedRecette);
 
     drompDownIndicator = new DropDown(recette);
     visu = new VisualIndicator(nbCyclesMade);
@@ -828,12 +844,30 @@ JsonDocument Formaca::getDropDownDescriptorHandler() {
         return docToSend;
     }
 
-    Serial.println(" Formaca::getDropDownDescriptorHandler");
+    Serial.println("Formaca::getDropDownDescriptorHandler");
     JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
+    bool recetteFound = false;
     for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
         JsonObject recette = recettes.add<JsonObject>();
         recette[NAME] = parameters.recettes[id].name;
+        if (strcmp(parameters.recettes[id].name, parameters.selectedRecette) == 0) {
+            recetteFound = true;
+        }
     }
+
+    Serial.printf("Selected recette: %s\r\n", parameters.selectedRecette);
+    if (!recetteFound) {
+        Serial.println("Selected recette not found in list, using first one");
+        strlcpy(parameters.selectedRecette, parameters.recettes[0].name, sizeof(parameters.selectedRecette));
+        saveMachineParameters();
+    } else {
+        Serial.printf("Selected recette found: %s\r\n", parameters.selectedRecette);
+        docToSend[VALUE] = parameters.selectedRecette;
+    }
+
+
+
+
     return docToSend;
 }
 

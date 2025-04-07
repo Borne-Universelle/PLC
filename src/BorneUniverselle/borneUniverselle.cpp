@@ -1178,6 +1178,8 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
             if (initialStateLoadedCallback) {
                 // Appel de la callback
                 initialStateLoadedCallback();
+            } else {
+                Serial.println(F("No callback set for initial state loaded"));
             }
     } else {
             String out1, out2;
@@ -1273,17 +1275,15 @@ bool BorneUniverselle::handleGetValue(uint32_t hash){
     JsonObject nodeObject = array.add<JsonObject>();
     bool success = addNodeToNodeObject(node, &nodeObject);
     if (!success){
+        Serial.println(F("handleGetValue: addNodeToNodeObject failed"));
         return false; // on supprime ma requête
-    }
- 
+    } 
+   
     uint32_t size = measureJson(notifyDoc);
     char *chain = (char *)malloc(size + 10);
     if (chain){
         serializeJson(notifyDoc, chain, size);
         chain[size] = 0;  // 0 chain terminated is missing !!!!
-        //Serial.println(chain);
-   
-            //serializeJsonPretty(notifyDoc, Serial);
         bool success =  sendTextToClient(chain); 
         free(chain); 
 
@@ -2636,18 +2636,17 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             }
           
             JsonObject nodeObject = array.add<JsonObject>();
+        
             if (!addNodeToNodeObject(node, &nodeObject)){
+                Serial.printf("notifyWebClient: addNodeToNodeObject for node: %s failed\r\n", node->getName());
                 return false;
             }
 
             if (node->getMode() == INPUT_MODE){
-                if (node->getIsChanged()){
-                    //Serial.printf("Node %s change will be cleared\r\n", node->getName());
                     node->clearIsChanged();
-                } 
             } 
 
-            //Serial.printf("Will notify for node: %s\r\n", node->getName());
+            Serial.printf("Will notify for node: %s\r\n", node->getName());
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
@@ -2659,9 +2658,9 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     } 
 
     if (hasTosend){
-        //Serial.println("notifyWebClient: Message that will be send: \r\n" );
-        //serializeJsonPretty(notifyDoc, Serial);
-        //Serial.println();
+        Serial.println("notifyWebClient: Message that will be send: \r\n" );
+        serializeJsonPretty(notifyDoc, Serial);
+        Serial.println();
        
         size_t size = measureJson(notifyDoc) + 32;
         if (size > SOCKET_MESSAGE_MAX_SIZE){
@@ -2670,9 +2669,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             prepareMessage(ERROR, message);
             setPlcBroken(message);
             return false;
-        } else {
-            // Serial.printf("Document size: %u\r\n", size);
-        }
+        } 
 
         char *chain = (char *)malloc(size);
         if (chain){
@@ -2684,8 +2681,8 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             }
 
             chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
-            // Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
-            //serializeJsonPretty(notifyDoc, Serial);
+            Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
+            serializeJsonPretty(notifyDoc, Serial);
             bool success = sendTextToClient(chain);
 
             if (!success){
@@ -2803,8 +2800,11 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
     }
 
     if (node->descriptorCallback) {
-        Serial.printf("Node %s with hash %lu has a descriptor callback\r\n", node->getName(), (long unsigned int)node->getHash());
+        Serial.printf("addNodeToNodeObject:: Node %s with hash %lu has a descriptor callback\r\n", node->getName(), (long unsigned int)node->getHash());
         addCustomDescriptor(node, nodeObject);
+        Serial.printf("addNodeToNodeObject:: Node %s with hash %lu custom descriptor added\r\n", node->getName(), (long unsigned int)node->getHash());
+        Serial.printf("NodeObject au retour de addCustomDescriptor:\r\n");
+        PLC_Tools::printJsonObject(*nodeObject);
     }
 
     checkHeartbeat();
@@ -2818,15 +2818,18 @@ void BorneUniverselle::addCustomDescriptor(Node *node, JsonObject *nodeObject) {
     
     // Si le document n'est pas vide, l'ajouter au nodeObject
     if (!customDescriptor.isNull()) {
-
+    
         if (!customDescriptor[VALUE].isNull()) {
+                /*
             // Supprimer la clé hash du descripteur personnalisé
             Serial.println("Custom descriptor contains a key 'value', will superside it with nodeObject value");
             (*nodeObject)[VALUE] = customDescriptor[VALUE];
             // Supprimer la clé "value" du descripteur pour éviter la duplication
             customDescriptor.remove("value");
+            */
         
         }
+        
         // Vérifier si nodeObject a déjà une clé descriptor
         if (!(*nodeObject)[DESCRIPTOR].isNull()) {
             // Récupérer l'objet descriptor existant

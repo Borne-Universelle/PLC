@@ -197,21 +197,20 @@ bool Node::setDescriptor(JsonDocument _descriptor){
     DeserializationError error = deserializeJson(descriptor, temp);
     if (error) {
         char buff[256];
-        sprintf(buff, "parse descriptor for has node %lu: deserializeJson() failed: ", getHash());
+        sprintf(buff, "parse descriptor for has node %lu: deserializeJson() failed: ", (long unsigned int)getHash());
         strcpy_P(buff + strlen(buff) , (const prog_char*) error.f_str());
         Serial.println(buff);
         return false;
     }
 
-    if (descriptor.containsKey(ID)){
+    if (!descriptor[ID].isNull()){
         descriptor.remove(ID);
     }
 
-    /*
-    Serial.printf("Descriptor for node %lu\r\n: \r\n", getHash());
+    Serial.printf("Descriptor for node %lu\r\n: \r\n", (long unsigned int)getHash());
     serializeJsonPretty(descriptor, Serial);
     Serial.println();
-    */
+    
 #endif
     return true;
 }

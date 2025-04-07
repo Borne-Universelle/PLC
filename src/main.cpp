@@ -470,11 +470,12 @@ void loop() {
   if (memoryMonitorBool){
     memoryMonitor.printStats("MemoryMonitor");
   }
-
+  /*
   if (millis()- lastTime > 5000){
     lastTime = millis();
     Serial.printf(" time: %lu v3\r\n",millis());
     printTaskInfo();
   }
   delay(1);
+  */
 }

@@ -66,6 +66,8 @@ class MyModbus; // forward declaration
 #define PFC_INIT_ERROR              "PFC8574 initialisation error !!!"
 #define HASH_NOT_FOUND              "Hash not found !!!!"
 
+#define DESCRIPTOR_INCLUDED  "descriptor included"
+
 class Node{
     public:
         Node(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshIntervl);

@@ -153,6 +153,7 @@ struct PERSISTANT_PARAMETERS {
     float wasteLength;
     float rightStop;
     RECETTE recettes[100];
+    char selectedRecette[80];
     uint8_t nbRecettes;
 };
 
