@@ -1,6 +1,7 @@
 #include "Formaca.h"
 
-Formaca::Formaca() {
+Formaca::Formaca() : currentState(State::UNDEFINED) { // Optionnel mais rigoureux
+    transition(State::INITIALIZING); // Transition explicite vers l'état initial
     Serial.println(CONSTR_FORMACA);
 
     BorneUniverselle::setInitialStateLoadedCallback([this]() {
@@ -92,13 +93,31 @@ Formaca::Formaca() {
         return;
     }
 
-    strlcpy(parameters.machineName, doc[MACHINE], sizeof(parameters.machineName));
-    parameters.overAllLenght = doc[OVERALL__LENGHT];
-    parameters.reference = doc[REFERENCE];
-    parameters.home = doc[HOME];
-    parameters.parkOffset = doc[PARK__OFFSET];
-    parameters.wasteLength = doc[WASTE__LENGTH];
-    parameters.rightStop = doc[RIGHT__STOP];
+    if (!doc[MACHINE].isNull()) {
+        strlcpy(parameters.machineName, doc[MACHINE], sizeof(parameters.machineName));
+    } else {
+        Serial.println("WARNING: Machine name not found in config");
+        // Valeur par défaut si nécessaire
+        strlcpy(parameters.machineName, "Default Machine", sizeof(parameters.machineName));
+    }
+    
+    // Assignation des autres paramètres avec vérification
+    parameters.overAllLenght = !doc[OVERALL__LENGHT].isNull() ? doc[OVERALL__LENGHT].as<float>() : 0.0f;
+    parameters.reference = !doc[REFERENCE].isNull() ? doc[REFERENCE].as<uint32_t>() : 0;
+    parameters.home = !doc[HOME].isNull() ? doc[HOME].as<uint32_t>() : 0;
+    parameters.parkOffset = !doc[PARK__OFFSET].isNull() ? doc[PARK__OFFSET].as<float>() : 0.0f;
+    parameters.wasteLength = !doc[WASTE__LENGTH].isNull() ? doc[WASTE__LENGTH].as<float>() : 0.0f;
+    parameters.rightStop = !doc[RIGHT__STOP].isNull() ? doc[RIGHT__STOP].as<float>() : 0.0f;
+    
+    // Vérification pour la recette sélectionnée
+    if (!doc[SELECTED_RECETTE].isNull()) {
+        strlcpy(parameters.selectedRecette, doc[SELECTED_RECETTE], sizeof(parameters.selectedRecette));
+        Serial.printf("Selected recette from config: %s\r\n", parameters.selectedRecette);
+    } else {
+        Serial.println("WARNING: Selected recette not found in config");
+        // Assignation d'une valeur par défaut ou laisser vide selon votre logique
+        parameters.selectedRecette[0] = '\0';
+    }
 
     uint8_t idRecette = 0;
     for (JsonObject recette : doc[RECETTES].as<JsonArray>()) {
@@ -220,37 +239,47 @@ void Formaca::updateOutputs() {
 bool Formaca::logiqueExecutor() {
     uint32_t now = millis();
     if (BorneUniverselle::isPlcBroken()) {
+        Serial.printf("%lu:: PLC broken, exiting\r\n", (unsigned long)now);
         return false;
     }
-
     handleInterrupts();
     checkEmergencyConditions(now);
 
     switch (currentState) {
+        case State::UNDEFINED:
+            transition(State::INITIALIZING);
+            return true; // Sortir après transition
+
         case State::INITIALIZING:
             driveInitialisation();
             if (initialised) {
                 transition(State::IDLE);
+                return true;
             }
             break;
 
         case State::IDLE:
             if (!initialised) {
                 transition(State::INITIALIZING);
+                return true;
             } else if ((getIsStartCycle() && !homeDone->getValue()) || (goHomeButton->getIsChanged() && goHomeButton->getValue())) {
                 transition(State::HOMING);
+                return true;
             } else if (getIsStartCycle() && homeDone->getValue()) {
                 if (!isAtPArkPosition()) {
                     transition(State::PARKING);
+                    return true;
                 } else if (!capteur_pression_air->getValue()) {
                     BorneUniverselle::prepareMessage(ERROR, "Il n'y a pas de pression d'air !!!");
                 } else if (immediateStop->getValue()) {
                     BorneUniverselle::prepareMessage(ERROR, "La machine est en arrêt");
                 } else {
                     transition(State::WASTE_CUTTING);
+                    return true;
                 }
             } else if (jog->getValue()) {
                 transition(State::JOGGING);
+                return true;
             }
             interfaceTreatment();
             break;
@@ -259,63 +288,95 @@ bool Formaca::logiqueExecutor() {
             if (immediateStop->getIsChanged() && !immediateStop->getValue()) {
                 setEmergencyMode(false);
                 transition(State::IDLE);
+                return true;
             }
             if (alarmsReset->getIsChanged() && alarmsReset->getValue()) {
                 transition(State::IDLE);
                 Serial.printf("%lu:: Alarms reset\r\n", (unsigned long)now);
+                return true;
             }
             break;
 
         case State::HOMING:
-            if (stateStartTime == 0) {
-                trigger->setValue(120);
-                trigger->setValue(0);
-                Serial.printf("%lu:: First start: Go to home\r\n", (unsigned long)now);
-                stateStartTime = now;
-            }
-            if (homeDone->getIsChanged() && homeDone->getValue()) {
-                doHome->setValue(false);
-                Serial.printf("%lu:: Just arrived at home (%lu)\r\n", (unsigned long)now, (unsigned long)homePos);
-                homeDelayStart = now;
-                homePos = position->getValue();
-                saveMachineParameters();
-                BorneUniverselle::prepareMessage(SUCCESS, "Position du home enregistrée");
-                if (now - homeDelayStart > (uint32_t)position->getRefreshInterval()) {
-                    if (longLength->getValue() > 1 && longLength->getValue() < 100 && !isnan(longLength->getValue())) {
-                        transition(State::PARKING);
-                    } else {
-                        BorneUniverselle::prepareMessage(ERROR, "Longueur de coupe non définie, pas de déplacement vers la position de parc");
-                        transition(State::IDLE);
+            Serial.printf("%lu:: ETAT HOMING, phase: %d\r\n", (unsigned long)now, homingPhase);
+            switch (homingPhase) {
+                case 0:
+                    trigger->setValue(120);
+                    Serial.printf("%lu:: Homing: Trigger set to 120\r\n", (unsigned long)now);
+                    stateStartTime = now;
+                    homingPhase++;
+                    break;
+                case 1:
+                    trigger->setValue(0);
+                    Serial.printf("%lu:: Homing: Trigger reset to 0, starting homing\r\n", (unsigned long)now);
+                    homingPhase++;
+                    break;
+                case 2:
+                    if (homeDone->getValue()) {
+                        doHome->setValue(false);
+                        Serial.printf("%lu:: Just arrived at home (%lu)\r\n", (unsigned long)now, (unsigned long)homePos);
+                        homeDelayStart = now;
+                        homePos = position->getValue();
+                        saveMachineParameters();
+                        BorneUniverselle::prepareMessage(SUCCESS, "Position du home enregistrée");
+                        homingPhase++;
                     }
-                }
+                    break;
+                case 3:
+                    if (now - homeDelayStart > (uint32_t)position->getRefreshInterval()) {
+                        if (longLength->getValue() > 1 && longLength->getValue() < 100 && !isnan(longLength->getValue())) {
+                            transition(State::PARKING);
+                            return true;
+                        } else {
+                            BorneUniverselle::prepareMessage(ERROR, "Longueur de coupe non définie, pas de déplacement vers la position de parc");
+                            transition(State::IDLE);
+                            return true;
+                        }
+                        homingPhase = 0;
+                    }
+                    break;
             }
             break;
 
         case State::PARKING:
             if (stateStartTime == 0) {
+                Serial.println("ETAT PARKING: Will call goToParkPosition()");
+                previousState = State::PARKING;
                 goToParkPosition();
-                stateStartTime = now;
+                stateStartTime = now; // Initialiser stateStartTime au début du mouvement
+                transition(State::TRIGGER_PENDING);
+                return true;
             }
             if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
                 BorneUniverselle::prepareMessage(SUCCESS, "Arrivé à la position de parc");
                 transition(getIsStartCycle() ? State::WASTE_CUTTING : State::IDLE);
+                return true;
             }
+            Serial.printf("%lu:: PARKING: Waiting for position, targetReached=%d, zeroSpeed=%d, time=%lu\r\n", 
+                          (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
             break;
 
         case State::WASTE_CUTTING:
             if (stateStartTime == 0) {
                 Serial.printf("%lu:: Début du cycle: on va couper le rebus\r\n", (unsigned long)now);
                 goToPosition(parameters.reference - convToPUU(parameters.overAllLenght - totalWasteLength + 0.9));
+                stateStartTime = now; // Initialiser stateStartTime ici
                 transition(State::TRIGGER_PENDING);
+                return true;
             }
             if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
+                Serial.printf("%lu:: WASTE_CUTTING: Position reached, moving to SAWING\r\n", (unsigned long)now);
                 transition(State::SAWING);
+                return true;
             }
+            Serial.printf("%lu:: WASTE_CUTTING: Waiting for position, targetReached=%d, zeroSpeed=%d, time=%lu\r\n", 
+                          (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
             break;
 
         case State::NORMAL_CUTTING:
             if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
                 transition(State::SAWING);
+                return true;
             } else if (stateStartTime == 0) {
                 if (cutModel == LEFT) {
                     uint32_t newPosition = position->getValue() + convToPUU(bladelostLength + parameters.recettes[idRecette].longlength + bladelostLength);
@@ -323,8 +384,10 @@ bool Formaca::logiqueExecutor() {
                         goToPosition(newPosition);
                         cutModel = RIGHT;
                         transition(State::TRIGGER_PENDING);
+                        return true;
                     } else {
                         transition(State::EJECTING);
+                        return true;
                     }
                 } else {
                     float triangleDroit = tan(angleRadians) * parameters.recettes[idRecette].width;
@@ -334,8 +397,10 @@ bool Formaca::logiqueExecutor() {
                         goToPosition(newPosition);
                         cutModel = LEFT;
                         transition(State::TRIGGER_PENDING);
+                        return true;
                     } else {
                         transition(State::EJECTING);
+                        return true;
                     }
                 }
             }
@@ -351,8 +416,10 @@ bool Formaca::logiqueExecutor() {
                     immediateStop->setValue(true);
                     BorneUniverselle::prepareMessage(ERROR, "Cylindres de maintien en fonction, je ne peux poursuivre la coupe");
                     transition(State::EMERGENCY);
+                    return true;
                 } else if (targetPositionReached->getValue() && zeroSpeed->getValue()) {
                     transition(State::SAWING_WAIT);
+                    return true;
                 }
             }
             if (now - stateStartTime > (unsigned long)FLIP_FLOP_TIME) {
@@ -364,8 +431,10 @@ bool Formaca::logiqueExecutor() {
         case State::SAWING_WAIT:
             if (cylinderCaptor->isRisingEdge() && cylinderProtectionActivated) {
                 transition(State::NORMAL_CUTTING);
+                return true;
             } else if (now - stateStartTime > (unsigned long)BLADE_TIME && targetPositionReached->getValue() && zeroSpeed->getValue()) {
                 transition(State::NORMAL_CUTTING);
+                return true;
             }
             break;
 
@@ -373,9 +442,11 @@ bool Formaca::logiqueExecutor() {
             if (stateStartTime == 0) {
                 eject();
                 transition(State::TRIGGER_PENDING);
+                return true;
             }
             if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
                 transition(State::PARKING);
+                return true;
             }
             break;
 
@@ -383,23 +454,39 @@ bool Formaca::logiqueExecutor() {
             jogTreatment();
             if (!jog->getValue()) {
                 transition(State::IDLE);
+                return true;
             }
             break;
 
         case State::TRIGGER_PENDING:
-            if (now - stateStartTime > 50) {
+            Serial.println("ETAT TRIGGER_PENDING");
+            if (stateStartTime == 0) {
+                Serial.printf("%lu:: TRIGGER_PENDING: Starting delay, previousState: %s\r\n", (unsigned long)now, stateToString(previousState));
+                stateStartTime = now;
+            }
+            else if (now - stateStartTime <= 50) {
+                Serial.printf("%lu:: TRIGGER_PENDING: Waiting %lu ms\r\n", (unsigned long)now,  (unsigned long)50 - (now - stateStartTime));
+            }
+            else {
                 trigger->setValue(currentPr);
-                Serial.printf("%lu:: trigger send\r\n", (unsigned long)now);
+                Serial.printf("%lu:: Trigger sent (pr: %d), returning to %s\r\n", (unsigned long)now, currentPr, stateToString(previousState));
                 currentPr++;
                 if (currentPr > NB_PR) currentPr = 1;
-                transition(currentState == State::WASTE_CUTTING ? State::WASTE_CUTTING : State::NORMAL_CUTTING);
+                stateStartTime = now;
+                if (previousState == State::UNDEFINED || previousState == State::IDLE) {
+                    Serial.println("ERROR: previousState invalid, forcing PARKING");
+                    transition(State::PARKING);
+                } else {
+                    transition(previousState);
+                }
+                return true; // Sortir après transition
             }
             break;
     }
-
+  
     updateOutputs();
     return true;
-}
+} // logicielExecutor
 
 void Formaca::setEmergencyMode(bool status) {
     if (status) {
@@ -420,7 +507,9 @@ bool Formaca::isEmergencyMode() {
 }
 
 bool Formaca::getIsStartCycle() {
-    return (startCycle->getIsChanged() && startCycle->getValue()) || (vStart->getIsChanged() && vStart->getValue());
+    bool status = (startCycle->getIsChanged() && startCycle->getValue()) || (vStart->getIsChanged() && vStart->getValue());
+    //Serial.printf("Start cycle: %s\r\n", status ? "true" : "false");
+    return status;
 }
 
 void Formaca::interfaceTreatment() {
@@ -694,7 +783,7 @@ void Formaca::displayAlarmsAndStatus() {
 void Formaca::driveInitialisation() {
     static const uint32_t INIT_TIMEOUT = 15000; // 15 secondes
     uint32_t now = millis();
-    Serial.printf("%lu::logiqueExecutor: phase: %d\r\n", (unsigned long)now, phase);
+    Serial.printf("%lu::driveInitialisation: phase: %d\r\n", (unsigned long)now, phase);
 
     if (now - startInit > INIT_TIMEOUT) {
         Serial.println("Erreur : Initialisation du servo drive trop longue (>15s), forçage de la fin avec état partiel");
@@ -777,6 +866,7 @@ bool Formaca::saveMachineParameters() {
     doc[PARK__OFFSET] = parameters.parkOffset;
     doc[WASTE__LENGTH] = parameters.wasteLength;
     doc[RIGHT__STOP] = parameters.rightStop;
+    doc[SELECTED_RECETTE] = parameters.selectedRecette;
 
     JsonArray recettes = doc[RECETTES].to<JsonArray>();
     for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
@@ -834,7 +924,7 @@ void Formaca::goToPosition(uint32_t pos) {
         default:
             BorneUniverselle::setPlcBroken("currentPr not consistent");
     }
-    trigger->setValue(currentPr);
+    //trigger->setValue(currentPr); // on ne peut pas déclencher le trigger ici il faut faire un tour de boucle.
 }
 
 JsonDocument Formaca::getDropDownDescriptorHandler() {
@@ -864,17 +954,42 @@ JsonDocument Formaca::getDropDownDescriptorHandler() {
         Serial.printf("Selected recette found: %s\r\n", parameters.selectedRecette);
         docToSend[VALUE] = parameters.selectedRecette;
     }
-
-
-
-
     return docToSend;
 }
 
 void Formaca::transition(State newState) {
     if (currentState != newState) {
-        Serial.printf("%lu:: Transition from %d to %d\r\n", millis(), static_cast<int>(currentState), static_cast<int>(newState));
+        Serial.printf("%lu:: Transition from %s to %s (previousState: %s)\r\n", 
+                      millis(), 
+                      stateToString(currentState), 
+                      stateToString(newState), 
+                      stateToString(previousState));
+        if (newState == State::TRIGGER_PENDING) {
+            previousState = currentState;
+        }
         currentState = newState;
-        stateStartTime = (newState == State::TRIGGER_PENDING || newState == State::HOMING || newState == State::SAWING || newState == State::PARKING) ? millis() : 0;
+        // Ne réinitialiser stateStartTime que pour les nouveaux processus
+        if (newState != State::PARKING && newState != State::WASTE_CUTTING && newState != State::TRIGGER_PENDING) {
+            stateStartTime = 0;
+        }
+    }
+}
+
+const char* Formaca::stateToString(State state) {
+    switch (state) {
+        case State::UNDEFINED:         return "UNDEFINED";
+        case State::INITIALIZING:      return "INITIALIZING";
+        case State::IDLE:              return "IDLE";
+        case State::EMERGENCY:         return "EMERGENCY";
+        case State::HOMING:            return "HOMING";
+        case State::PARKING:           return "PARKING";
+        case State::WASTE_CUTTING:     return "WASTE_CUTTING";
+        case State::NORMAL_CUTTING:    return "NORMAL_CUTTING";
+        case State::SAWING:            return "SAWING";
+        case State::SAWING_WAIT:       return "SAWING_WAIT";
+        case State::EJECTING:          return "EJECTING";
+        case State::JOGGING:           return "JOGGING";
+        case State::TRIGGER_PENDING:   return "TRIGGER_PENDING";
+        default:                       return "UNKNOWN"; // Sécurité pour les cas imprévus
     }
 }

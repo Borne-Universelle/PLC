@@ -369,7 +369,7 @@ esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
   Serial.println("Will start BorneUniverselle library...");
   printTaskInfo();
   bu = new BorneUniverselle(); // Borne Universelle will prepare file system open for the web server
-  Serial.println("Apres BorneUniverselle");
+  //Serial.println("Apres BorneUniverselle");
   printTaskInfo();
   
   if (!bu->isPlcBroken()){

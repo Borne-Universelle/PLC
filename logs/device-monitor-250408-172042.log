@@ -1,0 +1,2544 @@
+201894:: There are now 1 webMessages on the list (to be processed)
+202034:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 1
+Node: Opération/Start Cycle new value: 1
+End Web socket nodes change received
+
+Uint32OutputNode:: setValue for node: Vitesses et compteurs/Nb cycles effectués: 1
+202058:: Transition from IDLE to WASTE_CUTTING (previousState: PARKING)
+202059:: Node notify (uint32 output): Opération/Start Cycle new value: 1
+Will notify for node: Opération/Start Cycle
+202070:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles effectués new value: 1
+Will notify for node: Vitesses et compteurs/Nb cycles effectués
+
+Will display notify message, size: 71
+{
+  "states": [
+    {
+      "hash": 824782083,
+      "value": 1
+    },
+    {
+      "hash": 3018797200,
+      "value": 1
+    }
+  ]
+}202122:: Uint32OutputNode::node: Opération/Start Cycle, new value: 1
+202228:: Uint32OutputNode::node: Vitesses et compteurs/Nb cycles effectués, new value: 1
+202408:: Début du cycle: on va couper le rebus
+202409:: Going to position: 226005 (inch: 7.137736) with current pr: 2
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/target B: 226005
+202420:: Transition from WASTE_CUTTING to TRIGGER_PENDING (previousState: PARKING)
+202432:: Node notify (uint32 output): Servo write dobble holding registers/target B new value: 226005
+Will notify for node: Servo write dobble holding registers/target B
+
+Will display notify message, size: 47
+{
+  "states": [
+    {
+      "hash": 3432736329,
+      "value": 226005
+    202454:: There are now 1 webMessages on the list (to be processed)
+}
+  ]
+}202613:: Uint32OutputNode::node: Servo write dobble holding registers/target B, new value: 226005
+202829:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 0
+Node: Opération/Start Cycle new value: 0
+End Web socket nodes change received
+
+ETAT TRIGGER_PENDING
+202845:: Trigger sent (pr: 2), returning to WASTE_CUTTING
+202846:: Transition from TRIGGER_PENDING to WASTE_CUTTING (previousState: WASTE_CUTTING)
+202857:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 2
+Will notify for node: Servo write holding register/trigger
+202868:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+Will notify for node: Opération/Start Cycle
+
+Will display notify message, size: 70
+{
+  "states": [
+    {
+      "hash": 748480285,
+      "value": 2
+    },
+    {
+      "hash": 824782083,
+      "value": 0
+    }
+  ]
+}202931:: Uint16OutputNode::node: Servo write holding register/trigger, new value: 2
+202934:: Uint32OutputNode::node: Opération/Start Cycle, new value: 0
+203125:: node: Servo read holding register/trigger read, new value: 20002
+203219:: WASTE_CUTTING: Waiting for position, targetReached=1, zeroSpeed=1, time=374
+203222:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20002
+Will notify for node: Servo read holding register/trigger read
+
+Will display notify message, size: 46
+{
+  "states": [
+    {
+      "hash": 4059768218,
+      "value": 20002
+    }
+  ]
+}203556:: WASTE_CUTTING: Waiting for position, targetReached=1, zeroSpeed=1, time=711
+203774:: node: Num Status/Position, new value: 226005
+203891:: WASTE_CUTTING: Position reached, moving to SAWING
+203892:: Transition from WASTE_CUTTING to SAWING (previousState: WASTE_CUTTING)
+203904:: Node notify: Num Status/Position (Uint32InputNode) new value: 226005
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 47
+{
+  "states": [
+    {
+      "hash": 4045003206,
+      "value": 226005
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+204229:: Start scie
+204230:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+204560:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+209336:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+209638:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+209980:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+210282:: Start scie
+210283:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+210611:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+[214235][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi.gz does not exist, no permits for creation
+[214240][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi does not exist, no permits for creation
+[214249][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi/index.html.gz does not exist, no permits for creation
+[214262][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi/index.html does not exist, no permits for creation
+214266:: Page not found !, requested url: /cgi-bin/eventManager.cgi
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+215356:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+215669:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+215971:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+216323:: Start scie
+216324:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}[216390][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[216395][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[216406][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[216415][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+216421:: Page not found !, requested url: /cgi-bin/configManager.cgi
+[216445][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[216450][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[216459][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[216470][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+216476:: Page not found !, requested url: /cgi-bin/configManager.cgi
+[216500][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[216507][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[216515][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[216525][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+216531:: Page not found !, requested url: /cgi-bin/configManager.cgi
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+216753:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+217295:: node: Num Status/Position, new value: 226006
+Fin du flip flop de la scie
+217404:: Node notify (float output): Jog/Position actuelle new value: 7.138
+Will notify for node: Jog/Position actuelle
+217411:: Node notify: Num Status/Position (Uint32InputNode) new value: 226006
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 83
+{
+  "states": [
+    {
+      "hash": 666618897,
+      "value": 7.137767
+    },
+    {
+      "hash": 4045003206,
+      "value": 226006
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+218562:: node: Num Status/Position, new value: 226005
+Fin du flip flop de la scie
+218680:: Node notify (float output): Jog/Position actuelle new value: 7.138
+Will notify for node: Jog/Position actuelle
+218687:: Node notify: Num Status/Position (Uint32InputNode) new value: 226005
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 83
+{
+  "states": [
+    {
+      "hash": 666618897,
+      "value": 7.137736
+    },
+    {
+      "hash": 4045003206,
+      "value": 226005
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+219849:: node: Num Status/Position, new value: 226006
+Fin du flip flop de la scie
+219967:: Node notify (float output): Jog/Position actuelle new value: 7.138
+Will notify for node: Jog/Position actuelle
+219975:: Node notify: Num Status/Position (Uint32InputNode) new value: 226006
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 83
+{
+  "states": [
+    {
+      "hash": 666618897,
+      "value": 7.137767
+    },
+    {
+      "hash": 4045003206,
+      "value": 226006
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+221138:: node: Num Status/Position, new value: 226005
+Fin du flip flop de la scie
+221256:: Node notify (float output): Jog/Position actuelle new value: 7.138
+Will notify for node: Jog/Position actuelle
+221264:: Node notify: Num Status/Position (Uint32InputNode) new value: 226005
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 83
+{
+  "states": [
+    {
+      "hash": 666618897,
+      "value": 7.137736
+    },
+    {
+      "hash": 4045003206,
+      "value": 226005
+    }
+  ]
+}221594:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+221896:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+222207:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+222551:: Start scie
+222552:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+222894:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+227621:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+227932:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+228234:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+228543:: Start scie
+228544:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+228918:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+233644:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+233987:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+234298:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+234590:: Start scie
+234591:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+234917:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+239665:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+239976:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+240322:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+240632:: Start scie
+240633:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+240964:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 153911750, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13232
+load:0x40080400,len:3028
+entry 0x400805e4
+
+
+
+Starting Formaca....
+Will start BorneUniverselle library...
+[TaskInfo] Number of tasks: 6 at 0 s
+Start at 146 ms, tasks: 6, heap: 208460, stack free: 26896
+Borne Universelle 2.2.0
+LittleFS mounted successfully at initialization
+174:: Try to read json from file: /reboot_log.json
+Reboot history
+*************
+232::getRebootLog
+256:: Try to read json from file: /reboot_log.json
+[
+  {
+    "reason": "Power-on"
+  },
+  {
+    "reason": "Software reset"
+  }
+]
+End of reboot history
+
+BorneUniverselle constructor
+[   329][E][vfs_api.cpp:105] open(): /littlefs/diagnostic.txt does not exist, no permits for creation
+Fichier de diagnostic non trouvé
+PSRAM is not available !
+340:: Try to read json from file: /config.json
+Will parse config
+Project name: Formaca
+Created backup: /config.v1.json (version 1)
+Created backup of config.json before applying changes
+Project version: 2.00
+Item with dhcp
+New nb network: 1
+Item with dhcp
+New nb network: 2
+Item with dhcp
+New nb network: 3
+Fixed address
+SSID: Formaca Tigger stop successfuly added, connexion name: Routeur Formaca ip: 10.10.10.11, dns: 10.10.10.10, gateway: 10.10.10.10, mask: 255.255.255.0 New nb network: 4
+ota_url: truc
+Section name: Direct outputs
+hardware: Kincony_KC868_A8S
+type: tx-bool
+1018:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+I2C bus is initialised
+Bus I2C initialized
+Try to initialise Modbus
+RS485 speed: 57600, rx pin: 32, tx pin: 33
+RS485 bus is initialised
+Modbus RTU timeout: 101
+MyModbus timeout: 101 ms
+Modbus initialised
+Modbus initialized
+Will set pin 2 as output
+Node Direct outputs/Buzzer created with succes (ESP32 pin 2) with type HardwareBooleanOutputNode and hash: 1711197005
+Descriptor for node 1711197005
+: 
+{
+  "name": "Buzzer",
+  "hash": 1711197005
+}
+Section name: Inputs Kincony
+hardware: Kincony_KC868_A8S
+type: PF8574_rx-bool
+1176:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/EStopA is 0
+Node Inputs Kincony/EStopA created with succes with type PF8574BooleanInputNode and hash: 721063196, refresh interval: 0, web refresh interval: 0
+Descriptor for node 721063196
+: 
+{
+  "name": "EStopA",
+  "inverse": true,
+  "hash": 721063196
+}
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/capteur pression air is 0
+Node Inputs Kincony/capteur pression air created with succes with type PF8574BooleanInputNode and hash: 998762341, refresh interval: 0, web refresh interval: 0
+Descriptor for node 998762341
+: 
+{
+  "name": "capteur pression air",
+  "hash": 998762341
+}
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/capteur cylindres is 0
+Node Inputs Kincony/capteur cylindres created with succes with type PF8574BooleanInputNode and hash: 134240750, refresh interval: 0, web refresh interval: 0
+Descriptor for node 134240750
+: 
+{
+  "name": "capteur cylindres",
+  "hash": 134240750
+}
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/StartCycle is 0
+Node Inputs Kincony/StartCycle created with succes with type PF8574BooleanInputNode and hash: 2986050054, refresh interval: 0, web refresh interval: 0
+Descriptor for node 2986050054
+: 
+{
+  "name": "StartCycle",
+  "hash": 2986050054
+}
+Section name: Outputs Kincony
+hardware: Kincony_KC868_A8S
+type: PF8574_tx-bool
+1417:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+Node Outputs Kincony/servoOn created with succes with type PF8574BooleanOutputNode and hash: 2864105056
+Descriptor for node 2864105056
+: 
+{
+  "name": "servoOn",
+  "hash": 2864105056
+}
+Node Outputs Kincony/Do home created with succes with type PF8574BooleanOutputNode and hash: 2206102162
+Descriptor for node 2206102162
+: 
+{
+  "name": "Do home",
+  "hash": 2206102162
+}
+Node Outputs Kincony/Flip flop scie created with succes with type PF8574BooleanOutputNode and hash: 756474627
+Descriptor for node 756474627
+: 
+{
+  "name": "Flip flop scie",
+  "hash": 756474627
+}
+Node Outputs Kincony/immediatStop created with succes with type PF8574BooleanOutputNode and hash: 3505331062
+Descriptor for node 3505331062
+: 
+{
+  "name": "immediatStop",
+  "hash": 3505331062
+}
+Node Outputs Kincony/alarmsReset created with succes with type PF8574BooleanOutputNode and hash: 2122812135
+Descriptor for node 2122812135
+: 
+{
+  "name": "alarmsReset",
+  "hash": 2122812135
+}
+Section name: Jog
+hardware: virtual
+type: tx-bool
+Node Jog/jog created (VirtualBooleanOutputNode) with succes, hash: 627952477
+Descriptor for node 627952477
+: 
+{
+  "name": "jog",
+  "hash": 627952477
+}
+Node Jog/fwd created (VirtualBooleanOutputNode) with succes, hash: 936928435
+Descriptor for node 936928435
+: 
+{
+  "name": "fwd",
+  "hash": 936928435
+}
+Node Jog/rwd created (VirtualBooleanOutputNode) with succes, hash: 2405696470
+Descriptor for node 2405696470
+: 
+{
+  "name": "rwd",
+  "hash": 2405696470
+}
+Node Jog/Full torque created (VirtualBooleanOutputNode) with succes, hash: 313736047
+Descriptor for node 313736047
+: 
+{
+  "name": "Full torque",
+  "hash": 313736047
+}
+Node Jog/Scier created (VirtualBooleanOutputNode) with succes, hash: 2853133322
+Descriptor for node 2853133322
+: 
+{
+  "name": "Scier",
+  "hash": 2853133322
+}
+Node Jog/Go home created (VirtualBooleanOutputNode) with succes, hash: 3099259876
+Descriptor for node 3099259876
+: 
+{
+  "name": "Go home",
+  "hash": 3099259876
+}
+Node Jog/Go Pos Park created (VirtualBooleanOutputNode) with succes, hash: 431233
+Descriptor for node 431233
+: 
+{
+  "name": "Go Pos Park",
+  "hash": 431233
+}
+Node Jog/Go to reference created (VirtualBooleanOutputNode) with succes, hash: 1483048151
+Descriptor for node 1483048151
+: 
+{
+  "name": "Go to reference",
+  "hash": 1483048151
+}
+Node Jog/Ejecter created (VirtualBooleanOutputNode) with succes, hash: 3772375986
+Descriptor for node 3772375986
+: 
+{
+  "name": "Ejecter",
+  "hash": 3772375986
+}
+Node Jog/Calibrate !!! created (VirtualBooleanOutputNode) with succes, hash: 3874886927
+Descriptor for node 3874886927
+: 
+{
+  "name": "Calibrate !!!",
+  "hash": 3874886927
+}
+Node Jog/v_servoOn created (VirtualBooleanOutputNode) with succes, hash: 1581937258
+Descriptor for node 1581937258
+: 
+{
+  "name": "v_servoOn",
+  "hash": 1581937258
+}
+Node Jog/v_flipFlopScie created (VirtualBooleanOutputNode) with succes, hash: 1291836804
+Descriptor for node 1291836804
+: 
+{
+  "name": "v_flipFlopScie",
+  "hash": 1291836804
+}
+Node Jog/v_immediateStop created (VirtualBooleanOutputNode) with succes, hash: 4098079457
+Descriptor for node 4098079457
+: 
+{
+  "name": "v_immediateStop",
+  "hash": 4098079457
+}
+Node Jog/v_alarmsReset created (VirtualBooleanOutputNode) with succes, hash: 1771340376
+Descriptor for node 1771340376
+: 
+{
+  "name": "v_alarmsReset",
+  "hash": 1771340376
+}
+Section name: Drive Status
+hardware: virtual
+type: tx-bool
+Node Drive Status/servoReady created (VirtualBooleanOutputNode) with succes, hash: 1948505786
+Descriptor for node 1948505786
+: 
+{
+  "name": "servoReady",
+  "component": "rx-indicator",
+  "hash": 1948505786
+}
+Node Drive Status/servoActivated created (VirtualBooleanOutputNode) with succes, hash: 3387538036
+Descriptor for node 3387538036
+: 
+{
+  "name": "servoActivated",
+  "hash": 3387538036
+}
+Node Drive Status/zeroSpeed created (VirtualBooleanOutputNode) with succes, hash: 343892977
+Descriptor for node 343892977
+: 
+{
+  "name": "zeroSpeed",
+  "hash": 343892977
+}
+Node Drive Status/targetSpeedRated created (VirtualBooleanOutputNode) with succes, hash: 1762420137
+Descriptor for node 1762420137
+: 
+{
+  "name": "targetSpeedRated",
+  "hash": 1762420137
+}
+Node Drive Status/AtTarget created (VirtualBooleanOutputNode) with succes, hash: 3030039596
+Descriptor for node 3030039596
+: 
+{
+  "name": "AtTarget",
+  "hash": 3030039596
+}
+Node Drive Status/servoAlarm created (VirtualBooleanOutputNode) with succes, hash: 3569748327
+Descriptor for node 3569748327
+: 
+{
+  "name": "servoAlarm",
+  "hash": 3569748327
+}
+Node Drive Status/absolutPositionLost created (VirtualBooleanOutputNode) with succes, hash: 773850583
+Descriptor for node 773850583
+: 
+{
+  "name": "absolutPositionLost",
+  "hash": 773850583
+}
+Node Drive Status/batteryAlarm created (VirtualBooleanOutputNode) with succes, hash: 1101239736
+Descriptor for node 1101239736
+: 
+{
+  "name": "batteryAlarm",
+  "hash": 1101239736
+}
+Node Drive Status/multipleTurnsOverflow created (VirtualBooleanOutputNode) with succes, hash: 2620738621
+Descriptor for node 2620738621
+: 
+{
+  "name": "multipleTurnsOverflow",
+  "hash": 2620738621
+}
+Node Drive Status/puuOverflow created (VirtualBooleanOutputNode) with succes, hash: 570368243
+Descriptor for node 570368243
+: 
+{
+  "name": "puuOverflow",
+  "hash": 570368243
+}
+Node Drive Status/absoluteCoordonateNotSet created (VirtualBooleanOutputNode) with succes, hash: 4234803574
+Descriptor for node 4234803574
+: 
+{
+  "name": "absoluteCoordonateNotSet",
+  "hash": 4234803574
+}
+Node Drive Status/homeDone created (VirtualBooleanOutputNode) with succes, hash: 2166030126
+Descriptor for node 2166030126
+: 
+{
+  "name": "homeDone",
+  "hash": 2166030126
+}
+Node Drive Status/modbusError created (VirtualBooleanOutputNode) with succes, hash: 1552688811
+Descriptor for node 1552688811
+: 
+{
+  "name": "modbusError",
+  "hash": 1552688811
+}
+Node Drive Status/driveInitialised created (VirtualBooleanOutputNode) with succes, hash: 3779480165
+Descriptor for node 3779480165
+: 
+{
+  "name": "driveInitialised",
+  "hash": 3779480165
+}
+Section name: Inputs
+hardware: virtual
+type: tx-uint32
+Node Inputs/vjog speed created (VirtualUint32OutputNode) with succes, hash: 2984797290
+Descriptor for node 2984797290
+: 
+{
+  "name": "vjog speed",
+  "hash": 2984797290
+}
+Node Inputs/vcycle speed created (VirtualUint32OutputNode) with succes, hash: 1951357668
+Descriptor for node 1951357668
+: 
+{
+  "name": "vcycle speed",
+  "hash": 1951357668
+}
+Node Inputs/Torque Ctrl created (VirtualUint32OutputNode) with succes, hash: 3526906192
+Descriptor for node 3526906192
+: 
+{
+  "name": "Torque Ctrl",
+  "hash": 3526906192
+}
+Node Inputs/Nb cycles voulus created (VirtualUint32OutputNode) with succes, hash: 1168588921
+Descriptor for node 1168588921
+: 
+{
+  "name": "Nb cycles voulus",
+  "hash": 1168588921
+}
+Node Inputs/Nb cycles effectués created (VirtualUint32OutputNode) with succes, hash: 3018797200
+Descriptor for node 3018797200
+: 
+{
+  "name": "Nb cycles effectués",
+  "hash": 3018797200
+}
+Node Inputs/Nb Cycles clear created (VirtualUint32OutputNode) with succes, hash: 362298148
+Descriptor for node 362298148
+: 
+{
+  "name": "Nb Cycles clear",
+  "hash": 362298148
+}
+Node Inputs/v_start created (VirtualUint32OutputNode) with succes, hash: 824782083
+Descriptor for node 824782083
+: 
+{
+  "name": "v_start",
+  "hash": 824782083
+}
+Node Inputs/Cancel cycle created (VirtualUint32OutputNode) with succes, hash: 2539529911
+Descriptor for node 2539529911
+: 
+{
+  "name": "Cancel cycle",
+  "hash": 2539529911
+}
+Section name: Floats Inputs
+hardware: virtual
+type: tx-float
+Node Floats Inputs/Longueur brute created (VirtualFloatOutputNode) with succes, hash: 3749283751
+Descriptor for node 3749283751
+: 
+{
+  "name": "Longueur brute",
+  "hash": 3749283751
+}
+Node Floats Inputs/Longueur created (VirtualFloatOutputNode) with succes, hash: 2736300668
+Descriptor for node 2736300668
+: 
+{
+  "name": "Longueur",
+  "hash": 2736300668
+}
+Node Floats Inputs/Largeur created (VirtualFloatOutputNode) with succes, hash: 1041711882
+Descriptor for node 1041711882
+: 
+{
+  "name": "Largeur",
+  "hash": 1041711882
+}
+Node Floats Inputs/Offset chargement created (VirtualFloatOutputNode) with succes, hash: 1541073354
+Descriptor for node 1541073354
+: 
+{
+  "name": "Offset chargement",
+  "hash": 1541073354
+}
+Node Floats Inputs/Longueur du rebut created (VirtualFloatOutputNode) with succes, hash: 3335850172
+Descriptor for node 3335850172
+: 
+{
+  "name": "Longueur du rebut",
+  "hash": 3335850172
+}
+Node Floats Inputs/butée droite created (VirtualFloatOutputNode) with succes, hash: 3132370279
+Descriptor for node 3132370279
+: 
+{
+  "name": "butée droite",
+  "hash": 3132370279
+}
+Node Floats Inputs/Position actuelle en inch created (VirtualFloatOutputNode) with succes, hash: 666618897
+Descriptor for node 666618897
+: 
+{
+  "name": "Position actuelle en inch",
+  "hash": 666618897
+}
+Section name: DropDown Inputs
+hardware: virtual
+type: tx-text
+Node DropDown Inputs/Choix Recette created (VirtualTextOutputNode) with succes, hash: 2565368844
+Descriptor for node 2565368844
+: 
+{
+  "name": "Choix Recette",
+  "items": [
+    "Crème glacée",
+    "Chocolat",
+    "Reine Elizabeth"
+  ],
+  "hash": 2565368844
+}
+Section name: Servo read holding register
+hardware: SureServo
+type: ModbusReadHoldingRegister
+2366:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo read holding register/status created with succes with type ModbusReadHoldingRegister, hash: 4137233651, address: 127, offset: 92, refresh interval: 0, web refresh interval 0
+Descriptor for node 4137233651
+: 
+{
+  "name": "status",
+  "hash": 4137233651
+}
+Node Servo read holding register/absolute coordonate system status created with succes with type ModbusReadHoldingRegister, hash: 4098304980, address: 127, offset: 100, refresh interval: 0, web refresh interval 0
+Descriptor for node 4098304980
+: 
+{
+  "name": "absolute coordonate system status",
+  "component": "no-show",
+  "refreshInterval": 0,
+  "hash": 4098304980
+}
+Node Servo read holding register/alarms created with succes with type ModbusReadHoldingRegister, hash: 4126332617, address: 127, offset: 2, refresh interval: 0, web refresh interval 0
+Descriptor for node 4126332617
+: 
+{
+  "name": "alarms",
+  "hash": 4126332617
+}
+Node Servo read holding register/trigger read created with succes with type ModbusReadHoldingRegister, hash: 4059768218, address: 127, offset: 1294, refresh interval: 0, web refresh interval 0
+Descriptor for node 4059768218
+: 
+{
+  "name": "trigger read",
+  "hash": 4059768218
+}
+Node Servo read holding register/jog speed read created with succes with type ModbusReadHoldingRegister, hash: 4031699079, address: 127, offset: 1034, refresh interval: 0, web refresh interval 0
+Descriptor for node 4031699079
+: 
+{
+  "name": "jog speed read",
+  "hash": 4031699079
+}
+Section name: Servo write holding register
+hardware: SureServo
+type: ModbusWriteHoldingRegister
+2614:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo write holding register/aux_function created with succes with type ModbusWriteHoldingRegister, hash: 2308213873, address: 127, offset: 572
+Descriptor for node 2308213873
+: 
+{
+  "name": "aux_function",
+  "hash": 2308213873
+}
+Node Servo write holding register/trigger created with succes with type ModbusWriteHoldingRegister, hash: 748480285, address: 127, offset: 1294
+Descriptor for node 748480285
+: 
+{
+  "name": "trigger",
+  "hash": 748480285
+}
+Node Servo write holding register/jog speed created with succes with type ModbusWriteHoldingRegister, hash: 3187488644, address: 127, offset: 1034
+Descriptor for node 3187488644
+: 
+{
+  "name": "jog speed",
+  "hash": 3187488644
+}
+Node Servo write holding register/Max torque created with succes with type ModbusWriteHoldingRegister, hash: 3740987040, address: 127, offset: 370
+Descriptor for node 3740987040
+: 
+{
+  "name": "Max torque",
+  "hash": 3740987040
+}
+Section name: Num Status
+hardware: SureServo
+type: ModbusReadDobbleHoldingRegister
+2826:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Num Status/Position created with succes with type ModbusReadDoubleHoldingRegisters, hash: 4045003206, address: 127, offset: 22, refresh interval: 1000, web refresh interval 0
+Descriptor for node 4045003206
+: 
+{
+  "name": "Position",
+  "hash": 4045003206,
+  "refreshInterval": 1000
+}
+Node Num Status/target A Read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2843041799, address: 127, offset: 1542, refresh interval: 0, web refresh interval 0
+Descriptor for node 2843041799
+: 
+{
+  "name": "target A Read",
+  "hash": 2843041799
+}
+Node Num Status/target B Read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2152625540, address: 127, offset: 1546, refresh interval: 0, web refresh interval 0
+Descriptor for node 2152625540
+: 
+{
+  "name": "target B Read",
+  "hash": 2152625540
+}
+Node Num Status/PR speed read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 1103145540, address: 127, offset: 1540, refresh interval: 0, web refresh interval 0
+Descriptor for node 1103145540
+: 
+{
+  "name": "PR speed read",
+  "hash": 1103145540
+}
+Node Num Status/Target C read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 3626159173, address: 127, offset: 1550, refresh interval: 0, web refresh interval 0
+Descriptor for node 3626159173
+: 
+{
+  "name": "Target C read",
+  "hash": 3626159173
+}
+Section name: Servo write dobble holding registers
+hardware: SureServo
+type: ModbusWriteDobbleHoldingRegister
+3082:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo write dobble holding registers/target A created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2532989225, address: 127, offset: 1542
+Descriptor for node 2532989225
+: 
+{
+  "name": "target A",
+  "hash": 2532989225
+}
+Node Servo write dobble holding registers/target B created with succes with type ModbusWriteDoubleHoldingRegister, hash: 3432736329, address: 127, offset: 1546
+Descriptor for node 3432736329
+: 
+{
+  "name": "target B",
+  "hash": 3432736329
+}
+Node Servo write dobble holding registers/PR1 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 1282109782, address: 127, offset: 1540
+Descriptor for node 1282109782
+: 
+{
+  "name": "PR1 speed",
+  "hash": 1282109782
+}
+Node Servo write dobble holding registers/PR2 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2019104905, address: 127, offset: 1544
+Descriptor for node 2019104905
+: 
+{
+  "name": "PR2 speed",
+  "hash": 2019104905
+}
+Node Servo write dobble holding registers/PR3 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 4171829142, address: 127, offset: 1548
+Descriptor for node 4171829142
+: 
+{
+  "name": "PR3 speed",
+  "hash": 4171829142
+}
+Node Servo write dobble holding registers/PR3 data created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2731028726, address: 127, offset: 1550
+Descriptor for node 2731028726
+: 
+{
+  "name": "PR3 data",
+  "hash": 2731028726
+}
+PLC_InterfaceMenu initialized
+Will parse the interface file
+3331:: Try to read json from file: /interface.json
+JSON parsing successful - parsing nodes
+Found 3 pages
+Page: Page principale
+Will parse section: Opération
+Found 7 nodes in section Opération
+Will parse section: Jog
+Found 5 nodes in section Jog
+Page: Monitoring
+Will parse section: Commandes de calibration
+Found 2 nodes in section Commandes de calibration
+Will parse section: États du servo
+Found 6 nodes in section États du servo
+Will parse section: Alarmes
+Found 7 nodes in section Alarmes
+Will parse section: États du système
+Found 4 nodes in section États du système
+Page: Configuration
+Will parse section: Paramètres machine
+Found 7 nodes in section Paramètres machine
+Will parse section: Vitesses et compteurs
+Found 6 nodes in section Vitesses et compteurs
+Will parse section: Test
+Found 4 nodes in section Test
+Interface file parsed with success
+Loop on nodes to set node name from the interface file
+MenuNode: Start Cycle in section Opération, hash: 824782083
+Node name set: Opération/Start Cycle
+MenuNode: Stop cycle in section Opération, hash: 2539529911
+Node name set: Opération/Stop cycle
+MenuNode: Reset défauts in section Opération, hash: 1771340376
+Node name set: Opération/Reset défauts
+MenuNode: Alarme Servo in section Opération, hash: 3569748327
+Node name set: Opération/Alarme Servo
+MenuNode: Nb cycles effectués in section Opération, hash: 3018797200
+Node name set: Opération/Nb cycles effectués
+MenuNode: Reset compteur cycles in section Opération, hash: 362298148
+Node name set: Opération/Reset compteur cycles
+MenuNode: Position Park in section Opération, hash: 431233
+Node name set: Opération/Position Park
+MenuNode: Jog Mode in section Jog, hash: 627952477
+Node name set: Jog/Jog Mode
+MenuNode: Jog + in section Jog, hash: 2405696470
+Node name set: Jog/Jog +
+MenuNode: Jog - in section Jog, hash: 936928435
+Node name set: Jog/Jog -
+MenuNode: Position actuelle in section Jog, hash: 666618897
+Node name set: Jog/Position actuelle
+MenuNode: Longueur brute in section Jog, hash: 3749283751
+Node name set: Jog/Longueur brute
+MenuNode: Calibrer in section Commandes de calibration, hash: 3874886927
+Node name set: Commandes de calibration/Calibrer
+MenuNode: Aller à la référence in section Commandes de calibration, hash: 1483048151
+Node name set: Commandes de calibration/Aller à la référence
+MenuNode: Servo Ready in section États du servo, hash: 1948505786
+Node name set: États du servo/Servo Ready
+MenuNode: Servo Activé in section États du servo, hash: 3387538036
+Node name set: États du servo/Servo Activé
+MenuNode: Vitesse Zéro in section États du servo, hash: 343892977
+Node name set: États du servo/Vitesse Zéro
+MenuNode: Vitesse Cible Atteinte in section États du servo, hash: 1762420137
+Node name set: États du servo/Vitesse Cible Atteinte
+MenuNode: Position Cible Atteinte in section États du servo, hash: 3030039596
+Node name set: États du servo/Position Cible Atteinte
+MenuNode: Home effectué in section États du servo, hash: 2166030126
+Node name set: États du servo/Home effectué
+MenuNode: Alarme Servo in section Alarmes, hash: 3569748327
+Node name set: Alarmes/Alarme Servo
+MenuNode: Position Absolue Perdue in section Alarmes, hash: 773850583
+Node name set: Alarmes/Position Absolue Perdue
+MenuNode: Alarme Batterie in section Alarmes, hash: 1101239736
+Node name set: Alarmes/Alarme Batterie
+MenuNode: Overflow Tours Multiples in section Alarmes, hash: 2620738621
+Node name set: Alarmes/Overflow Tours Multiples
+MenuNode: Overflow PUU in section Alarmes, hash: 570368243
+Node name set: Alarmes/Overflow PUU
+MenuNode: Coordonnées Absolues Non Définies in section Alarmes, hash: 4234803574
+Node name set: Alarmes/Coordonnées Absolues Non Définies
+MenuNode: Erreur Modbus in section Alarmes, hash: 1552688811
+Node name set: Alarmes/Erreur Modbus
+MenuNode: Pression d'air in section États du système, hash: 998762341
+Node name set: États du système/Pression d'air
+MenuNode: Capteur cylindres in section États du système, hash: 134240750
+Node name set: États du système/Capteur cylindres
+MenuNode: E-Stop in section États du système, hash: 721063196
+Node name set: États du système/E-Stop
+MenuNode: Drive Initialisé in section États du système, hash: 3779480165
+Node name set: États du système/Drive Initialisé
+MenuNode: Choix Recette in section Paramètres machine, hash: 2565368844
+Node name set: Paramètres machine/Choix Recette
+MenuNode: Longueur brute in section Paramètres machine, hash: 3749283751
+Node name set: Paramètres machine/Longueur brute
+MenuNode: Longueur in section Paramètres machine, hash: 2736300668
+Node name set: Paramètres machine/Longueur
+MenuNode: Largeur in section Paramètres machine, hash: 1041711882
+Node name set: Paramètres machine/Largeur
+MenuNode: Longueur de rebut in section Paramètres machine, hash: 3335850172
+Node name set: Paramètres machine/Longueur de rebut
+MenuNode: Offset chargement in section Paramètres machine, hash: 1541073354
+Node name set: Paramètres machine/Offset chargement
+MenuNode: Butée droite in section Paramètres machine, hash: 3132370279
+Node name set: Paramètres machine/Butée droite
+MenuNode: Vitesse Cycle in section Vitesses et compteurs, hash: 1951357668
+Node name set: Vitesses et compteurs/Vitesse Cycle
+MenuNode: Vitesse Jog in section Vitesses et compteurs, hash: 3187488644
+Node name set: Vitesses et compteurs/Vitesse Jog
+MenuNode: Contrôle Couple in section Vitesses et compteurs, hash: 3526906192
+Node name set: Vitesses et compteurs/Contrôle Couple
+MenuNode: Nb cycles voulus in section Vitesses et compteurs, hash: 1168588921
+Node name set: Vitesses et compteurs/Nb cycles voulus
+MenuNode: Nb cycles effectués in section Vitesses et compteurs, hash: 3018797200
+Node name set: Vitesses et compteurs/Nb cycles effectués
+MenuNode: Full torque in section Vitesses et compteurs, hash: 313736047
+Node name set: Vitesses et compteurs/Full torque
+MenuNode: Scier in section Test, hash: 1291836804
+Node name set: Test/Scier
+MenuNode: Éjecter in section Test, hash: 3772375986
+Node name set: Test/Éjecter
+MenuNode: Servo on off in section Test, hash: 1581937258
+Node name set: Test/Servo on off
+MenuNode: Stop immediat in section Test, hash: 4098079457
+Node name set: Test/Stop immediat
+List of files in the root directory:
+Formaca.json
+Formaca.v1.json
+config.json
+config.v1.json
+index.html
+index.js
+interface.json
+reboot_log.json
+reboot_log.v1.json
+renderers.json
+End of BorneUniversel constuctor, nb nodes: 74
+[TaskInfo] Number of tasks: 6 at 4 s
+4442:: Transition from UNDEFINED to INITIALIZING (previousState: UNDEFINED)
+Constructeur class Formaca
+4443:: Try to read json from file: /Formaca.json
+Selected recette from config: 11 7/8
+Recette name: 11 7/8
+Machine name received: Formaca scie, machine name ref: Formaca scie
+Persistance parameters
+----------------------
+Home position: 700
+Référence: 3101409
+Longeur brute: 96.00
+Offset parque: 0.50
+Longeur du rebut: 6.00
+Butée droite: 97.00
+Nb recettes: 1
+Recettes
+--------
+    Name: 11 7/8
+    Long lenght: 11.88
+    Angle: 45.00
+    Width: 3.50
+
+Selected recette: 11 7/8
+Selected recette found: 11 7/8
+Fin du constructeur Formaca
+Will get next wifi network
+Current wifi: Mexique, item: 0
+Try to connect to: Mexique, SSID: PosadaLaHacienda, PWD: Chispas2020
+Wifi is with DHCP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Help
+-----------
+Version du firmware: Version 2.2, date de compilation: Apr  8 2025 13:48:38
+ATTENTION LE MODULE N'EST PAS CONNECTE AU WIFI !!!!!!!!!!!!!!!!!!!!!!!!!!
+Tapez sur 'A' ou 'a' pour effacer les réseaux wifi
+Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config
+Tapez sur 'C' pour imprimer le fichier de config
+Tapez sur 'D' pour envoyer un message de test
+Tapez sur 'E' pour notifier le client web
+Tapez sur 'F' pour imprimer le fichier de persistance
+Tapez sur 'G' pour afficher la mémoire de manière cyclique
+Tapez sur 'Y' pour faire un reset
+Tapez sur 'Z' pour afficher modifier les logs
+Tapez sur '?' pour afficher l'aide
+Input node: États du système/E-Stop is up now
+4841:: node: États du système/E-Stop, new value: true
+Input node: États du système/Pression d'air is up now
+4848:: node: États du système/Pression d'air, new value: true
+4884:: node: Num Status/PR speed read, new value: 786434
+4922:: node: Num Status/target B Read, new value: 226005
+4956:: node: Num Status/target A Read, new value: 45891
+5025:: node: Servo read holding register/jog speed read, new value: 20
+5049:: node: Num Status/Position, new value: 225991
+5073:: node: Servo read holding register/trigger read, new value: 10002
+5164:: node: Servo read holding register/status, new value: 261
+5242::driveInitialisation: phase: 0
+Status changed: 261
+Will set updateNeeded to true for node États du servo/Servo Ready, new value: true
+Servo ready: true
+Will set updateNeeded to true for node États du servo/Vitesse Zéro, new value: true
+Target position reached: false
+Servo alarm: false
+Will set updateNeeded to true for node États du servo/Home effectué, new value: true
+Home done: true
+5274::New lowest free heap: 147204 bytes
+5274::New lowest max bloc: 53236 bytes
+5274::New lowest free PSRAM: 0 bytes
+5390:: Uint16OutputNode::node: Servo write holding register/aux_function, new value: 5
+5606::driveInitialisation: phase: 1
+Will set updateNeeded to true for node Outputs Kincony/servoOn, new value: true
+Status changed: 261
+Servo ready: true
+Target position reached: false
+Servo alarm: false
+Home done: true
+5617::New lowest free heap: 147200 bytes
+Memory loss: 4 bytes in 353 ms (11.33 bytes/sec average)
+5835:: node: Servo read holding register/trigger read, new value: 20002
+5926:: node: Servo read holding register/status, new value: 407
+5930::driveInitialisation: phase: 2
+Status changed: 407
+Servo ready: true
+Will set updateNeeded to true for node États du servo/Servo Activé, new value: true
+Will set updateNeeded to true for node États du servo/Position Cible Atteinte, new value: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+6166:: node: Num Status/Position, new value: 225990
+6283::driveInitialisation: phase: 3
+Servo drive initialisé, lecture des valeurs et préparation de l'interface
+--------------------------------------------------------------
+Jog speed lu: 20
+Uint32OutputNode:: setValue for node: Inputs/vjog speed: 20
+Uint32OutputNode:: setValue for node: Vitesses et compteurs/Vitesse Cycle: 12
+New user speed: 12. Will set register with value 0x000c0002
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/PR1 speed: 786434
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/PR2 speed: 786434
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/PR3 speed: 786434
+6334:: SUCCESS: Cycle speed updated
+PR1 speed lue du drive et isolée: 12
+Uint32OutputNode:: setValue for node: Vitesses et compteurs/Contrôle Couple: 100
+Will set updateNeeded to true for node États du système/Drive Initialisé, new value: true
+6355:: SUCCESS: Servo drive initialisé
+--------------------------------------------------------------
+6365:: Transition from INITIALIZING to IDLE (previousState: UNDEFINED)
+6445:: Uint32OutputNode::node: Servo write dobble holding registers/PR1 speed, new value: 786434
+6455:: Uint32OutputNode::node: Vitesses et compteurs/Vitesse Cycle, new value: 12
+6480:: Uint32OutputNode::node: Servo write dobble holding registers/PR2 speed, new value: 786434
+6540:: Uint32OutputNode::node: Inputs/vjog speed, new value: 20
+6570:: Uint16OutputNode::node: Vitesses et compteurs/Vitesse Jog, new value: 20
+6575:: Uint32OutputNode::node: Vitesses et compteurs/Contrôle Couple, new value: 100
+6633:: Uint16OutputNode::node: Servo write holding register/Max torque, new value: 100
+6809:: Uint32OutputNode::node: Servo write dobble holding registers/PR3 speed, new value: 786434
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Wifi disconnected
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: Alexis, item: 1
+Try to connect to: Alexis, SSID: TELUSAFF7, PWD: h6vJ96UKmUr7
+Wifi is with DHCP
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+7475::New lowest free heap: 146940 bytes
+Memory loss: 260 bytes in 1858 ms (142.09 bytes/sec average)
+7486::New lowest max bloc: 49140 bytes
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Wifi disconnected
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: EDMG_Thierry, item: 2
+Try to connect to: EDMG_Thierry, SSID: Ella, PWD: Oceanne1
+Wifi is with DHCP
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+9976::New lowest free heap: 146536 bytes
+Memory loss: 404 bytes in 2501 ms (267.09 bytes/sec average)
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+10500:: Connected to AP successfully, SSID: Ella, level: -53 [dB]
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+10578::New lowest free heap: 146124 bytes
+Memory loss: 412 bytes in 603 ms (1791.04 bytes/sec average)
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+11525::New lowest free heap: 146020 bytes
+Memory loss: 104 bytes in 947 ms (1250.26 bytes/sec average)
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+WiFi connected, IP address: 192.168.1.82, level: -55 [dB]
+MDNS responder started with name Formaca
+Web server started !
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+12125::New lowest free heap: 122560 bytes
+Memory loss: 23460 bytes in 599 ms (41141.90 bytes/sec average)
+12136::New lowest max bloc: 45044 bytes
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+12469::New lowest free heap: 121684 bytes
+Memory loss: 740 bytes in 344 ms (73790.70 bytes/sec average)
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+12781::New lowest free heap: 121656 bytes
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+[ 13183][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[ 13193][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[ 13201][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[ 13209][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+13215:: Page not found !, requested url: /cgi-bin/configManager.cgi
+[ 13235][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[ 13241][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[ 13250][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[ 13261][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+13267:: Page not found !, requested url: /cgi-bin/configManager.cgi
+[ 13287][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[ 13293][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[ 13302][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[ 13315][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+13319:: Page not found !, requested url: /cgi-bin/configManager.cgi
+onWsEvent::Connect !!!
+13335:: There are now 1 webMessages on the list (to be processed)
+BorneUniverselle::processMessage: receive get all states request
+13548:: Node notify: Opération/Position Park new value: false
+Will notify for node: Opération/Position Park
+13559:: Node notify: États du système/Capteur cylindres new value: false
+Will notify for node: États du système/Capteur cylindres
+13570:: Node notify: Vitesses et compteurs/Full torque new value: false
+13577:: There are now 1 webMessages on the list (to be processed)
+Will notify for node: Vitesses et compteurs/Full torque
+13591:: Node notify: États du servo/Vitesse Zéro new value: true
+Will notify for node: États du servo/Vitesse Zéro
+13602:: Node notify (uint32 output): Opération/Reset compteur cycles new value: 0
+Will notify for node: Opération/Reset compteur cycles
+13612:: Node notify: Alarmes/Overflow PUU new value: false
+Will notify for node: Alarmes/Overflow PUU
+13623:: Node notify: Jog/Jog Mode new value: false
+Will notify for node: Jog/Jog Mode
+13623:: Node notify (float output): Jog/Position actuelle new value: 7.137
+Will notify for node: Jog/Position actuelle
+13634:: Node notify: États du système/E-Stop new value: true
+Will notify for node: États du système/E-Stop
+13645:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 0
+Will notify for node: Servo write holding register/trigger
+13655:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+13666:: Node notify: Alarmes/Position Absolue Perdue new value: false
+Will notify for node: Alarmes/Position Absolue Perdue
+13676:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+Will notify for node: Opération/Start Cycle
+13687:: Node notify: Jog/Jog - new value: false
+Will notify for node: Jog/Jog -
+13697:: Node notify: États du système/Pression d'air new value: true
+Will notify for node: États du système/Pression d'air
+13708:: Node notify (float output): Paramètres machine/Largeur new value: 0.000
+Will notify for node: Paramètres machine/Largeur
+13718:: Node notify: Alarmes/Alarme Batterie new value: false
+Will notify for node: Alarmes/Alarme Batterie
+13729:: Node notify: Num Status/PR speed read (Uint32InputNode) new value: 786434
+Will notify for node: Num Status/PR speed read
+13739:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles voulus new value: 0
+Will notify for node: Vitesses et compteurs/Nb cycles voulus
+13750:: Node notify (uint32 output): Servo write dobble holding registers/PR1 speed new value: 786434
+Will notify for node: Servo write dobble holding registers/PR1 speed
+13771:: Node notify: Test/Scier new value: false
+Will notify for node: Test/Scier
+13781:: Node notify: Commandes de calibration/Aller à la référence new value: false
+Will notify for node: Commandes de calibration/Aller à la référence
+13792:: Node notify (float output): Paramètres machine/Offset chargement new value: 0.000
+Will notify for node: Paramètres machine/Offset chargement
+13802:: Node notify: Alarmes/Erreur Modbus new value: false
+Will notify for node: Alarmes/Erreur Modbus
+13813:: Node notify: Test/Servo on off new value: false
+Will notify for node: Test/Servo on off
+13823:: Node notify: Direct outputs/Buzzer new value: false
+Will notify for node: Direct outputs/Buzzer
+13834:: Node notify: États du servo/Vitesse Cible Atteinte new value: false
+Will notify for node: États du servo/Vitesse Cible Atteinte
+13844:: Node notify: Opération/Reset défauts new value: false
+Will notify for node: Opération/Reset défauts
+13855:: Node notify: États du servo/Servo Ready new value: true
+Will notify for node: États du servo/Servo Ready
+13865:: Node notify (uint32 output): Vitesses et compteurs/Vitesse Cycle new value: 12
+Will notify for node: Vitesses et compteurs/Vitesse Cycle
+13876:: Node notify (uint32 output): Servo write dobble holding registers/PR2 speed new value: 786434
+Will notify for node: Servo write dobble holding registers/PR2 speed
+13886:: Node notify: Outputs Kincony/alarmsReset new value: false
+Will notify for node: Outputs Kincony/alarmsReset
+13897:: Node notify: Num Status/target B Read (Uint32InputNode) new value: 226005
+Will notify for node: Num Status/target B Read
+13918:: Node notify: États du servo/Home effectué new value: true
+Will notify for node: États du servo/Home effectué
+13928:: Node notify: Outputs Kincony/Do home new value: false
+Will notify for node: Outputs Kincony/Do home
+13928:: Node notify (Uint16OutputNode): Servo write holding register/aux_function new value: 5
+Will notify for node: Servo write holding register/aux_function
+13949:: Node notify: Jog/Jog + new value: false
+Will notify for node: Jog/Jog +
+13949:: Node notify (uint32 output): Servo write dobble holding registers/target A new value: 0
+Will notify for node: Servo write dobble holding registers/target A
+13970:: Node notify (uint32 output): Opération/Stop cycle new value: 0
+Will notify for node: Opération/Stop cycle
+13981:: Node notify: Paramètres machine/Choix Recette new value: 11 7/8
+addNodeToNodeObject:: Node Paramètres machine/Choix Recette with hash 2565368844 has a descriptor callback
+13991:: Try to read json from file: /Formaca.json
+Formaca::getDropDownDescriptorHandler
+Selected recette: 11 7/8
+Selected recette found: 11 7/8
+No descriptor key found in nodeObject, will add custom descriptor
+JSON Object Content:
+-----------------
+{
+  "hash": 2565368844
+  "descriptor":   {
+    "recettes":     [
+            {
+        "name": "11 7/8"
+      }
+    ]
+    "value": "11 7/8"
+  }
+}
+-----------------
+addNodeToNodeObject:: Node Paramètres machine/Choix Recette with hash 2565368844 custom descriptor added
+NodeObject au retour de addCustomDescriptor:
+JSON Object Content:
+-----------------
+{
+  "hash": 2565368844
+  "descriptor":   {
+    "recettes":     [
+            {
+        "name": "11 7/8"
+      }
+    ]
+    "value": "11 7/8"
+  }
+}
+-----------------
+Will notify for node: Paramètres machine/Choix Recette
+14129:: Node notify: Alarmes/Overflow Tours Multiples new value: false
+Will notify for node: Alarmes/Overflow Tours Multiples
+14129:: Node notify (uint32 output): Servo write dobble holding registers/PR3 data new value: 0
+Will notify for node: Servo write dobble holding registers/PR3 data
+14150:: Node notify (float output): Paramètres machine/Longueur new value: 0.000
+Will notify for node: Paramètres machine/Longueur
+14152:: There are now 2 webMessages on the list (to be processed)
+14162:: Node notify: Num Status/target A Read (Uint32InputNode) new value: 45891
+Will notify for node: Num Status/target A Read
+14172:: Node notify: Jog/Scier new value: false
+Will notify for node: Jog/Scier
+14183:: Node notify: Outputs Kincony/servoOn new value: true
+Will notify for node: Outputs Kincony/servoOn
+14193:: Node notify (uint32 output): Inputs/vjog speed new value: 20
+Will notify for node: Inputs/vjog speed
+14204:: Node notify: Inputs Kincony/StartCycle new value: false
+Will notify for node: Inputs Kincony/StartCycle
+14214:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles effectués new value: 0
+Will notify for node: Vitesses et compteurs/Nb cycles effectués
+14225:: Node notify: États du servo/Position Cible Atteinte new value: true
+Will notify for node: États du servo/Position Cible Atteinte
+14235:: Node notify: Jog/Go home new value: false
+Will notify for node: Jog/Go home
+14246:: Node notify (float output): Paramètres machine/Butée droite new value: 0.000
+Will notify for node: Paramètres machine/Butée droite
+14257:: Node notify (Uint16OutputNode): Vitesses et compteurs/Vitesse Jog new value: 20
+Will notify for node: Vitesses et compteurs/Vitesse Jog
+14267:: Node notify (float output): Paramètres machine/Longueur de rebut new value: 0.000
+Will notify for node: Paramètres machine/Longueur de rebut
+14288:: Node notify: États du servo/Servo Activé new value: true
+Will notify for node: États du servo/Servo Activé
+14299:: Node notify (uint32 output): Servo write dobble holding registers/target B new value: 0
+Will notify for node: Servo write dobble holding registers/target B
+14309:: Node notify: Outputs Kincony/immediatStop new value: false
+Will notify for node: Outputs Kincony/immediatStop
+14320:: Node notify (uint32 output): Vitesses et compteurs/Contrôle Couple new value: 100
+Will notify for node: Vitesses et compteurs/Contrôle Couple
+14330:: Node notify: Alarmes/Alarme Servo new value: false
+Will notify for node: Alarmes/Alarme Servo
+14341:: Node notify: Num Status/Target C read (Uint32InputNode) new value: 0
+Will notify for node: Num Status/Target C read
+14351:: Node notify (Uint16OutputNode): Servo write holding register/Max torque new value: 100
+Will notify for node: Servo write holding register/Max torque
+14372:: Node notify (float output): Paramètres machine/Longueur brute new value: 0.000
+Will notify for node: Paramètres machine/Longueur brute
+14382:: Node notify: Test/Éjecter new value: false
+Will notify for node: Test/Éjecter
+14393:: Node notify: États du système/Drive Initialisé new value: true
+Will notify for node: États du système/Drive Initialisé
+14404:: Node notify: Commandes de calibration/Calibrer new value: false
+Will notify for node: Commandes de calibration/Calibrer
+14414:: Node notify (Uint16InputNode): Servo read holding register/jog speed read new value: 20
+Will notify for node: Servo read holding register/jog speed read
+14425:: Node notify: Num Status/Position (Uint32InputNode) new value: 225990
+Will notify for node: Num Status/Position
+14435:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20002
+Will notify for node: Servo read holding register/trigger read
+14446:: Node notify: Test/Stop immediat new value: false
+Will notify for node: Test/Stop immediat
+14456:: Node notify (Uint16InputNode): Servo read holding register/absolute coordonate system status new value: 0
+Will notify for node: Servo read holding register/absolute coordonate system status
+14477:: Node notify (Uint16InputNode): Servo read holding register/alarms new value: 0
+Will notify for node: Servo read holding register/alarms
+14487:: Node notify (Uint16InputNode): Servo read holding register/status new value: 407
+Will notify for node: Servo read holding register/status
+14498:: Node notify (uint32 output): Servo write dobble holding registers/PR3 speed new value: 786434
+Will notify for node: Servo write dobble holding registers/PR3 speed
+14519:: Node notify: Alarmes/Coordonnées Absolues Non Définies new value: false
+Will notify for node: Alarmes/Coordonnées Absolues Non Définies
+
+Will display notify message, size: 2465
+{
+  "states": [
+    {
+      "hash": 431233,
+      "value": false
+    },
+    {
+      "hash": 134240750,
+      "value": false
+    },
+    {
+      "hash": 313736047,
+      "value": false
+    },
+    {
+      "hash": 343892977,
+      "value": true
+    },
+    {
+      "hash": 362298148,
+      "value": 0
+    },
+    {
+      "hash": 570368243,
+      "value": false
+    },
+    {
+      "hash": 627952477,
+      "value": false
+    },
+    {
+      "hash": 666618897,
+      "value": 7.137262
+    },
+    {
+      "hash": 721063196,
+      "value": true
+    },
+    {
+      "hash": 748480285,
+      "value": 0
+    },
+    {
+      "hash": 756474627,
+      "value": false
+    },
+    {
+      "hash": 773850583,
+      "value": false
+    },
+    {
+      "hash": 824782083,
+      "value": 0
+    },
+    {
+      "hash": 936928435,
+      "value": false
+    },
+    {
+      "hash": 998762341,
+      "value": true
+    },
+    {
+      "hash": 1041711882,
+      "value": 0
+    },
+    {
+      "hash": 1101239736,
+      "value": false
+    },
+    {
+      "hash": 1103145540,
+      "value": 786434
+    },
+    {
+      "hash": 1168588921,
+      "value": 0
+    },
+    {
+      "hash": 1282109782,
+      "value": 786434
+    },
+    {
+      "hash": 1291836804,
+      "value": false
+    },
+    {
+      "hash": 1483048151,
+      "value": false
+    },
+    {
+      "hash": 1541073354,
+      "value": 0
+    },
+    {
+      "hash": 1552688811,
+      "value": false
+    },
+    {
+      "hash": 1581937258,
+      "value": false
+    },
+    {
+      "hash": 1711197005,
+      "value": false
+    },
+    {
+      "hash": 1762420137,
+      "value": false
+    },
+    {
+      "hash": 1771340376,
+      "value": false
+    },
+    {
+      "hash": 1948505786,
+      "value": true
+    },
+    {
+      "hash": 1951357668,
+      "value": 12
+    },
+    {
+      "hash": 2019104905,
+      "value": 786434
+    },
+    {
+      "hash": 2122812135,
+      "value": false
+    },
+    {
+      "hash": 2152625540,
+      "value": 226005
+    },
+    {
+      "hash": 2166030126,
+      "value": true
+    },
+    {
+      "hash": 2206102162,
+      "value": false
+    },
+    {
+      "hash": 2308213873,
+      "value": 5
+    },
+    {
+      "hash": 2405696470,
+      "value": false
+    },
+    {
+      "hash": 2532989225,
+      "value": 0
+    },
+    {
+      "hash": 2539529911,
+      "value": 0
+    },
+    {
+      "hash": 2565368844,
+      "descriptor": {
+        "recettes": [
+          {
+            "name": "11 7/8"
+          }
+        ],
+        "value": "11 7/8"
+      }
+    },
+    {
+      "hash": 2620738621,
+      "value": false
+    },
+    {
+      "hash": 2731028726,
+      "value": 0
+    },
+    {
+      "hash": 2736300668,
+      "value": 0
+    },
+    {
+      "hash": 2843041799,
+      "value": 45891
+    },
+    {
+      "hash": 2853133322,
+      "value": false
+    },
+    {
+      "hash": 2864105056,
+      "value": true
+    },
+    {
+      "hash": 2984797290,
+      "value": 20
+    },
+    {
+      "hash": 2986050054,
+      "value": false
+    },
+    {
+      "hash": 3018797200,
+      "value": 0
+    },
+    {
+      "hash": 3030039596,
+      "value": true
+    },
+    {
+      "hash": 3099259876,
+      "value": false
+    },
+    {
+      "hash": 3132370279,
+      "value": 0
+    },
+    {
+      "hash": 3187488644,
+      "value": 20
+    },
+    {
+      "hash": 3335850172,
+      "value": 0
+    },
+    {
+      "hash": 3387538036,
+      "value": true
+    },
+    {
+      "hash": 3432736329,
+      "value": 0
+    },
+    {
+      "hash": 3505331062,
+      "value": false
+    },
+    {
+      "hash": 3526906192,
+      "value": 100
+    },
+    {
+      "hash": 3569748327,
+      "value": false
+    },
+    {
+      "hash": 3626159173,
+      "value": 0
+    },
+    {
+      "hash": 3740987040,
+      "value": 100
+    },
+    {
+      "hash": 3749283751,
+      "value": 0
+    },
+    {
+      "hash": 3772375986,
+      "value": false
+    },
+    {
+      "hash": 3779480165,
+      "value": true
+    },
+    {
+      "hash": 3874886927,
+      "value": false
+    },
+    {
+      "hash": 4031699079,
+      "value": 20
+    },
+    {
+      "hash": 4045003206,
+      "value": 225990
+    },
+    {
+      "hash": 4059768218,
+      "value": 20002
+    },
+    {
+      "hash": 4098079457,
+      "value": false
+    },
+    {
+      "hash": 4098304980,
+      "value": 0
+    },
+    {
+      "hash": 4126332617,
+      "value": 0
+    },
+    {
+      "hash": 4137233651,
+      "value": 407
+    },
+    {
+      "hash": 4171829142,
+      "value": 786434
+    },
+    {
+      "hash": 4234803574,
+      "value": false
+    }
+  ]
+}
+14949:: End notifyWebClient all states: duration: 1401
+handleWebSocketMessage:: message processing duration: 1404, message: {"allStatesRequest":true}
+Lopp time: 1881
+14973::New lowest free heap: 112524 bytes
+Memory loss: 9328 bytes in 2182 ms (15908.34 bytes/sec average)
+15027:: There are now 1 webMessages on the list (to be processed)
+BorneUniverselle::processMessage: initial state loaded
+NEW CLIENT CONNECTED AND LOADED!!!!!!!!!!!!!!!!!!!!!!
+Preparing recette: 11 7/8
+DropDown::setItems, received document
+
+Render::sendJson, json send to the client
+Nouveau choix de recette: 11 7/8, id: 0
+Longueur perdue à cause de la demi-épaisseur de la lame: 0.0884 [inch], angle: 45.00
+Longueur du rebus: 0.09
+Will set parameters to the web client
+Will set updateNeeded to true for node Test/Servo on off, new value: true
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+Nouvelle position de parc: 45891 pulses, soit 1.45 inch
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+17405:: Node notify (float output): Paramètres machine/Largeur new value: 3.500
+17410:: late hearbeat send
+Will notify for node: Paramètres machine/Largeur
+17411:: Node notify (float output): Paramètres machine/Offset chargement new value: 0.500
+Will notify for node: Paramètres machine/Offset chargement
+17432:: There are now 1 webMessages on the list (to be processed)
+17433:: Node notify: Test/Servo on off new value: true
+Will notify for node: Test/Servo on off
+17444:: Node notify (float output): Paramètres machine/Longueur new value: 11.875
+Will notify for node: Paramètres machine/Longueur
+17455:: Node notify (float output): Paramètres machine/Butée droite new value: 97.000
+Will notify for node: Paramètres machine/Butée droite
+17466:: Node notify (float output): Paramètres machine/Longueur de rebut new value: 6.000
+Will notify for node: Paramètres machine/Longueur de rebut
+17477:: Node notify (float output): Paramètres machine/Longueur brute new value: 96.000
+Will notify for node: Paramètres machine/Longueur brute
+
+Will display notify message, size: 236
+{
+  "states": [
+    {
+      "hash": 1041711882,
+      "value": 3.5
+    },
+    {
+      "hash": 1541073354,
+      "value": 0.5
+    },
+    {
+      "hash": 1581937258,
+      "value": true
+    },
+    {
+      "hash": 2736300668,
+      "value": 11.875
+    },
+    {
+      "hash": 3132370279,
+      "value": 97
+    },
+    {
+      "hash": 3335850172,
+      "value": 6
+    },
+    {
+      "hash": 3749283751,
+      "value": 96
+    }
+  ]
+}Lopp time: 2565
+[ 29619][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi.gz does not exist, no permits for creation
+[ 29629][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi does not exist, no permits for creation
+[ 29638][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi/index.html.gz does not exist, no permits for creation
+[ 29648][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/eventManager.cgi/index.html does not exist, no permits for creation
+29650:: Page not found !, requested url: /cgi-bin/eventManager.cgi
+30175:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 1
+Node: Opération/Start Cycle new value: 1
+End Web socket nodes change received
+
+30193:: Transition from IDLE to PARKING (previousState: UNDEFINED)
+30194:: Node notify (uint32 output): Opération/Start Cycle new value: 1
+Will notify for node: Opération/Start Cycle
+
+Will display notify message, size: 41
+{
+  "states": [
+    {
+      "hash": 824782083,
+      "value": 1
+    }
+  ]
+}30236:: Uint32OutputNode::node: Opération/Start Cycle, new value: 1
+ETAT PARKING: Will call goToParkPosition()
+30568:: Going to position: 45891 (inch: 1.449339) with current pr: 1
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/target A: 45891
+Go to park position: 45891 puu soit 1.45 inch
+30579:: Transition from PARKING to TRIGGER_PENDING (previousState: PARKING)
+30591:: Node notify (uint32 output): Servo write dobble holding registers/target A new value: 45891
+Will notify for node: Servo write dobble holding registers/target A
+
+Will display notify message, size: 46
+{
+  "states": [
+    {
+      "hash": 2532989225,
+      "value": 45891
+    }
+  ]
+}30731:: Uint32OutputNode::node: Servo write dobble holding registers/target A, new value: 45891
+30946:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 0
+Node: Opération/Start Cycle new value: 0
+End Web socket nodes change received
+
+ETAT TRIGGER_PENDING
+30960:: Trigger sent (pr: 1), returning to PARKING
+30961:: Transition from TRIGGER_PENDING to PARKING (previousState: PARKING)
+30972:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 1
+Will notify for node: Servo write holding register/trigger
+30983:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+Will notify for node: Opération/Start Cycle
+
+Will display notify message, size: 70
+{
+  "states": [
+    {
+      "hash": 748480285,
+      "value": 1
+    },
+    {
+      "hash": 824782083,
+      "value": 0
+    }
+  ]
+}31045:: Uint16OutputNode::node: Servo write holding register/trigger, new value: 1
+31048:: Uint32OutputNode::node: Opération/Start Cycle, new value: 0
+31240:: node: Servo read holding register/trigger read, new value: 20001
+31338:: PARKING: Waiting for position, targetReached=1, zeroSpeed=1, time=378
+31341:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20001
+Will notify for node: Servo read holding register/trigger read
+
+Will display notify message, size: 46
+{
+  "states": [
+    {
+      "hash": 4059768218,
+      "value": 20001
+    }
+  ]
+}31582:: node: Num Status/Position, new value: 45891
+31700:: PARKING: Waiting for position, targetReached=1, zeroSpeed=1, time=740
+31701:: Node notify (float output): Jog/Position actuelle new value: 1.449
+Will notify for node: Jog/Position actuelle
+31718:: Node notify: Num Status/Position (Uint32InputNode) new value: 45891
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 82
+{
+  "states": [
+    {
+      "hash": 666618897,
+      "value": 1.449339
+    },
+    {
+      "hash": 4045003206,
+      "value": 45891
+    }
+  ]
+}32049:: Transition from PARKING to IDLE (previousState: PARKING)
+38044:: There are now 1 webMessages on the list (to be processed)
+38335:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 1
+Node: Opération/Start Cycle new value: 1
+End Web socket nodes change received
+
+Uint32OutputNode:: setValue for node: Vitesses et compteurs/Nb cycles effectués: 1
+38353:: Transition from IDLE to WASTE_CUTTING (previousState: PARKING)
+38364:: Node notify (uint32 output): Opération/Start Cycle new value: 1
+Will notify for node: Opération/Start Cycle
+38376:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles effectués new value: 1
+Will notify for node: Vitesses et compteurs/Nb cycles effectués
+
+Will display notify message, size: 71
+{
+  "states": [
+    {
+      "hash": 824782083,
+      "value": 1
+    },
+    {
+      "hash": 3018797200,
+      "value": 1
+    }
+  ]
+}38418:: Uint32OutputNode::node: Opération/Start Cycle, new value: 1
+38524:: Uint32OutputNode::node: Vitesses et compteurs/Nb cycles effectués, new value: 1
+38696:: handleNodesChange: Web socket nodes change received. Uint32OutputNode:: setValue for node: Opération/Start Cycle: 0
+Node: Opération/Start Cycle new value: 0
+End Web socket nodes change received
+
+38712:: Début du cycle: on va couper le rebus
+38713:: Going to position: 226005 (inch: 7.137736) with current pr: 2
+Uint32OutputNode:: setValue for node: Servo write dobble holding registers/target B: 226005
+38724:: Transition from WASTE_CUTTING to TRIGGER_PENDING (previousState: PARKING)
+38735:: Node notify (uint32 output): Opération/Start Cycle new value: 0
+Will notify for node: Opération/Start Cycle
+38747:: Node notify (uint32 output): Servo write dobble holding registers/target B new value: 226005
+Will notify for node: Servo write dobble holding registers/target B
+
+Will display notify message, size: 76
+{
+  "states": [
+    {
+      "hash": 824782083,
+      "value": 0
+    },
+    {
+      "hash": 3432736329,
+      "value": 226005
+    }
+  ]
+}38789:: Uint32OutputNode::node: Opération/Start Cycle, new value: 0
+38926:: Uint32OutputNode::node: Servo write dobble holding registers/target B, new value: 226005
+ETAT TRIGGER_PENDING
+39144:: Trigger sent (pr: 2), returning to WASTE_CUTTING
+39145:: Transition from TRIGGER_PENDING to WASTE_CUTTING (previousState: WASTE_CUTTING)
+39156:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 2
+Will notify for node: Servo write holding register/trigger
+
+Will display notify message, size: 41
+{
+  "states": [
+    {
+      "hash": 748480285,
+      "value": 2
+    }
+  ]
+}39218:: Uint16OutputNode::node: Servo write holding register/trigger, new value: 2
+39411:: node: Servo read holding register/trigger read, new value: 20002
+39505:: WASTE_CUTTING: Waiting for position, targetReached=1, zeroSpeed=1, time=361
+39508:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20002
+Will notify for node: Servo read holding register/trigger read
+
+Will display notify message, size: 46
+{
+  "states": [
+    {
+      "hash": 4059768218,
+      "value": 20002
+    }
+  ]
+}39840:: WASTE_CUTTING: Waiting for position, targetReached=1, zeroSpeed=1, time=696
+40059:: node: Num Status/Position, new value: 226005
+40176:: WASTE_CUTTING: Position reached, moving to SAWING
+40177:: Transition from WASTE_CUTTING to SAWING (previousState: WASTE_CUTTING)
+40189:: Node notify: Num Status/Position (Uint32InputNode) new value: 226005
+Will notify for node: Num Status/Position
+
+Will display notify message, size: 47
+{
+  "states": [
+    {
+      "hash": 4045003206,
+      "value": 226005
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+40512:: Start scie
+40513:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+40834:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+[ 42683][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[ 42691][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[ 42700][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[ 42712][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+42714:: Page not found !, requested url: /cgi-bin/configManager.cgi
+[ 42739][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[ 42749][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[ 42757][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[ 42766][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+42770:: Page not found !, requested url: /cgi-bin/configManager.cgi
+[ 42795][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi.gz does not exist, no permits for creation
+[ 42803][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi does not exist, no permits for creation
+[ 42812][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html.gz does not exist, no permits for creation
+[ 42823][E][vfs_api.cpp:105] open(): /littlefs/cgi-bin/configManager.cgi/index.html does not exist, no permits for creation
+42826:: Page not found !, requested url: /cgi-bin/configManager.cgi
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+45670:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+45972:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+46281:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+46625:: Start scie
+46626:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+46951:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+51675:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)
+51976:: Transition from SAWING_WAIT to NORMAL_CUTTING (previousState: WASTE_CUTTING)
+52278:: Transition from NORMAL_CUTTING to SAWING (previousState: WASTE_CUTTING)
+Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: true
+52588:: Start scie
+52589:: Node notify: Outputs Kincony/Flip flop scie new value: true
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 44
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": true
+    }
+  ]
+}Will set updateNeeded to true for node Outputs Kincony/Flip flop scie, new value: false
+Fin du flip flop de la scie
+52943:: Node notify: Outputs Kincony/Flip flop scie new value: false
+Will notify for node: Outputs Kincony/Flip flop scie
+
+Will display notify message, size: 45
+{
+  "states": [
+    {
+      "hash": 756474627,
+      "value": false
+    }
+  ]
+}Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+Fin du flip flop de la scie
+57686:: Transition from SAWING to SAWING_WAIT (previousState: WASTE_CUTTING)

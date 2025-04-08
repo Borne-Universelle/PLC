@@ -9300,6 +9300,8 @@ class TxString extends ConnectedElement {
 
 window.customElements.define('tx-string', TxString);
 
+//import { ConnectedElement } from "./connected-element.js";
+
 class InterfaceEditor extends ConnectedElement {
     constructor() {
         super();
@@ -9309,13 +9311,15 @@ class InterfaceEditor extends ConnectedElement {
         this.rendererDescriptors = null;
         this.currentFile = 'interface.json'; // Fichier par défaut
         this.jsonFiles = ['interface.json', 'config.json']; // Liste initiale
+        this.fileContentResolve = null;
+        this.fileContentReject = null;
 
         const template = document.createElement('template');
         template.innerHTML = `
             <style>
                 .edit-btn {
                     --sl-button-font-size-medium: 0.5rem;
-                    --sl-button-height-medium: 0.5rem;
+                    --sl-button-height-medium: .5rem;
                     --sl-button-padding-x: 0.5rem;
                 }
 
@@ -9520,6 +9524,24 @@ class InterfaceEditor extends ConnectedElement {
                 select:required:invalid {
                     border-color: var(--sl-color-danger-500);
                 }
+                
+                .loading-indicator {
+                    display: none;
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    text-align: center;
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    z-index: 10001;
+                }
+                
+                .loading-indicator.active {
+                    display: block;
+                }
             </style>
 
             <div class="interface-edit-card">
@@ -9531,28 +9553,70 @@ class InterfaceEditor extends ConnectedElement {
     }
 
     async fetchJsonFiles() {
-        try {
-            const isESP32 = this.socket?.url?.includes('/ws');
-            let files = [];
-
-            if (isESP32) {
-                const response = await fetch('/fs/list');
-                if (!response.ok) throw new Error('No file listing endpoint');
-                const data = await response.json();
-                files = data.files.filter(f => f.endsWith('.json'));
-            }
-
-            this.jsonFiles = files.length > 0 ? files : ['interface.json', 'config.json'];
-            if (!this.jsonFiles.includes(this.currentFile)) {
-                this.currentFile = this.jsonFiles[0];
-            }
-            return this.jsonFiles;
-        } catch (err) {
-            console.warn('Falling back to default files:', err);
-            this.jsonFiles = ['interface.json', 'config.json'];
-            return this.jsonFiles;
-        }
-    }
+      return new Promise((resolve, reject) => {
+          let timeoutId;
+          try {
+              const isESP32 = this.socket?.url?.includes('/ws');
+              if (!isESP32 || !this.socket) {
+                  console.warn('No WebSocket connection, using default files');
+                  this.jsonFiles = ['interface.json', 'config.json'];
+                  resolve(this.jsonFiles);
+                  return;
+              }
+  
+              // Configurer le handler pour la réponse de directory
+              const messageHandler = (files) => {
+                  console.log("Directory response received:", files);
+                  const jsonFiles = files
+                      .filter(file => file.endsWith('.json'))
+                      .map(file => file.startsWith('/') ? file.substring(1) : file);
+                  
+                  this.jsonFiles = jsonFiles.length > 0 ? jsonFiles : ['interface.json', 'config.json'];
+                  
+                  if (!this.jsonFiles.includes(this.currentFile)) {
+                      this.currentFile = this.jsonFiles[0];
+                  }
+                  
+                  this.socket.removeTarget("Directory");
+                  clearTimeout(timeoutId);
+                  resolve(this.jsonFiles);
+              };
+  
+              // Enregistrer le handler pour les réponses de directory
+              this.socket.setTarget("Directory", messageHandler);
+  
+              // Formuler EXACTEMENT la même demande que dans le code original
+              console.log("Sending directory request");
+              const request = {
+                  "directory": true,
+                  "filter": "*.json"
+              };
+              
+              // Envoyer la demande via WebSocket exactement comme avant
+              const jsonMessage = JSON.stringify(request);
+              console.log("Sending:", jsonMessage);
+              this.socket.websocket.send(jsonMessage);
+  
+              // Configurer un timeout pour éviter de bloquer indéfiniment
+              timeoutId = setTimeout(() => {
+                  if (this.socket) {
+                      this.socket.removeTarget("Directory");
+                  }
+                  console.warn('WebSocket timeout, falling back to default files');
+                  this.jsonFiles = ['interface.json', 'config.json'];
+                  resolve(this.jsonFiles);
+              }, 5000);
+          } catch (err) {
+              if (this.socket) {
+                  this.socket.removeTarget("Directory");
+              }
+              clearTimeout(timeoutId);
+              console.error('Error fetching files, using defaults:', err);
+              this.jsonFiles = ['interface.json', 'config.json'];
+              reject(err);
+          }
+      });
+  }
 
     createInterface() {
         this.removeExistingInterfaces();
@@ -9576,6 +9640,9 @@ class InterfaceEditor extends ConnectedElement {
                     <sl-button class="save-btn" variant="primary">Save</sl-button>
                 </div>
             </div>
+            <div class="loading-indicator">
+                <p>Loading file content...</p>
+            </div>
         `;
 
         document.body.appendChild(mainEditor);
@@ -9589,6 +9656,7 @@ class InterfaceEditor extends ConnectedElement {
         this.fileInput = mainEditor.querySelector('#json-upload');
         this.cancelBtn = mainEditor.querySelector('.cancel-btn');
         this.saveBtn = mainEditor.querySelector('.save-btn');
+        this.loadingIndicator = mainEditor.querySelector('.loading-indicator');
 
         this.populateFileSelector();
         this.updateEditorState(this.currentFile);
@@ -9625,13 +9693,13 @@ class InterfaceEditor extends ConnectedElement {
         const reader = new FileReader();
         reader.onload = async (e) => {
             const content = e.target.result;
-            console.log('1. Contenu brut lu par FileReader:', content);
+            console.log('1. Contenu brut lu par FileReader:', content.substring(0, 100) + '...');
     
             try {
                 // Étape 1 : Vérification du JSON
                 console.log('2. Tentative de parsing JSON...');
                 const parsedJson = JSON.parse(content);
-                console.log('3. JSON parsé avec succès:', parsedJson);
+                console.log('3. JSON parsé avec succès');
     
                 // Étape 2 : Mise à jour de l'interface (sans upload serveur)
                 window.notify({ type: "success", name: "Success", desc: `${file.name} loaded locally` });
@@ -9648,7 +9716,7 @@ class InterfaceEditor extends ConnectedElement {
                     this.createInterface();
                 }
                 this.textarea.value = content;
-                console.log('6. Textarea mis à jour avec:', this.textarea.value);
+                console.log('6. Textarea mis à jour');
                 this.updateEditorState(this.currentFile);
                 console.log('7. État de l\'éditeur mis à jour pour:', this.currentFile);
             } catch (err) {
@@ -9724,6 +9792,7 @@ class InterfaceEditor extends ConnectedElement {
 
         this.forceButtonStyles();
 
+        // Attach event handlers
         this.mainEditor.querySelector('.add-section-btn')?.addEventListener('click', () => this.showAddSectionDialog());
         this.mainEditor.querySelector('.add-node-btn')?.addEventListener('click', () => this.showAddNodeDialog());
         this.mainEditor.querySelector('.remove-node-btn')?.addEventListener('click', () => this.showRemoveNodeDialog());
@@ -9775,23 +9844,52 @@ class InterfaceEditor extends ConnectedElement {
     }
 
     async loadFileContent() {
-        try {
-            const response = await fetch(`/${this.currentFile}`);
-            const content = await response.text();
-            const parsedContent = JSON.parse(content);
-            this.textarea.value = JSON.stringify(parsedContent, null, 2);
-            if (this.currentFile === 'config.json') {
-                this.configData = parsedContent;
-            } else if (this.currentFile === 'interface.json') {
-                this.interfaceData = parsedContent;
+      try {
+          this.showLoading(true);
+          console.log(`Loading file content for: ${this.currentFile}`);
+          
+          // Use HTTP fetch as the only method
+          const response = await fetch(`/${this.currentFile}`);
+          
+          if (!response.ok) {
+              throw new Error(`HTTP request failed with status ${response.status}`);
+          }
+          
+          const content = await response.text();
+          const parsedContent = JSON.parse(content);
+          
+          // Update the interface and store the data
+          this.textarea.value = JSON.stringify(parsedContent, null, 2);
+          
+          if (this.currentFile === 'config.json') {
+              this.configData = parsedContent;
+          } else if (this.currentFile === 'interface.json') {
+              this.interfaceData = parsedContent;
+          } else if (this.currentFile === 'renderers.json') {
+              this.rendererDescriptors = parsedContent;
+          }
+          
+          console.log(`Successfully loaded ${this.currentFile}`);
+          
+      } catch (err) {
+          console.error('Error loading file content:', err);
+          window.notify({
+              type: "error",
+              name: "Error",
+              desc: `Failed to load ${this.currentFile}: ${err.message}`
+          });
+      } finally {
+          this.showLoading(false);
+      }
+  }
+
+    showLoading(show) {
+        if (this.loadingIndicator) {
+            if (show) {
+                this.loadingIndicator.classList.add('active');
+            } else {
+                this.loadingIndicator.classList.remove('active');
             }
-        } catch (err) {
-            console.error('Error loading file:', err);
-            window.notify({
-                type: "error",
-                name: "Error",
-                desc: `Failed to load ${this.currentFile}`
-            });
         }
     }
 
@@ -9806,31 +9904,43 @@ class InterfaceEditor extends ConnectedElement {
     async saveChanges() {
         try {
             const content = this.textarea.value;
-            JSON.parse(content);
-            const isESP32 = this.socket?.url?.includes('/ws');
-
-            if (isESP32) {
-                this.socket.sendMessage("saveFile", [{ path: `/${this.currentFile}`, data: content }]);
-                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} saved to ESP32` });
-            } else {
-                const response = await fetch(`/fs/save`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: `/${this.currentFile}`, content })
-                });
-                if (!response.ok) throw new Error('Save failed');
-                window.notify({ type: "success", name: "Success", desc: `${this.currentFile} saved successfully` });
+            JSON.parse(content); // Validate JSON format
+            
+            if (!this.socket) {
+                throw new Error("Socket not available");
             }
-
+            
+            this.showLoading(true);
+            
+            // Send the save command via WebSocket
+            const filePath = this.currentFile.startsWith('/') 
+                ? this.currentFile 
+                : '/' + this.currentFile;
+                
+            this.socket.sendMessage("saveFile", [{ 
+                path: filePath, 
+                data: content 
+            }]);
+            
+            window.notify({ 
+                type: "success", 
+                name: "Success", 
+                desc: `${this.currentFile} saved to ESP32` 
+            });
+            
             this.closeEditor();
-            if (this.socket) this.socket.sendMessage("allStatesRequest", true);
+            
+            // Request state refresh
+            this.socket.sendMessage("allStatesRequest", true);
         } catch (err) {
             console.error('Save failed:', err);
             window.notify({
                 type: "error",
                 name: "Error",
-                desc: err instanceof SyntaxError ? "Invalid JSON format" : `Failed to save ${this.currentFile}`
+                desc: err instanceof SyntaxError ? "Invalid JSON format" : `Failed to save ${this.currentFile}: ${err.message}`
             });
+        } finally {
+            this.showLoading(false);
         }
     }
 
@@ -9842,40 +9952,1723 @@ class InterfaceEditor extends ConnectedElement {
     }
 
     disconnectedCallback() {
-        this.removeExistingInterfaces();
-        this.editBtn?.removeEventListener('click', this.openEditor);
-        if (this.uploadBtn) this.uploadBtn.removeEventListener('click', () => this.fileInput.click());
-        if (this.fileInput) this.fileInput.removeEventListener('change', () => this.uploadFile());
-        if (this.downloadBtn) this.downloadBtn.removeEventListener('click', () => this.downloadFile());
-        if (this.cancelBtn) this.cancelBtn.removeEventListener('click', () => this.closeEditor());
-        if (this.saveBtn) this.saveBtn.removeEventListener('click', () => this.saveChanges());
-        if (this.fileSelect) this.fileSelect.removeEventListener('change', (event) => {
-            this.currentFile = event.target.value;
-            this.updateEditorState(this.currentFile);
-            this.loadFileContent();
-        });
-    }
+      this.removeExistingInterfaces();
+      this.editBtn?.removeEventListener('click', this.openEditor);
+      
+      // Clean up event listeners
+      if (this.uploadBtn) this.uploadBtn.removeEventListener('click', () => this.fileInput.click());
+      if (this.fileInput) this.fileInput.removeEventListener('change', () => this.uploadFile());
+      if (this.downloadBtn) this.downloadBtn.removeEventListener('click', () => this.downloadFile());
+      if (this.cancelBtn) this.cancelBtn.removeEventListener('click', () => this.closeEditor());
+      if (this.saveBtn) this.saveBtn.removeEventListener('click', () => this.saveChanges());
+      if (this.fileSelect) this.fileSelect.removeEventListener('change', () => {});
+      
+      // Clean up socket targets
+      if (this.socket) {
+          this.socket.removeTarget("directory");
+      }
+  }
 
     render() {}
     update() {}
 
-    // Méthodes placeholders pour éviter les erreurs (à implémenter selon vos besoins)
-    showAddSectionDialog() { console.log('Add Section Dialog'); }
-    showAddNodeDialog() { console.log('Add Node Dialog'); }
-    showRemoveNodeDialog() { console.log('Remove Node Dialog'); }
-    showRemoveSectionDialog() { console.log('Remove Section Dialog'); }
-    showAddWifiDialog() { console.log('Add WiFi Dialog'); }
-    showEditWifiDialog() { console.log('Edit WiFi Dialog'); }
-    showRemoveWifiDialog() { console.log('Remove WiFi Dialog'); }
-    showEditNodeNameDialog() { console.log('Edit Node Name Dialog'); }
-    showEditPasswordDialog() { console.log('Edit Password Dialog'); }
-    async loadConfigData() { console.log('Load Config Data'); }
-    async loadRendererDescriptors() { console.log('Load Renderer Descriptors'); }
-    removeExistingInterfaces() { 
-        document.querySelectorAll('.main-editor-backdrop').forEach(el => el.remove());
-        this.mainEditorBackdrop = null;
+    // Méthodes d'édition pour l'interface.json
+    showAddSectionDialog() {
+        // Vérifier que nous avons chargé les données d'interface
+        if (!this.interfaceData || !this.interfaceData.pages) {
+            this.interfaceData = JSON.parse(this.textarea.value);
+            if (!this.interfaceData.pages) {
+                window.notify({
+                    type: "error", 
+                    name: "Error", 
+                    desc: "Invalid interface structure. 'pages' not found."
+                });
+                return;
+            }
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Add New Section</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="page-select">Select Page:</label>
+                        <select id="page-select" required>
+                            ${this.interfaceData.pages.map((page, idx) => 
+                                `<option value="${idx}">${page.PageName}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="section-name">Section Name:</label>
+                        <input type="text" id="section-name" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="section-orientation">Orientation:</label>
+                        <select id="section-orientation">
+                            <option value="horizontal">Horizontal</option>
+                            <option value="vertical">Vertical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="success">Add Section</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Event handlers
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const pageIndex = parseInt(modal.querySelector('#page-select').value);
+            const sectionName = modal.querySelector('#section-name').value.trim();
+            const orientation = modal.querySelector('#section-orientation').value;
+
+            if (!sectionName) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Section name is required"
+                });
+                return;
+            }
+
+            // Create new section
+            const newSection = {
+                SectionName: sectionName,
+                orientation: orientation,
+                NodesList: []
+            };
+
+            // Add to the selected page
+            const page = this.interfaceData.pages[pageIndex];
+            if (!page.sections) {
+                page.sections = [];
+            }
+            page.sections.push(newSection);
+
+            // Update the textarea with the modified data
+            this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `Section "${sectionName}" added to page "${page.PageName}"`
+            });
+
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showAddNodeDialog() {
+        // Parse current textarea content
+        try {
+            this.interfaceData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        if (!this.interfaceData || !this.interfaceData.pages || !this.availableNodes) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Required data not loaded"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Add Node to Section</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="node-page-select">Select Page:</label>
+                        <select id="node-page-select" required>
+                            ${this.interfaceData.pages.map((page, idx) => 
+                                `<option value="${idx}">${page.PageName}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-section-select">Select Section:</label>
+                        <select id="node-section-select" required>
+                            <option value="">Select a page first</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="component-type">Component Type:</label>
+                        <select id="component-type" required>
+                            <option value="rx-label">Label (display)</option>
+                            <option value="rx-indicator">Indicator (display)</option>
+                            <option value="rx-level-bar">Level bar (display)</option>
+                            <option value="rx-numeric">Numeric (display)</option>
+                            <option value="tx-button">Button</option>
+                            <option value="tx-button-hold">Hold Button</option>
+                            <option value="tx-bool">Switch</option>
+                            <option value="tx-dropdown">Dropdown</option>
+                            <option value="tx-numeric">Numeric Input</option>
+                            <option value="tx-slider">Slider</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-select">Select Node:</label>
+                        <select id="node-select" required>
+                            <option value="">Loading nodes...</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-name">Display Name:</label>
+                        <input type="text" id="node-name" required>
+                    </div>
+                    <div id="component-properties" class="component-properties">
+                        <div class="component-properties-title">Component Properties</div>
+                        <!-- Dynamic properties will be added here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="success">Add Node</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const pageSelect = modal.querySelector('#node-page-select');
+        const sectionSelect = modal.querySelector('#node-section-select');
+        const componentTypeSelect = modal.querySelector('#component-type');
+        const nodeSelect = modal.querySelector('#node-select');
+        const nodeName = modal.querySelector('#node-name');
+        const componentProperties = modal.querySelector('#component-properties');
+
+        // Update sections when page changes
+        const updateSections = () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const page = this.interfaceData.pages[pageIndex];
+            
+            sectionSelect.innerHTML = '';
+            
+            if (page.sections && page.sections.length > 0) {
+                page.sections.forEach((section, idx) => {
+                    const option = document.createElement('option');
+                    option.value = idx;
+                    option.textContent = section.SectionName;
+                    sectionSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No sections found";
+                sectionSelect.appendChild(option);
+            }
+        };
+
+        // Update node list
+        const updateNodesList = () => {
+            nodeSelect.innerHTML = '';
+            
+            if (!this.availableNodes || this.availableNodes.length === 0) {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No nodes available";
+                nodeSelect.appendChild(option);
+                return;
+            }
+            
+            this.availableNodes.forEach(node => {
+                const option = document.createElement('option');
+                option.value = node.hash;
+                option.textContent = `${node.name} (${node.hash})`;
+                nodeSelect.appendChild(option);
+            });
+            
+            // Set the first node as selected and update name field
+            if (this.availableNodes.length > 0) {
+                nodeSelect.value = this.availableNodes[0].hash;
+                nodeName.value = this.availableNodes[0].name;
+            }
+        };
+
+        // Update component properties
+        const updateComponentProperties = () => {
+            const componentType = componentTypeSelect.value;
+            componentProperties.innerHTML = '<div class="component-properties-title">Component Properties</div>';
+            
+            // Get renderer descriptors for this component type
+            const descriptors = this.rendererDescriptors && this.rendererDescriptors[componentType];
+            
+            // Add common properties
+            this.addComponentProperty(componentProperties, 'color', 'Color', 'select', false, [
+                { value: 'primary', label: 'Primary (blue)' },
+                { value: 'success', label: 'Success (green)' },
+                { value: 'warning', label: 'Warning (yellow)' },
+                { value: 'danger', label: 'Danger (red)' },
+                { value: 'neutral', label: 'Neutral (gray)' }
+            ]);
+            
+            // Add component-specific properties based on type
+            if (componentType === 'tx-bool') {
+                this.addComponentProperty(componentProperties, 'disable', 'Disabled', 'checkbox');
+            } else if (componentType === 'tx-button' || componentType === 'tx-button-hold') {
+                // Only color is needed, which is already added
+            } else if (componentType === 'tx-dropdown') {
+                this.addComponentProperty(componentProperties, 'items', 'Items (comma separated)', 'textarea');
+            } else if (componentType === 'tx-numeric') {
+                this.addComponentProperty(componentProperties, 'min', 'Minimum', 'number');
+                this.addComponentProperty(componentProperties, 'max', 'Maximum', 'number');
+                this.addComponentProperty(componentProperties, 'readonly', 'Read Only', 'checkbox');
+            } else if (componentType === 'tx-slider') {
+                this.addComponentProperty(componentProperties, 'min', 'Minimum', 'number');
+                this.addComponentProperty(componentProperties, 'max', 'Maximum', 'number');
+            } else if (componentType === 'rx-indicator') {
+                this.addComponentProperty(componentProperties, 'color', 'Color', 'text');
+                this.addComponentProperty(componentProperties, 'blink', 'Blinking', 'checkbox');
+            }
+        };
+
+        // Initialize component properties
+        updateComponentProperties();
+        
+        // Initialize sections list for the first page
+        updateSections();
+        
+        // Initialize nodes list
+        updateNodesList();
+
+        // Event listeners
+        pageSelect.addEventListener('change', updateSections);
+        componentTypeSelect.addEventListener('change', updateComponentProperties);
+        nodeSelect.addEventListener('change', () => {
+            // Update node name when selection changes
+            const selectedHash = nodeSelect.value;
+            const selectedNode = this.availableNodes.find(node => node.hash.toString() === selectedHash);
+            if (selectedNode) {
+                nodeName.value = selectedNode.name;
+            }
+        });
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const sectionIndex = parseInt(sectionSelect.value);
+            const componentType = componentTypeSelect.value;
+            const selectedHash = nodeSelect.value;
+            const displayName = nodeName.value.trim();
+            
+            if (!displayName) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Display name is required"
+                });
+                return;
+            }
+            
+            // Create new node object
+            const newNode = {
+                name: displayName,
+                component: componentType,
+                hash: parseInt(selectedHash)
+            };
+            
+            // Add properties
+            const props = this.getComponentProperties(componentProperties);
+            Object.assign(newNode, props);
+            
+            // Add node to the selected section
+            const page = this.interfaceData.pages[pageIndex];
+            const section = page.sections[sectionIndex];
+            
+            if (!section.NodesList) {
+                section.NodesList = [];
+            }
+            
+            section.NodesList.push(newNode);
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `Node "${displayName}" added to section "${section.SectionName}"`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showRemoveNodeDialog() {
+        // Parse current textarea content
+        try {
+            this.interfaceData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        if (!this.interfaceData || !this.interfaceData.pages) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Interface data not loaded"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Remove Node</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="remove-page-select">Select Page:</label>
+                        <select id="remove-page-select" required>
+                            ${this.interfaceData.pages.map((page, idx) => 
+                                `<option value="${idx}">${page.PageName}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="remove-section-select">Select Section:</label>
+                        <select id="remove-section-select" required>
+                            <option value="">Select a page first</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="remove-node-select">Select Node to Remove:</label>
+                        <select id="remove-node-select" required>
+                            <option value="">Select a section first</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="danger">Remove Node</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const pageSelect = modal.querySelector('#remove-page-select');
+        const sectionSelect = modal.querySelector('#remove-section-select');
+        const nodeSelect = modal.querySelector('#remove-node-select');
+
+        // Update sections when page changes
+        const updateSections = () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const page = this.interfaceData.pages[pageIndex];
+            
+            sectionSelect.innerHTML = '';
+            
+            if (page.sections && page.sections.length > 0) {
+                page.sections.forEach((section, idx) => {
+                    const option = document.createElement('option');
+                    option.value = idx;
+                    option.textContent = section.SectionName;
+                    sectionSelect.appendChild(option);
+                });
+                
+                // Trigger node update for the first section
+                sectionSelect.value = "0";
+                updateNodes();
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No sections found";
+                sectionSelect.appendChild(option);
+                
+                // Clear node select
+                nodeSelect.innerHTML = '';
+                const emptyOption = document.createElement('option');
+                emptyOption.value = "";
+                emptyOption.textContent = "No sections available";
+                nodeSelect.appendChild(emptyOption);
+            }
+        };
+
+        // Update nodes when section changes
+        const updateNodes = () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const sectionIndex = parseInt(sectionSelect.value);
+            
+            if (isNaN(pageIndex) || isNaN(sectionIndex)) {
+                nodeSelect.innerHTML = '';
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Invalid selection";
+                nodeSelect.appendChild(option);
+                return;
+            }
+            
+            const page = this.interfaceData.pages[pageIndex];
+            const section = page.sections[sectionIndex];
+            
+            nodeSelect.innerHTML = '';
+            
+            if (section.NodesList && section.NodesList.length > 0) {
+                section.NodesList.forEach((node, idx) => {
+                    const option = document.createElement('option');
+                    option.value = idx;
+                    option.textContent = node.name || `Node ${idx + 1}`;
+                    nodeSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No nodes found";
+                nodeSelect.appendChild(option);
+            }
+        };
+
+        // Initialize sections list for the first page
+        updateSections();
+
+        // Event listeners
+        pageSelect.addEventListener('change', updateSections);
+        sectionSelect.addEventListener('change', updateNodes);
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const sectionIndex = parseInt(sectionSelect.value);
+            const nodeIndex = parseInt(nodeSelect.value);
+            
+            if (isNaN(pageIndex) || isNaN(sectionIndex) || isNaN(nodeIndex)) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Please select a page, section, and node"
+                });
+                return;
+            }
+            
+            // Remove the node
+            const page = this.interfaceData.pages[pageIndex];
+            const section = page.sections[sectionIndex];
+            const nodeName = section.NodesList[nodeIndex].name || `Node ${nodeIndex + 1}`;
+            
+            section.NodesList.splice(nodeIndex, 1);
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `Node "${nodeName}" removed successfully`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showRemoveSectionDialog() {
+        // Parse current textarea content
+        try {
+            this.interfaceData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        if (!this.interfaceData || !this.interfaceData.pages) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Interface data not loaded"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Remove Section</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="remove-section-page-select">Select Page:</label>
+                        <select id="remove-section-page-select" required>
+                            ${this.interfaceData.pages.map((page, idx) => 
+                                `<option value="${idx}">${page.PageName}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="remove-section-select">Select Section to Remove:</label>
+                        <select id="remove-section-select" required>
+                            <option value="">Select a page first</option>
+                        </select>
+                    </div>
+                    <div class="warning-message" style="color: #dc3545; margin-top: 10px;">
+                        Warning: This will remove all nodes in the section!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="danger">Remove Section</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const pageSelect = modal.querySelector('#remove-section-page-select');
+        const sectionSelect = modal.querySelector('#remove-section-select');
+
+        // Update sections when page changes
+        const updateSections = () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const page = this.interfaceData.pages[pageIndex];
+            
+            sectionSelect.innerHTML = '';
+            
+            if (page.sections && page.sections.length > 0) {
+                page.sections.forEach((section, idx) => {
+                    const option = document.createElement('option');
+                    option.value = idx;
+                    option.textContent = section.SectionName;
+                    sectionSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "No sections found";
+                sectionSelect.appendChild(option);
+            }
+        };
+
+        // Initialize sections list for the first page
+        updateSections();
+
+        // Event listeners
+        pageSelect.addEventListener('change', updateSections);
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const pageIndex = parseInt(pageSelect.value);
+            const sectionIndex = parseInt(sectionSelect.value);
+            
+            if (isNaN(pageIndex) || isNaN(sectionIndex)) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Please select a page and section"
+                });
+                return;
+            }
+            
+            // Remove the section
+            const page = this.interfaceData.pages[pageIndex];
+            const sectionName = page.sections[sectionIndex].SectionName;
+            
+            page.sections.splice(sectionIndex, 1);
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `Section "${sectionName}" removed successfully`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    // Méthodes pour l'édition du fichier config.json
+    showAddWifiDialog() {
+        // Parse current textarea content
+        try {
+            this.configData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Add WiFi Configuration</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="wifi-name">Connection Name:</label>
+                        <input type="text" id="wifi-name" required placeholder="Home WiFi">
+                    </div>
+                    <div class="form-row">
+                        <label for="wifi-ssid">SSID:</label>
+                        <input type="text" id="wifi-ssid" required placeholder="MyNetwork">
+                    </div>
+                    <div class="form-row">
+                        <label for="wifi-pwd">Password:</label>
+                        <input type="password" id="wifi-pwd" required placeholder="password">
+                    </div>
+                    <div class="form-row">
+                        <label for="wifi-dhcp">DHCP:</label>
+                        <input type="checkbox" id="wifi-dhcp" checked>
+                    </div>
+                    <div id="static-ip-fields" style="display: none;">
+                        <div class="form-row">
+                            <label for="wifi-ip">IP Address:</label>
+                            <input type="text" id="wifi-ip" placeholder="192.168.1.100">
+                        </div>
+                        <div class="form-row">
+                            <label for="wifi-dns">DNS Server:</label>
+                            <input type="text" id="wifi-dns" placeholder="8.8.8.8">
+                        </div>
+                        <div class="form-row">
+                            <label for="wifi-gateway">Gateway:</label>
+                            <input type="text" id="wifi-gateway" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-row">
+                            <label for="wifi-mask">Subnet Mask:</label>
+                            <input type="text" id="wifi-mask" placeholder="255.255.255.0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="success">Add WiFi</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const dhcpCheckbox = modal.querySelector('#wifi-dhcp');
+        const staticIpFields = modal.querySelector('#static-ip-fields');
+
+        // Toggle static IP fields based on DHCP checkbox
+        dhcpCheckbox.addEventListener('change', () => {
+            staticIpFields.style.display = dhcpCheckbox.checked ? 'none' : 'block';
+        });
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const name = modal.querySelector('#wifi-name').value.trim();
+            const ssid = modal.querySelector('#wifi-ssid').value.trim();
+            const pwd = modal.querySelector('#wifi-pwd').value;
+            const dhcp = dhcpCheckbox.checked;
+            
+            if (!name || !ssid || !pwd) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Connection name, SSID, and Password are required"
+                });
+                return;
+            }
+            
+            // Create new WiFi config
+            const newWifi = {
+                name: name,
+                ssid: ssid,
+                pwd: pwd,
+                dhcp: dhcp
+            };
+            
+            if (!dhcp) {
+                const ip = modal.querySelector('#wifi-ip').value.trim();
+                const dns = modal.querySelector('#wifi-dns').value.trim();
+                const gateway = modal.querySelector('#wifi-gateway').value.trim();
+                const mask = modal.querySelector('#wifi-mask').value.trim();
+                
+                if (!ip || !dns || !gateway || !mask) {
+                    window.notify({
+                        type: "error", 
+                        name: "Validation Error", 
+                        desc: "IP, DNS, Gateway, and Subnet Mask are required for static IP"
+                    });
+                    return;
+                }
+                
+                newWifi.ip = ip;
+                newWifi.dns = dns;
+                newWifi.gateway = gateway;
+                newWifi.mask = mask;
+            }
+            
+                            // Find where to add the WiFi config in the config data
+            let wifiArray = null;
+            let wifiConfigItem = null;
+            
+            // Look for the WiFi array in the config
+            if (this.configData.config && Array.isArray(this.configData.config)) {
+                for (const item of this.configData.config) {
+                    if (item.Wifi && Array.isArray(item.Wifi)) {
+                        wifiArray = item.Wifi;
+                        wifiConfigItem = item;
+                        break;
+                    }
+                }
+            }
+            
+            // If no WiFi array found, create one
+            if (!wifiArray) {
+                wifiConfigItem = { Wifi: [] };
+                wifiArray = wifiConfigItem.Wifi;
+                
+                if (!this.configData.config) {
+                    this.configData.config = [];
+                }
+                
+                this.configData.config.push(wifiConfigItem);
+            }
+            
+            // Add the new WiFi config
+            wifiArray.push(newWifi);
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.configData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `WiFi configuration "${name}" added successfully`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showEditWifiDialog() {
+        // Parse current textarea content
+        try {
+            this.configData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        // Extract WiFi configs
+        const wifiConfigs = [];
+        if (this.configData.config && Array.isArray(this.configData.config)) {
+            for (const item of this.configData.config) {
+                if (item.Wifi && Array.isArray(item.Wifi)) {
+                    for (const wifi of item.Wifi) {
+                        wifiConfigs.push(wifi);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (wifiConfigs.length === 0) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "No WiFi configurations found"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Edit WiFi Configuration</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="wifi-select">Select WiFi:</label>
+                        <select id="wifi-select" required>
+                            ${wifiConfigs.map((wifi, idx) => 
+                                `<option value="${idx}">${wifi.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="edit-wifi-name">Connection Name:</label>
+                        <input type="text" id="edit-wifi-name" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="edit-wifi-ssid">SSID:</label>
+                        <input type="text" id="edit-wifi-ssid" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="edit-wifi-pwd">Password:</label>
+                        <input type="password" id="edit-wifi-pwd" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="edit-wifi-dhcp">DHCP:</label>
+                        <input type="checkbox" id="edit-wifi-dhcp">
+                    </div>
+                    <div id="edit-static-ip-fields">
+                        <div class="form-row">
+                            <label for="edit-wifi-ip">IP Address:</label>
+                            <input type="text" id="edit-wifi-ip">
+                        </div>
+                        <div class="form-row">
+                            <label for="edit-wifi-dns">DNS Server:</label>
+                            <input type="text" id="edit-wifi-dns">
+                        </div>
+                        <div class="form-row">
+                            <label for="edit-wifi-gateway">Gateway:</label>
+                            <input type="text" id="edit-wifi-gateway">
+                        </div>
+                        <div class="form-row">
+                            <label for="edit-wifi-mask">Subnet Mask:</label>
+                            <input type="text" id="edit-wifi-mask">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="success">Save Changes</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const wifiSelect = modal.querySelector('#wifi-select');
+        const nameInput = modal.querySelector('#edit-wifi-name');
+        const ssidInput = modal.querySelector('#edit-wifi-ssid');
+        const pwdInput = modal.querySelector('#edit-wifi-pwd');
+        const dhcpCheckbox = modal.querySelector('#edit-wifi-dhcp');
+        const staticIpFields = modal.querySelector('#edit-static-ip-fields');
+        const ipInput = modal.querySelector('#edit-wifi-ip');
+        const dnsInput = modal.querySelector('#edit-wifi-dns');
+        const gatewayInput = modal.querySelector('#edit-wifi-gateway');
+        const maskInput = modal.querySelector('#edit-wifi-mask');
+
+        // Function to update form with selected WiFi
+        const updateForm = () => {
+            const selectedIndex = parseInt(wifiSelect.value);
+            const wifi = wifiConfigs[selectedIndex];
+            
+            nameInput.value = wifi.name || '';
+            ssidInput.value = wifi.ssid || '';
+            pwdInput.value = wifi.pwd || '';
+            dhcpCheckbox.checked = !!wifi.dhcp;
+            
+            // Update static IP fields
+            staticIpFields.style.display = wifi.dhcp ? 'none' : 'block';
+            ipInput.value = wifi.ip || '';
+            dnsInput.value = wifi.dns || '';
+            gatewayInput.value = wifi.gateway || '';
+            maskInput.value = wifi.mask || '';
+        };
+
+        // Initialize form
+        updateForm();
+
+        // Event listeners
+        wifiSelect.addEventListener('change', updateForm);
+        dhcpCheckbox.addEventListener('change', () => {
+            staticIpFields.style.display = dhcpCheckbox.checked ? 'none' : 'block';
+        });
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const selectedIndex = parseInt(wifiSelect.value);
+            const name = nameInput.value.trim();
+            const ssid = ssidInput.value.trim();
+            const pwd = pwdInput.value;
+            const dhcp = dhcpCheckbox.checked;
+            
+            if (!name || !ssid || !pwd) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Connection name, SSID, and Password are required"
+                });
+                return;
+            }
+            
+            // Update WiFi config
+            const wifi = wifiConfigs[selectedIndex];
+            wifi.name = name;
+            wifi.ssid = ssid;
+            wifi.pwd = pwd;
+            wifi.dhcp = dhcp;
+            
+            if (!dhcp) {
+                const ip = ipInput.value.trim();
+                const dns = dnsInput.value.trim();
+                const gateway = gatewayInput.value.trim();
+                const mask = maskInput.value.trim();
+                
+                if (!ip || !dns || !gateway || !mask) {
+                    window.notify({
+                        type: "error", 
+                        name: "Validation Error", 
+                        desc: "IP, DNS, Gateway, and Subnet Mask are required for static IP"
+                    });
+                    return;
+                }
+                
+                wifi.ip = ip;
+                wifi.dns = dns;
+                wifi.gateway = gateway;
+                wifi.mask = mask;
+            } else {
+                // Remove static IP fields if DHCP is enabled
+                delete wifi.ip;
+                delete wifi.dns;
+                delete wifi.gateway;
+                delete wifi.mask;
+            }
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.configData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `WiFi configuration "${name}" updated successfully`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showRemoveWifiDialog() {
+        // Parse current textarea content
+        try {
+            this.configData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        // Extract WiFi configs
+        let wifiArray = null;
+        let wifiConfigItem = null;
+        if (this.configData.config && Array.isArray(this.configData.config)) {
+            for (const item of this.configData.config) {
+                if (item.Wifi && Array.isArray(item.Wifi)) {
+                    wifiArray = item.Wifi;
+                    wifiConfigItem = item;
+                    break;
+                }
+            }
+        }
+
+        if (!wifiArray || wifiArray.length === 0) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "No WiFi configurations found"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Remove WiFi Configuration</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="remove-wifi-select">Select WiFi to Remove:</label>
+                        <select id="remove-wifi-select" required>
+                            ${wifiArray.map((wifi, idx) => 
+                                `<option value="${idx}">${wifi.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="warning-message" style="color: #dc3545; margin-top: 10px;">
+                        Warning: This action cannot be undone!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="danger">Remove WiFi</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const wifiSelect = modal.querySelector('#remove-wifi-select');
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const selectedIndex = parseInt(wifiSelect.value);
+            const wifiName = wifiArray[selectedIndex].name;
+            
+            // Remove the WiFi config
+            wifiArray.splice(selectedIndex, 1);
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.configData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `WiFi configuration "${wifiName}" removed successfully`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showEditNodeNameDialog() {
+        // Parse current textarea content
+        try {
+            this.configData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        // Extract nodes with hashes
+        const nodes = [];
+        const extractNodes = (obj, path = '') => {
+            if (!obj) return;
+            
+            if (obj.hash && obj.name) {
+                nodes.push({
+                    hash: obj.hash,
+                    name: obj.name,
+                    path: path,
+                    object: obj
+                });
+            }
+            
+            if (obj.children && Array.isArray(obj.children)) {
+                obj.children.forEach((child, index) => {
+                    extractNodes(child, path ? `${path} > ${obj.name || 'Child'} ${index+1}` : obj.name || `Child ${index+1}`);
+                });
+            }
+        };
+        
+        extractNodes(this.configData);
+        
+        if (nodes.length === 0) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "No nodes found with hash values"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Edit Node Name</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="node-select">Select Node:</label>
+                        <select id="node-select" required>
+                            ${nodes.map((node, idx) => 
+                                `<option value="${idx}">${node.name} (${node.hash})</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-path">Path:</label>
+                        <input type="text" id="node-path" readonly>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-hash">Hash:</label>
+                        <input type="text" id="node-hash" readonly>
+                    </div>
+                    <div class="form-row">
+                        <label for="node-name">Name:</label>
+                        <input type="text" id="node-name" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="success">Save Changes</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const nodeSelect = modal.querySelector('#node-select');
+        const pathInput = modal.querySelector('#node-path');
+        const hashInput = modal.querySelector('#node-hash');
+        const nameInput = modal.querySelector('#node-name');
+
+        // Function to update form with selected node
+        const updateForm = () => {
+            const selectedIndex = parseInt(nodeSelect.value);
+            const node = nodes[selectedIndex];
+            
+           // pathInput.value = node.path || 'Root';
+           // hashInput.value = node.hash;
+            nameInput.value = node.name || '';
+        };
+
+        // Initialize form
+        updateForm();
+
+        // Event listeners
+        nodeSelect.addEventListener('change', updateForm);
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const selectedIndex = parseInt(nodeSelect.value);
+            const newName = nameInput.value.trim();
+            
+            if (!newName) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Node name is required"
+                });
+                return;
+            }
+            
+            // Update node name
+            const node = nodes[selectedIndex];
+            const oldName = node.name;
+            node.object.name = newName;
+            
+            // Update the textarea
+            this.textarea.value = JSON.stringify(this.configData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `Node name changed from "${oldName}" to "${newName}"`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    showEditPasswordDialog() {
+        // Parse current textarea content
+        try {
+            this.configData = JSON.parse(this.textarea.value);
+        } catch (error) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "Invalid JSON format in editor"
+            });
+            return;
+        }
+
+        // Extract pages with passwords
+        const pages = [];
+        if (this.interfaceData && this.interfaceData.pages) {
+            this.interfaceData.pages.forEach((page, index) => {
+                if (page.password) {
+                    pages.push({
+                        index: index,
+                        name: page.PageName,
+                        password: page.password,
+                        type: 'page',
+                        object: page
+                    });
+                }
+                
+                // Check for sections with passwords
+                if (page.sections) {
+                    page.sections.forEach((section, sectionIndex) => {
+                        if (section.password) {
+                            pages.push({
+                                index: sectionIndex,
+                                pageIndex: index,
+                                name: section.SectionName,
+                                password: section.password,
+                                type: 'section',
+                                object: section,
+                                pageName: page.PageName
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        if (pages.length === 0) {
+            window.notify({
+                type: "error", 
+                name: "Error", 
+                desc: "No pages or sections with passwords found"
+            });
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Edit Passwords</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <label for="password-select">Select Page/Section:</label>
+                        <select id="password-select" required>
+                            ${pages.map((item, idx) => 
+                                `<option value="${idx}">${item.type === 'page' ? 'Page' : 'Section'}: ${item.name}${item.type === 'section' ? ` (in ${item.pageName})` : ''}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="current-password">Current Password:</label>
+                        <input type="text" id="current-password" readonly>
+                    </div>
+                    <div class="form-row">
+                        <label for="new-password">New Password:</label>
+                        <input type="password" id="new-password" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="confirm-password">Confirm Password:</label>
+                        <input type="password" id="confirm-password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <sl-button class="cancel-btn" variant="default">Cancel</sl-button>
+                    <sl-button class="confirm-btn" variant="success">Save Password</sl-button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Element references
+        const passwordSelect = modal.querySelector('#password-select');
+        const currentPasswordInput = modal.querySelector('#current-password');
+        const newPasswordInput = modal.querySelector('#new-password');
+        const confirmPasswordInput = modal.querySelector('#confirm-password');
+
+        // Function to update form with selected item
+        const updateForm = () => {
+            const selectedIndex = parseInt(passwordSelect.value);
+            const item = pages[selectedIndex];
+            currentPasswordInput.value = item.password || '';
+        };
+
+        // Initialize form
+        updateForm();
+
+        // Event listeners
+        passwordSelect.addEventListener('change', updateForm);
+
+        // Cancel button
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        
+        // Confirm button
+        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+            const selectedIndex = parseInt(passwordSelect.value);
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (!newPassword) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "New password is required"
+                });
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                window.notify({
+                    type: "error", 
+                    name: "Validation Error", 
+                    desc: "Passwords do not match"
+                });
+                return;
+            }
+            
+            // Update password
+            const item = pages[selectedIndex];
+            item.object.password = newPassword;
+            
+            // Update the textarea with the changed interface data
+            this.textarea.value = JSON.stringify(this.interfaceData, null, 2);
+            
+            window.notify({
+                type: "success", 
+                name: "Success", 
+                desc: `Password updated for ${item.type} "${item.name}"`
+            });
+            
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) modal.remove();
+        });
+    }
+
+    addComponentProperty(container, name, label, type, required = false, options = null) {
+        const property = document.createElement('div');
+        property.className = 'form-row';
+        
+        const labelElement = document.createElement('label');
+        labelElement.textContent = label;
+        labelElement.setAttribute('for', `prop-${name}`);
+        property.appendChild(labelElement);
+        
+        let input;
+        
+        if (type === 'select' && options) {
+            input = document.createElement('select');
+            input.id = `prop-${name}`;
+            input.name = name;
+            input.required = required;
+            
+            options.forEach(option => {
+                const optionEl = document.createElement('option');
+                optionEl.value = option.value;
+                optionEl.textContent = option.label;
+                input.appendChild(optionEl);
+            });
+        } else if (type === 'checkbox') {
+            input = document.createElement('input');
+            input.type = 'checkbox';
+            input.id = `prop-${name}`;
+            input.name = name;
+        } else if (type === 'textarea') {
+            input = document.createElement('textarea');
+            input.id = `prop-${name}`;
+            input.name = name;
+            input.required = required;
+            input.rows = 3;
+        } else {
+            input = document.createElement('input');
+            input.type = type;
+            input.id = `prop-${name}`;
+            input.name = name;
+            input.required = required;
+        }
+        
+        property.appendChild(input);
+        container.appendChild(property);
+        
+        return input;
+    }
+
+    getComponentProperties(container) {
+        const properties = {};
+        
+        container.querySelectorAll('input, select, textarea').forEach(input => {
+            if (input.name) {
+                if (input.type === 'checkbox') {
+                    properties[input.name] = input.checked;
+                } else if (input.tagName.toLowerCase() === 'textarea' && input.name === 'items') {
+                    // Split comma-separated items into an array
+                    const items = input.value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+                    properties[input.name] = items;
+                } else if (input.type === 'number') {
+                    const value = parseFloat(input.value);
+                    properties[input.name] = isNaN(value) ? null : value;
+                } else {
+                    properties[input.name] = input.value;
+                }
+            }
+        });
+        
+        return properties;
+    }
+
+    async loadConfigData() {
+      console.log('Loading config data...');
+      
+      // If we've already loaded config.json in the current session, use that data
+      if (this.currentFile === 'config.json' && this.textarea?.value) {
+          try {
+              this.configData = JSON.parse(this.textarea.value);
+              // Extract available nodes from config
+              this.availableNodes = this.extractNodesFromConfig(this.configData);
+              return;
+          } catch (err) {
+              console.error('Error parsing config data from textarea:', err);
+          }
+      }
+      
+      // If we don't have config data yet, load it via HTTP fetch
+      try {
+          // Save current file
+          const currentFileSaved = this.currentFile;
+          
+          // Temporarily switch to config.json
+          this.currentFile = 'config.json';
+          
+          // Fetch config.json via HTTP
+          const response = await fetch('/config.json');
+          if (!response.ok) {
+              throw new Error(`HTTP request failed with status ${response.status}`);
+          }
+          
+          const content = await response.text();
+          const configData = JSON.parse(content);
+          this.configData = configData;
+          
+          // Extract nodes
+          if (this.configData) {
+              this.availableNodes = this.extractNodesFromConfig(this.configData);
+          }
+          
+          // Restore original file
+          this.currentFile = currentFileSaved;
+          
+          console.log('Successfully loaded config data');
+      } catch (err) {
+          console.error('Error loading config data:', err);
+          window.notify({
+              type: "warning",
+              name: "Warning",
+              desc: "Failed to load node definitions from config.json"
+          });
+      }
+  }
+    
+  async loadRendererDescriptors() {
+    console.log('Loading renderer descriptors...');
+    
+    try {
+        // Save current file
+        const currentFileSaved = this.currentFile;
+        
+        // Temporarily switch to renderers.json
+        this.currentFile = 'renderers.json';
+        
+        // Fetch renderers.json via HTTP
+        const response = await fetch('/renderers.json');
+        if (!response.ok) {
+            throw new Error(`HTTP request failed with status ${response.status}`);
+        }
+        
+        const content = await response.text();
+        const renderersData = JSON.parse(content);
+        this.rendererDescriptors = renderersData;
+        
+        // Restore original file
+        this.currentFile = currentFileSaved;
+        
+        console.log('Successfully loaded renderer descriptors');
+    } catch (err) {
+        console.error('Error loading renderer descriptors:', err);
+        // Use fallback descriptors
+        this.rendererDescriptors = {
+            "rx-label": {
+                "name": { "type": "string", "required": true },
+                "state": { "type": "string", "enum": ["neutral", "success", "warning", "danger"] },
+                "isBlinking": { "type": "boolean", "default": false }
+            },
+            "rx-level-bar": {
+                "name": { "type": "string", "required": true },
+                "orientation": { "type": "string", "enum": ["vertical", "horizontal"], "default": "vertical" },
+                "unit": { "type": "string", "default": "" },
+                "max": { "type": "number", "default": 100 },
+                "min": { "type": "number", "default": 0 },
+                "isLabelAlarmWarningOn": { "type": "boolean", "default": false }
+            },
+            "tx-bool": {
+                "name": { "type": "string", "required": true },
+                "disable": { "type": "boolean", "default": false }
+            },
+            "tx-button": {
+                "name": { "type": "string", "required": true },
+                "color": { "type": "string", "enum": ["primary", "success", "warning", "danger", "neutral"], "default": "primary" },
+                "disable": { "type": "boolean", "default": false }
+            },
+            "tx-slider": {
+                "name": { "type": "string", "required": true },
+                "min": { "type": "number", "default": 0 },
+                "max": { "type": "number", "default": 100 }
+            },
+            "tx-numeric": {
+                "name": { "type": "string", "required": true },
+                "min": { "type": "number", "default": null },
+                "max": { "type": "number", "default": null }
+            },
+            "tx-dropdown": {
+                "name": { "type": "string", "required": true },
+                "items": { "type": "array", "items": { "type": "string" }, "default": [] }
+            }
+        };
+        console.warn('Using fallback renderer descriptors due to load failure');
     }
 }
+
+    extractNodesFromConfig(config) {
+        console.log('Extracting nodes from config...');
+        const nodes = [];
+        
+        // Fonction récursive pour extraire les nodes
+        const extractNode = (node, parentInfo = '') => {
+            if (!node) return;
+            
+            // Si le node a un hash, l'ajouter à la liste
+            if (node.hash !== undefined && node.name) {
+                nodes.push({
+                    hash: node.hash,
+                    name: node.name,
+                    path: parentInfo,
+                    type: node.component || node.type || 'unknown'
+                });
+            }
+            
+            // Traiter les enfants récursivement
+            if (node.children && Array.isArray(node.children)) {
+                const newParentInfo = parentInfo ? `${parentInfo} > ${node.name || 'Child'}` : (node.name || 'Root');
+                node.children.forEach(child => {
+                    extractNode(child, newParentInfo);
+                });
+            }
+        };
+        
+        // Parcourir la structure principale
+        if (config.children && Array.isArray(config.children)) {
+            config.children.forEach(section => {
+                extractNode(section);
+            });
+        }
+        
+        // Trier par nom pour une meilleure expérience utilisateur
+        nodes.sort((a, b) => a.name.localeCompare(b.name));
+        
+        console.log(`Extracted ${nodes.length} nodes from config`);
+        return nodes;
+    }
+
+    removeExistingInterfaces() { 
+        if (this.mainEditorBackdrop) {
+            this.mainEditorBackdrop.remove();
+            this.mainEditorBackdrop = null;
+        }
+        document.querySelectorAll('.modal-container').forEach(el => el.remove());
+    }
+}
+
 
 customElements.define('interface-editor', InterfaceEditor);
 

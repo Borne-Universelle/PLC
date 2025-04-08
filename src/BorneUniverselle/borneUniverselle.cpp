@@ -2658,8 +2658,6 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
     } 
 
     if (hasTosend){
-        Serial.println("notifyWebClient: Message that will be send: \r\n" );
-        serializeJsonPretty(notifyDoc, Serial);
         Serial.println();
        
         size_t size = measureJson(notifyDoc) + 32;

@@ -135,6 +135,7 @@
 #define LONG__LENGTH        "longLength"               // Longeur du grand côté du morceau de bois fini
 #define ANGLE               "angle"
 #define WIDTH__LENGTH       "width"
+#define SELECTED_RECETTE    "current recette"
 
 // Structures
 struct RECETTE {
@@ -160,6 +161,7 @@ struct PERSISTANT_PARAMETERS {
 class Formaca {
 public:
     enum class State {
+        UNDEFINED,
         INITIALIZING,
         IDLE,
         EMERGENCY,
@@ -206,9 +208,11 @@ private:
     bool isAtPArkPosition();
     void setEmergencyMode(bool status);
     bool isEmergencyMode();
+    const char* stateToString(State state);
 
     // Variables d'état FSM
     State currentState = State::INITIALIZING;
+    State previousState = State::UNDEFINED;
     uint32_t stateStartTime = 0;
     uint32_t homeDelayStart = 0;
 
@@ -228,6 +232,7 @@ private:
     float angleRadians = 0;
     bool cutModel = LEFT;
     bool cylinderProtectionActivated = false;
+    uint8_t homingPhase = 0;
 
     // Noeuds (garantis non nuls par le constructeur)
     BooleanOutputNode *buzzer, *absolutePositionLost;
