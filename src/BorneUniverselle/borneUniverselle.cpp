@@ -2817,15 +2817,15 @@ void BorneUniverselle::addCustomDescriptor(Node *node, JsonObject *nodeObject) {
     // Si le document n'est pas vide, l'ajouter au nodeObject
     if (!customDescriptor.isNull()) {
     
-        if (!customDescriptor[VALUE].isNull()) {
-                /*
+        if (!customDescriptor[VALUE].isNull()) {    
+            //La clef value ne va pas dans descritor, mais dans nodeObject
+            //On va donc supprimer la clef pour la réintroduire un étage plus haut.
+             
             // Supprimer la clé hash du descripteur personnalisé
             Serial.println("Custom descriptor contains a key 'value', will superside it with nodeObject value");
             (*nodeObject)[VALUE] = customDescriptor[VALUE];
             // Supprimer la clé "value" du descripteur pour éviter la duplication
             customDescriptor.remove("value");
-            */
-        
         }
         
         // Vérifier si nodeObject a déjà une clé descriptor
@@ -2842,13 +2842,14 @@ void BorneUniverselle::addCustomDescriptor(Node *node, JsonObject *nodeObject) {
             Serial.println("No descriptor key found in nodeObject, will add custom descriptor");
             (*nodeObject)[DESCRIPTOR] = customDescriptor;
         }
+
         
         // Serial.printf("%lu:: Added custom descriptor to node: %s, with hash: %lu\r\n", millis(), node->getName(), (long unsigned int)node->getHash());
     } else {
         Serial.printf("%lu:: Custom descriptor is null for node: %s\r\n", millis(), node->getName());
     }
 
-    //Serial.printf("After descriptorcallback from node: %lu, hash from nodeObject: %lu\r\n", (long unsigned int)node->getHash(), (*nodeObject)[HASH].as<uint32_t>());
+    Serial.printf("After descriptorcallback from node: %lu, hash from nodeObject: %lu\r\n", (long unsigned int)node->getHash(), (*nodeObject)[HASH].as<uint32_t>());
 
     PLC_Tools::printJsonObject(*nodeObject);
 }

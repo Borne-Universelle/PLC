@@ -928,13 +928,13 @@ void Formaca::goToPosition(uint32_t pos) {
 }
 
 JsonDocument Formaca::getDropDownDescriptorHandler() {
+    Serial.println("Formaca::getDropDownDescriptorHandler");
     JsonDocument doc, docToSend;
     if (!persistence.readJsonFromFile(CONFIG_FILE_NAME, doc)) {
         BorneUniverselle::setPlcBroken(persistence.getLastError());
         return docToSend;
     }
-
-    Serial.println("Formaca::getDropDownDescriptorHandler");
+ 
     JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
     bool recetteFound = false;
     for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
@@ -954,6 +954,9 @@ JsonDocument Formaca::getDropDownDescriptorHandler() {
         Serial.printf("Selected recette found: %s\r\n", parameters.selectedRecette);
         docToSend[VALUE] = parameters.selectedRecette;
     }
+    Serial.println("Will send the following JSON to handler:");
+    //PLC_Tools::printJsonObject(docToSend.as<JsonObject>());
+    serializeJsonPretty(docToSend, Serial);
     return docToSend;
 }
 
