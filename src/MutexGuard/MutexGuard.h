@@ -18,7 +18,7 @@ public:
         //Serial.printf("%lu:: Attempting to take mutex %s in context %s\n", startTime, mutexName, context);
 
         // Tenter de prendre le mutex avec un timeout
-        acquired = xSemaphoreTake(mutex, pdMS_TO_TICKS(100)) == pdTRUE;
+        acquired = xSemaphoreTake(mutex, pdMS_TO_TICKS(300)) == pdTRUE;
 
         if (!acquired) {
             Serial.printf("%lu:: Failed to acquire mutex %s in context: %s\n", millis(), mutexName, context);
