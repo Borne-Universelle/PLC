@@ -305,12 +305,12 @@ bool Formaca::logiqueExecutor() {
                     Serial.printf("%lu:: Homing: Trigger set to 120\r\n", (unsigned long)now);
                     stateStartTime = now;
                     homingPhase++;
-                    break;
+                    return true;
                 case 1:
                     trigger->setValue(0);
                     Serial.printf("%lu:: Homing: Trigger reset to 0, starting homing\r\n", (unsigned long)now);
                     homingPhase++;
-                    break;
+                    return true;
                 case 2:
                     if (homeDone->getValue()) {
                         doHome->setValue(false);
@@ -321,7 +321,7 @@ bool Formaca::logiqueExecutor() {
                         BorneUniverselle::prepareMessage(SUCCESS, "Position du home enregistrée");
                         homingPhase++;
                     }
-                    break;
+                    return true;
                 case 3:
                     if (now - homeDelayStart > (uint32_t)position->getRefreshInterval()) {
                         if (longLength->getValue() > 1 && longLength->getValue() < 100 && !isnan(longLength->getValue())) {
@@ -334,7 +334,7 @@ bool Formaca::logiqueExecutor() {
                         }
                         homingPhase = 0;
                     }
-                    break;
+                    return true;
             }
             break;
 
@@ -935,27 +935,33 @@ JsonDocument Formaca::getDropDownDescriptorHandler() {
         return docToSend;
     }
  
-    JsonArray recettes = docToSend[RECETTES].to<JsonArray>();
+    JsonArray recettes = docToSend[ITEMS].to<JsonArray>();
     bool recetteFound = false;
     for (uint8_t id = 0; id < parameters.nbRecettes; id++) {
-        JsonObject recette = recettes.add<JsonObject>();
-        recette[NAME] = parameters.recettes[id].name;
+        // Ajouter directement le nom comme chaîne au lieu d'un objet
+        recettes.add(parameters.recettes[id].name);
         if (strcmp(parameters.recettes[id].name, parameters.selectedRecette) == 0) {
             recetteFound = true;
         }
     }
 
     Serial.printf("Selected recette: %s\r\n", parameters.selectedRecette);
-    if (!recetteFound) {
+    if (!recetteFound && parameters.nbRecettes > 0) {
         Serial.println("Selected recette not found in list, using first one");
         strlcpy(parameters.selectedRecette, parameters.recettes[0].name, sizeof(parameters.selectedRecette));
         saveMachineParameters();
-    } else {
+    } else if (recetteFound) {
         Serial.printf("Selected recette found: %s\r\n", parameters.selectedRecette);
-        docToSend[VALUE] = parameters.selectedRecette;
     }
+    
+    // Définir la valeur sélectionnée
+    docToSend[VALUE] = parameters.selectedRecette;
+    
+    // Ajouter d'autres propriétés du descripteur
+    //docToSend["default"] = "";
+    //docToSend["tooltip"] = "";
+    
     Serial.println("Will send the following JSON to handler:");
-    //PLC_Tools::printJsonObject(docToSend.as<JsonObject>());
     serializeJsonPretty(docToSend, Serial);
     return docToSend;
 }
