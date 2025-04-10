@@ -48,20 +48,21 @@ bool PLC_InterfaceMenu::parseFile(const char* filePath) {
             return false;
         }
 
-        for (JsonObject section : page[SECTIONS].as<JsonArray>()) {
-            if (section[SECTION_NAME].isNull()){
+        JsonArray sections = page[SECTIONS].as<JsonArray>();
+        for (JsonObject section : sections) {
+            if (section[SECTION_NAME].isNull()) {
                 Serial.printf("PLC_InterfaceMenu::parseSection one of sections of page %s hasn't key %s\r\n", SECTION_NAME, pageName.c_str());
                 return false;
             }
             
             const char* sectionName = section[SECTION_NAME];
             Serial.printf("Will parse section: %s\n", sectionName);
-            if (!parseSection(section)){
+            if (!parseSection(section)) {
                 return false;
             }
         }
     }
-    return true;
+    return true;      
 }
 
 bool PLC_InterfaceMenu::parseSection(JsonObject section) {

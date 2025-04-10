@@ -1469,23 +1469,28 @@ bool BorneUniverselle:: parseWifis(JsonDocument& doc, bool check){
     }
 }
 
-bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
+bool BorneUniverselle::parseWifisImpl(JsonDocument& doc, bool check) {
     for (JsonObject item : doc[CONFIG].as<JsonArray>()) {
-        if (!item[WIFI].isNull()){
-            for (JsonObject wifiItem : item[WIFI].as<JsonArray>()) {
-                const char *ssid, *pwd, *name;
-                char message[800];
-               // if (wifiItem.containsKey(NAME)){
-                if (!wifiItem[NAME].isNull()){
+        if (!item[WIFI].isNull()) {
+            // Stocker le résultat dans une variable pour éviter le warning "dangling reference"
+            JsonArray wifiArray = item[WIFI].as<JsonArray>();
+            
+            for (const JsonObject& wifiItem : wifiArray) {
+                const char *ssid = nullptr, *pwd = nullptr, *name = nullptr;
+                char message[800] = {0}; // Initialiser à zéro pour éviter des problèmes avec strcat
+                
+                // Vérifier la présence du nom
+                if (!wifiItem[NAME].isNull()) {
                     name = wifiItem[NAME];
                     sprintf(message, "Wifi name: %s\r\n", name);
                 } else {
-                    strcat(message, "parseWifis:: One of wifi as not key name");
+                    strcpy(message, "parseWifis:: One of wifi as not key name");
                     prepareMessage(ERROR, message);
                     return false;
                 }
 
-                if (!wifiItem[SSID_].isNull()){
+                // Vérifier la présence du SSID
+                if (!wifiItem[SSID_].isNull()) {
                     ssid = wifiItem[SSID_];
                 } else {
                     sprintf(message, "parseWifis:: Wifi: %s doesn't contains ssid key", name);
@@ -1493,7 +1498,8 @@ bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
                     return false;
                 }
 
-                if (!wifiItem[PWD_].isNull()){
+                // Vérifier la présence du mot de passe
+                if (!wifiItem[PWD_].isNull()) {
                     pwd = wifiItem[PWD_];
                 } else {
                     sprintf(message, "parseWifis:: Wifi: %s doesn't contains pwd key", name);
@@ -1502,18 +1508,21 @@ bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
                 }
 
                 bool dhcp = true;
-                 if (!wifiItem[DHCP].isNull()){
-                    if (wifiItem[DHCP] == true){
+                // Vérifier le mode DHCP
+                if (!wifiItem[DHCP].isNull()) {
+                    if (wifiItem[DHCP] == true) {
                         Serial.println(F("Item with dhcp"));
-                        dhcp = true;
-                        if (!check){
+                        if (!check) {
                             addWifiItem2(ssid, pwd, name, dhcp);
                         }
                     } else {
+                        // Mode adresse fixe
                         dhcp = false;
                         IPAddress ipAddress, dns, gateway, mask;
                         Serial.println(F("Fixed address"));
-                        if (!wifiItem[IP].isNull()){
+                        
+                        // Vérifier l'adresse IP
+                        if (!wifiItem[IP].isNull()) {
                             const char *ipChar = wifiItem[IP];
                             String ipString = String(ipChar);
                             ipAddress.fromString(ipString);
@@ -1523,7 +1532,8 @@ bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                        if (!wifiItem[DNS_].isNull()){
+                        // Vérifier le DNS
+                        if (!wifiItem[DNS_].isNull()) {
                             const char *dnsChar = wifiItem[DNS_];
                             String dnsString = String(dnsChar);
                             dns.fromString(dnsString);
@@ -1533,7 +1543,8 @@ bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                        if (!wifiItem[GATEWAY_].isNull()){
+                        // Vérifier la passerelle
+                        if (!wifiItem[GATEWAY_].isNull()) {
                             const char *gatewayChar = wifiItem[GATEWAY_];
                             String gatewayString = String(gatewayChar);
                             gateway.fromString(gatewayString);
@@ -1543,7 +1554,8 @@ bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                         if (!wifiItem[MASK_].isNull()){
+                        // Vérifier le masque réseau
+                        if (!wifiItem[MASK_].isNull()) {
                             const char *maskChar = wifiItem[MASK_];
                             String maskString = String(maskChar);
                             mask.fromString(maskString);
@@ -1553,28 +1565,27 @@ bool BorneUniverselle:: parseWifisImpl(JsonDocument& doc, bool check){
                             return false;
                         }
 
-                        if (!check){
+                        if (!check) {
                             addWifiItem(ssid, pwd, name, ipAddress, dns, gateway, mask, dhcp);
                         }
-                    }    
-                    
+                    }
                 } else {
-                    prepareMessage(ERROR, "parseWifis:::: Wifi: %s doesn't contains DHCP key");
+                    sprintf(message, "parseWifis:::: Wifi: %s doesn't contains DHCP key", name);
+                    prepareMessage(ERROR, message);
                     return false;
                 }
             }
-        } else {
-            if (!item[PARAMETERS].isNull()){
-                JsonObject params = item[PARAMETERS];    
-                if (!params[OTA_URL].isNull()){
-                    strcpy(ota_url, params[OTA_URL]);
-                    Serial.printf("ota_url: %s\r\n", ota_url);
-                }
+        } else if (!item[PARAMETERS].isNull()) {
+            // Traitement des paramètres
+            JsonObject params = item[PARAMETERS];    
+            if (!params[OTA_URL].isNull()) {
+                strcpy(ota_url, params[OTA_URL]);
+                Serial.printf("ota_url: %s\r\n", ota_url);
             }
         }
     }
     return true;
-}
+} // parseWifisImpl
 
 unsigned char BorneUniverselle::addWifiItem2(const char *ssid, const char *pwd, const char *connexionName, bool dhcp){
     WifiItem myItem;
@@ -1661,7 +1672,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
 
         // no descriptor file for virtual nodes!
         if (!strcmp(hardware, VIRTUAL)){
-            for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
+            JsonArray childrenArray = children[CHILDREN].as<JsonArray>();
+            for (JsonObject c : childrenArray) {
                 char nodeName[128];
                 if (c[NAME].isNull()){
                     sprintf(buff, "parseHardwares:: sub section %s doesnt contains key %s from config file", name, NAME);
@@ -1769,7 +1781,8 @@ bool BorneUniverselle::parseHardwares(JsonDocument& doc, bool check, float proje
             return false; 
         }
 
-        for (JsonObject c : children[CHILDREN].as<JsonArray>()) {
+        JsonArray childrenArray = children[CHILDREN].as<JsonArray>();
+        for (JsonObject c : childrenArray) {
             char nodeName[128];
             if (c[NAME].isNull()){
                 sprintf(buff, "parseHardwares:: sub section doesnt contains key %s from config file", NAME);

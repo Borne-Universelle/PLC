@@ -75,9 +75,9 @@ void PLC_Persistence::setLastError(const char* error) {
 
 bool PLC_Persistence::beginFS() {
     // Le système de fichiers est déjà monté, vérifions juste qu'il est OK
-    if (!LittleFS.begin(false)) { // Le paramètre false indique de ne pas formater si le montage échoue
+    if (!LittleFS.begin(false, "/littlefs", 10, "littlefs")) { // Ne pas formater au premier essai
         // Essayer de remonter en formatant si nécessaire
-        if (!LittleFS.begin(true)) { 
+        if (!LittleFS.begin(true, "/littlefs", 10, "littlefs")) { 
             setLastError("Failed to remount LittleFS (tried formatting)");
             return false;
         }

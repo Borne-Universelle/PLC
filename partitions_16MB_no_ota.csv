@@ -1,0 +1,5 @@
+# Fichier de partitions pour ESP32 16 Mo : pas d'OTA, 6 Mo LITTLEFS, NVS
+# Name,   Type, SubType, Offset,  Size,    Flags
+nvs,      data, nvs,     0x9000,  0x7000,
+app0,     app,  factory, 0x10000, 0x9d0000,
+littlefs, data, littlefs,0x9e0000,0x600000,

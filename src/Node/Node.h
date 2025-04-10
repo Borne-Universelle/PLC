@@ -438,7 +438,7 @@ class ModbusReadDobbleInputRegisters: public Uint32InputNode {
         virtual int classType() { return CLASS_MODBUS_READ_DOUBLE_INPUTREGISTER; }
         
         private:
-            uint32_t getNewValue();
+            bool getNewValue(uint32_t& val);
 
             uint16_t address;  // Adresse de l'esclave Modbus
             uint16_t offset;   // Offset du registre 
@@ -648,7 +648,7 @@ class VirtualFloatOutputNode: public FloatOutputNode{
             //}
 
         private:
-            bool getNewValue(char &value){
+            bool getNewValue(char *value){
                 return true;
             } 
 
