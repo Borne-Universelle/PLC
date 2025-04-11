@@ -207,9 +207,9 @@ bool Node::setDescriptor(JsonDocument _descriptor){
         descriptor.remove(ID);
     }
 
-    Serial.printf("Descriptor for node %lu\r\n: \r\n", (long unsigned int)getHash());
-    serializeJsonPretty(descriptor, Serial);
-    Serial.println();
+    //Serial.printf("Descriptor for node %lu\r\n: \r\n", (long unsigned int)getHash());
+    //serializeJsonPretty(descriptor, Serial);
+    //Serial.println();
     
 #endif
     return true;

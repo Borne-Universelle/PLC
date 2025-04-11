@@ -201,7 +201,6 @@ private:
     bool saveMachineParameters();
     void goToPosition(uint32_t pos);
     void goToParkPosition();
-    void saw();
     void interfaceTreatment();
     void eject();
     bool getIsStartCycle();
@@ -209,6 +208,7 @@ private:
     void setEmergencyMode(bool status);
     bool isEmergencyMode();
     const char* stateToString(State state);
+    void saw(bool status);
 
     // Variables d'état FSM
     State currentState = State::INITIALIZING;
@@ -226,7 +226,6 @@ private:
     uint32_t startInit = 0;
     uint32_t homePos = 0;
     uint32_t parkPosition = 0;
-    uint32_t ejectionStartTime = 0;
     float bladelostLength = 0;
     float totalWasteLength = 0;
     float angleRadians = 0;
@@ -320,4 +319,8 @@ private:
     DropDown *drompDownIndicator;
     VisualIndicator *visu;
     PLC_Persistence& persistence = PLC_Persistence::getInstance();
+
+    // State machine
+    bool isFirstCycle = true; // Indique si c'est le premier cycle (rebut)
+    State sawingOrigin = State::UNDEFINED;
 };

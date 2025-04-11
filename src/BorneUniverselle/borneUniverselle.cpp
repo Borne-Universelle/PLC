@@ -985,7 +985,7 @@ void BorneUniverselle::keepWebSocketMessage(const char *data, void *arg, size_t 
         Serial.printf("Time to add one element on the webSocketMessageList: %lu[ms]\r\n", millis() - start); 
     } 
 
-    if (webSocketMessagesList.size() > 1){
+    if (webSocketMessagesList.size() > 10){
         Serial.printf("%lu:: There are now %u webMessages on the list (to be processed)\r\n", millis(), webSocketMessageLength);
     }
 } //keepWebSocketMessage
@@ -2659,7 +2659,7 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
                     node->clearIsChanged();
             } 
 
-            Serial.printf("Will notify for node: %s\r\n", node->getName());
+            //Serial.printf("Will notify for node: %s\r\n", node->getName()); // LOG_PLC
         }
 
         if (millis() - lastCheck > ABNORMAL_REFRESH_TIME){   
@@ -2692,8 +2692,8 @@ bool BorneUniverselle::notifyWebClient(bool sendAllStates){
             }
 
             chain[effectiveSize] = 0;  // 0 chain terminated is missing !!!!
-            Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
-            serializeJsonPretty(notifyDoc, Serial);
+            //Serial.printf("Will display notify message, size: %u\r\n", strlen(chain));
+            //serializeJsonPretty(notifyDoc, Serial);
             bool success = sendTextToClient(chain);
 
             if (!success){
@@ -2811,11 +2811,11 @@ bool BorneUniverselle::addNodeToNodeObject(Node *node, JsonObject *nodeObject){
     }
 
     if (node->descriptorCallback) {
-        Serial.printf("addNodeToNodeObject:: Node %s with hash %lu has a descriptor callback\r\n", node->getName(), (long unsigned int)node->getHash());
+        //Serial.printf("addNodeToNodeObject:: Node %s with hash %lu has a descriptor callback\r\n", node->getName(), (long unsigned int)node->getHash());
         addCustomDescriptor(node, nodeObject);
-        Serial.printf("addNodeToNodeObject:: Node %s with hash %lu custom descriptor added\r\n", node->getName(), (long unsigned int)node->getHash());
-        Serial.printf("NodeObject au retour de addCustomDescriptor:\r\n");
-        PLC_Tools::printJsonObject(*nodeObject);
+        //Serial.printf("addNodeToNodeObject:: Node %s with hash %lu custom descriptor added\r\n", node->getName(), (long unsigned int)node->getHash());
+        //Serial.printf("NodeObject au retour de addCustomDescriptor:\r\n");
+        //PLC_Tools::printJsonObject(*nodeObject);
     }
 
     checkHeartbeat();
@@ -2862,9 +2862,8 @@ void BorneUniverselle::addCustomDescriptor(Node *node, JsonObject *nodeObject) {
         Serial.printf("%lu:: Custom descriptor is null for node: %s\r\n", millis(), node->getName());
     }
 
-    Serial.printf("After descriptorcallback from node: %lu, hash from nodeObject: %lu\r\n", (long unsigned int)node->getHash(), (*nodeObject)[HASH].as<uint32_t>());
-
-    PLC_Tools::printJsonObject(*nodeObject);
+    //Serial.printf("After descriptorcallback from node: %lu, hash from nodeObject: %lu\r\n", (long unsigned int)node->getHash(), (*nodeObject)[HASH].as<uint32_t>());
+    //PLC_Tools::printJsonObject(*nodeObject);
 }
 
 void BorneUniverselle::clearInputschanged(){

@@ -244,6 +244,7 @@ bool Formaca::logiqueExecutor() {
     }
     handleInterrupts();
     checkEmergencyConditions(now);
+    updateOutputs();
 
     switch (currentState) {
         case State::UNDEFINED:
@@ -338,29 +339,41 @@ bool Formaca::logiqueExecutor() {
             }
             break;
 
-        case State::PARKING:
-            if (stateStartTime == 0) {
-                Serial.println("ETAT PARKING: Will call goToParkPosition()");
-                previousState = State::PARKING;
-                goToParkPosition();
-                stateStartTime = now; // Initialiser stateStartTime au début du mouvement
-                transition(State::TRIGGER_PENDING);
-                return true;
-            }
-            if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
-                BorneUniverselle::prepareMessage(SUCCESS, "Arrivé à la position de parc");
-                transition(getIsStartCycle() ? State::WASTE_CUTTING : State::IDLE);
-                return true;
-            }
-            Serial.printf("%lu:: PARKING: Waiting for position, targetReached=%d, zeroSpeed=%d, time=%lu\r\n", 
-                          (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
+            case State::PARKING:
+                if (previousState == State::TRIGGER_PENDING) {
+                    Serial.printf("%lu:: PARKING: Returned from TRIGGER_PENDING, waiting for position\r\n", (unsigned long)now);
+                    // Ne pas réinitialiser stateStartTime, continuer l'attente
+                }
+                else if (stateStartTime == 0) {
+                    Serial.println("ETAT PARKING: Will call goToParkPosition()");
+                    previousState = State::PARKING;
+                    goToParkPosition();
+                    stateStartTime = now;
+                    transition(State::TRIGGER_PENDING);
+                    return true;
+                }
+                if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
+                    BorneUniverselle::prepareMessage(SUCCESS, "Arrivé à la position de parc");
+                    transition(getIsStartCycle() ? State::WASTE_CUTTING : State::IDLE);
+                    return true;
+                }
+                Serial.printf("%lu:: PARKING: Waiting for position, targetReached=%d, zeroSpeed=%d, time=%lu\r\n", 
+                            (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
             break;
-
+            
         case State::WASTE_CUTTING:
+            if (previousState == State::SAWING_WAIT) {
+                Serial.printf("%lu:: WASTE_CUTTING: First cycle completed, moving to NORMAL_CUTTING\r\n", (unsigned long)now);
+                isFirstCycle = false;
+                stateStartTime = 0;
+                previousState = State::UNDEFINED; // Réinitialiser pour éviter répétition
+                transition(State::NORMAL_CUTTING);
+                return true;
+            }
             if (stateStartTime == 0) {
                 Serial.printf("%lu:: Début du cycle: on va couper le rebus\r\n", (unsigned long)now);
                 goToPosition(parameters.reference - convToPUU(parameters.overAllLenght - totalWasteLength + 0.9));
-                stateStartTime = now; // Initialiser stateStartTime ici
+                stateStartTime = now;
                 transition(State::TRIGGER_PENDING);
                 return true;
             }
@@ -370,19 +383,24 @@ bool Formaca::logiqueExecutor() {
                 return true;
             }
             Serial.printf("%lu:: WASTE_CUTTING: Waiting for position, targetReached=%d, zeroSpeed=%d, time=%lu\r\n", 
-                          (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
-            break;
+                        (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
+        break;
 
         case State::NORMAL_CUTTING:
-            if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
-                transition(State::SAWING);
-                return true;
-            } else if (stateStartTime == 0) {
+            if (previousState == State::SAWING_WAIT) {
+                Serial.printf("%lu:: NORMAL_CUTTING: Returned from SAWING_WAIT, resetting for next cycle\r\n", (unsigned long)now);
+                stateStartTime = 0;
+                previousState = State::UNDEFINED; // Réinitialiser pour éviter répétition
+                // Ne pas retourner ici, laisser le code continuer pour lancer la nouvelle coupe immédiatement
+            }
+            if (stateStartTime == 0) {
                 if (cutModel == LEFT) {
                     uint32_t newPosition = position->getValue() + convToPUU(bladelostLength + parameters.recettes[idRecette].longlength + bladelostLength);
                     if (newPosition < parameters.reference) {
+                        BorneUniverselle::prepareMessage(INFO, "Starting new cut (LEFT -> RIGHT)");
                         goToPosition(newPosition);
                         cutModel = RIGHT;
+                        stateStartTime = now;
                         transition(State::TRIGGER_PENDING);
                         return true;
                     } else {
@@ -394,8 +412,10 @@ bool Formaca::logiqueExecutor() {
                     float displacement = parameters.recettes[idRecette].longlength - 2 * triangleDroit + 2 * bladelostLength;
                     float newPosition = position->getValue() + convToPUU(displacement);
                     if (newPosition < parameters.reference) {
+                        BorneUniverselle::prepareMessage(INFO, "Starting new cut (RIGHT -> LEFT)");
                         goToPosition(newPosition);
                         cutModel = LEFT;
+                        stateStartTime = now;
                         transition(State::TRIGGER_PENDING);
                         return true;
                     } else {
@@ -404,13 +424,30 @@ bool Formaca::logiqueExecutor() {
                     }
                 }
             }
-            break;
+            if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
+                Serial.printf("%lu:: NORMAL_CUTTING: Position reached, moving to SAWING\r\n", (unsigned long)now);
+                transition(State::SAWING);
+                return true;
+            }
+            Serial.printf("%lu:: NORMAL_CUTTING: Waiting for position, targetReached=%d, zeroSpeed=%d, time=%lu\r\n", 
+                        (unsigned long)now, targetPositionReached->getValue(), zeroSpeed->getValue(), (unsigned long)(now - stateStartTime));
+        break;
 
         case State::SAWING:
             if (stateStartTime == 0) {
-                saw();
+                saw(true); // Enclenche la scie (active flipFlopScie)
                 stateStartTime = now;
             }
+            if (now - stateStartTime > (unsigned long)FLIP_FLOP_TIME) {
+                saw(false); // Désactive la scie (désactive flipFlopScie)
+                Serial.printf("%lu:: SAWING: Moving to SAWING_WAIT\r\n", (unsigned long)now);
+                transition(State::SAWING_WAIT);
+                return true;
+            }
+            Serial.printf("%lu:: SAWING: Waiting for flip flop, time=%lu\r\n", (unsigned long)now, (unsigned long)(now - stateStartTime));
+        break;
+
+        case State::SAWING_WAIT:
             if (now - stateStartTime > (unsigned long)BLADE_TIME) {
                 if (!cylinderCaptor->getValue() && cylinderProtectionActivated) {
                     immediateStop->setValue(true);
@@ -418,25 +455,40 @@ bool Formaca::logiqueExecutor() {
                     transition(State::EMERGENCY);
                     return true;
                 } else if (targetPositionReached->getValue() && zeroSpeed->getValue()) {
-                    transition(State::SAWING_WAIT);
+                    if (sawingOrigin == State::JOGGING) {
+                        Serial.printf("%lu:: SAWING_WAIT: Sciage en mode JOG terminé, retour à JOG\r\n", (unsigned long)now);
+                        transition(State::JOGGING); // Retour à JOG si initié depuis JOG
+                    } else {
+                        if (sawingOrigin == State::UNDEFINED) {
+                            Serial.printf("%lu:: SAWING_WAIT: sawingOrigin is UNDEFINED, forcing WASTE_CUTTING\r\n", (unsigned long)now);
+                            sawingOrigin = State::WASTE_CUTTING;
+                        }
+                        Serial.printf("%lu:: SAWING_WAIT: Blade time completed, moving to %s\r\n", 
+                                    (unsigned long)now, stateToString(sawingOrigin));
+                        transition(sawingOrigin);
+                    }
                     return true;
                 }
             }
-            if (now - stateStartTime > (unsigned long)FLIP_FLOP_TIME) {
-                flipFlopScie->setValue(false);
-                Serial.println("Fin du flip flop de la scie");
-            }
-            break;
 
-        case State::SAWING_WAIT:
             if (cylinderCaptor->isRisingEdge() && cylinderProtectionActivated) {
-                transition(State::NORMAL_CUTTING);
-                return true;
-            } else if (now - stateStartTime > (unsigned long)BLADE_TIME && targetPositionReached->getValue() && zeroSpeed->getValue()) {
-                transition(State::NORMAL_CUTTING);
+                if (sawingOrigin == State::JOGGING) {
+                    Serial.printf("%lu:: SAWING_WAIT: Cylinder captor triggered in JOG mode, moving to JOG\r\n", 
+                                (unsigned long)now);
+                    transition(State::JOGGING); // Retour à JOG si initié depuis JOG
+                } else {
+                    if (sawingOrigin == State::UNDEFINED) {
+                        Serial.printf("%lu:: SAWING_WAIT: sawingOrigin is UNDEFINED, forcing WASTE_CUTTING\r\n", (unsigned long)now);
+                        sawingOrigin = State::WASTE_CUTTING;
+                    }
+                    Serial.printf("%lu:: SAWING_WAIT: Cylinder captor triggered, moving to %s\r\n", 
+                                (unsigned long)now, stateToString(sawingOrigin));
+                    transition(sawingOrigin);
+                }
                 return true;
             }
-            break;
+            Serial.printf("%lu:: SAWING_WAIT: Waiting for blade time, time=%lu\r\n", (unsigned long)now, (unsigned long)(now - stateStartTime));
+        break;
 
         case State::EJECTING:
             if (stateStartTime == 0) {
@@ -445,6 +497,7 @@ bool Formaca::logiqueExecutor() {
                 return true;
             }
             if (targetPositionReached->getValue() && zeroSpeed->getValue() && (now - stateStartTime > 1000)) {
+                nbCyclesMade->setValue(nbCyclesMade->getValue() + 1);
                 transition(State::PARKING);
                 return true;
             }
@@ -483,8 +536,6 @@ bool Formaca::logiqueExecutor() {
             }
             break;
     }
-  
-    updateOutputs();
     return true;
 } // logicielExecutor
 
@@ -577,9 +628,10 @@ void Formaca::interfaceTreatment() {
         Serial.printf("Le nombre de cycles à faire a changé: now %lu\r\n", (unsigned long)nbCyclesVoulus->getValue());
         visu->setMaxValue(nbCyclesVoulus->getValue());
     }
+
     if (goToPark->getIsChanged() && goToPark->getValue()) {
         Serial.println("Go to park par le bouton parc");
-        goToParkPosition();
+        transition(State::PARKING); // Transition vers l'état PARKING
     }
 }
 
@@ -621,6 +673,7 @@ void Formaca::jogTreatment() {
         parkPosition = parameters.reference - convToPUU(overAllLenght->getValue() + parkOffset->getValue());
         Serial.printf("Nouvelle position de parc: %lu [pulses] soit: %.2f [inch]\r\n", (long unsigned int)parkPosition, convToInch(parkPosition));
     }
+
     if (goHomeButton->getIsChanged() && goHomeButton->getValue()) {
         Serial.printf("Go to home: %lu\r\n", (unsigned long)parameters.home);
         goToPosition(parameters.home);
@@ -629,15 +682,21 @@ void Formaca::jogTreatment() {
         Serial.printf("Go to reference position: %lu\r\n", (unsigned long)parameters.reference);
         goToPosition(parameters.reference);
     }
+
     if (scier->getIsChanged() && scier->getValue()) {
-        saw();
+        Serial.println("Commande de sciage en mode JOG");
+        transition(State::SAWING); // Transition vers SAWING au lieu de saw(true)
     }
+
+    if (goToPark->getIsChanged() && goToPark->getValue()) {
+        Serial.println("Go to park par le bouton parc");
+        transition(State::PARKING); // Transition vers l'état PARKING
+    }    
 }
 
 void Formaca::eject() {
     BorneUniverselle::prepareMessage(SUCCESS, "Éjection");
     goToPosition(convToPUU(parameters.rightStop));
-    ejectionStartTime = millis();
 }
 
 void Formaca::goToParkPosition() {
@@ -652,15 +711,14 @@ void Formaca::goToParkPosition() {
 
 bool Formaca::isAtPArkPosition() {
     if (position->getValue() > parkPosition - 10 && position->getValue() < parkPosition + 10) {
-        nbCyclesMade->setValue(nbCyclesMade->getValue() + 1);
         return true;
     }
     return false;
 }
 
-void Formaca::saw() {
-    flipFlopScie->setValue(true);
-    Serial.printf("%lu:: Start scie\r\n", millis());
+void Formaca::saw(bool status) {
+    flipFlopScie->setValue(status);
+    Serial.printf("%lu:: %s du flip flop de la scie\r\n", millis(), status ? "start": "stop");
     BorneUniverselle::prepareMessage(SUCCESS, "Début du sciage");
 }
 
@@ -973,12 +1031,26 @@ void Formaca::transition(State newState) {
                       stateToString(currentState), 
                       stateToString(newState), 
                       stateToString(previousState));
-        if (newState == State::TRIGGER_PENDING) {
-            previousState = currentState;
+        
+        if (newState == State::SAWING) {
+            sawingOrigin = currentState;
+            Serial.printf("%lu:: Setting sawingOrigin to %s\r\n", 
+                          (unsigned long)millis(), stateToString(sawingOrigin));
         }
+        
+        previousState = currentState;
         currentState = newState;
-        // Ne réinitialiser stateStartTime que pour les nouveaux processus
-        if (newState != State::PARKING && newState != State::WASTE_CUTTING && newState != State::TRIGGER_PENDING) {
+        
+        // Réinitialiser stateStartTime uniquement pour les transitions initiales vers PARKING
+        if (newState == State::PARKING && currentState != State::TRIGGER_PENDING) {
+            Serial.printf("%lu:: Resetting stateStartTime for initial PARKING entry\r\n", (unsigned long)millis());
+            stateStartTime = 0;
+        }
+        else if (newState != State::PARKING && newState != State::WASTE_CUTTING && 
+                 newState != State::TRIGGER_PENDING && newState != State::SAWING_WAIT && 
+                 newState != State::NORMAL_CUTTING && newState != State::EJECTING) {
+            Serial.printf("%lu:: Resetting stateStartTime for non-excepted state %s\r\n", 
+                          (unsigned long)millis(), stateToString(newState));
             stateStartTime = 0;
         }
     }
