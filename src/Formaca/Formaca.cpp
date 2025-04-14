@@ -576,8 +576,11 @@ void Formaca::interfaceTreatment() {
         immediateStop->setValue(v_immediateStop->getValue());
     }
     if (overAllLenght->getIsChanged()) {
-        BorneUniverselle::prepareMessage(SUCCESS, "La longueur brute a été mise à jour");
-        BorneUniverselle::prepareMessage(WARNING, "Il est nécessaire d'aller à la position parc");
+        //BorneUniverselle::prepareMessage(SUCCESS, "La longueur brute a été mise à jour");
+        if (homeDone->getValue()) {
+            BorneUniverselle::prepareMessage(WARNING, "Il est nécessaire d'aller à la position parc");
+        }
+       
         parameters.overAllLenght = overAllLenght->getValue();
         saveMachineParameters();
         parkPosition = parameters.reference - convToPUU(overAllLenght->getValue() + parkOffset->getValue());
@@ -588,7 +591,10 @@ void Formaca::interfaceTreatment() {
             BorneUniverselle::prepareMessage(WARNING, "La longueur du rebut ne peut pas être plus grande que la longueur brute");
         } else {
             totalWasteLength = wasteLength->getValue() + bladelostLength;
-            BorneUniverselle::prepareMessage(SUCCESS, "La longueur du rebut a été mise à jour");
+            if (homeDone->getValue()) {
+                BorneUniverselle::prepareMessage(SUCCESS, "La longueur du rebut a été mise à jour");
+            }
+            
             parameters.wasteLength = wasteLength->getValue();
             saveMachineParameters();
         }
@@ -596,14 +602,21 @@ void Formaca::interfaceTreatment() {
     if (parkOffset->getIsChanged()) {
         parameters.parkOffset = parkOffset->getValue();
         parkPosition = parameters.reference - convToPUU(overAllLenght->getValue() + parkOffset->getValue());
-        char text[128];
-        sprintf(text, "L'offset de chargement a changé: %.2f[inch], nouvelle position de parc: %.2f\r\n", parkOffset->getValue(), convToInch(parkPosition));
-        BorneUniverselle::prepareMessage(SUCCESS, text);
-        BorneUniverselle::prepareMessage(WARNING, "Il faut aller en position parc");
+        if (homeDone->getValue()) {
+            char text[128];
+            sprintf(text, "L'offset de chargement a changé: %.2f[inch], nouvelle position de parc: %.2f\r\n", parkOffset->getValue(), convToInch(parkPosition));
+            BorneUniverselle::prepareMessage(SUCCESS, text);
+            BorneUniverselle::prepareMessage(WARNING, "Il faut aller en position parc");
+        }
+        
         saveMachineParameters();
     }
     if (rightStop->getIsChanged()) {
-        BorneUniverselle::prepareMessage(SUCCESS, "La butée droite a été mise à jour");
+        if (homeDone->getValue()) {
+            BorneUniverselle::prepareMessage(SUCCESS, "La butée droite a été mise à jour");
+            BorneUniverselle::prepareMessage(WARNING, "Il faut aller en position parc");
+        }
+      
         parameters.rightStop = rightStop->getValue();
         saveMachineParameters();
     }
@@ -650,10 +663,10 @@ void Formaca::jogTreatment() {
         if (fwd->getValue()) {
             if (convToPUU(position->getValue()) > 2) {
                 jogSpeed->setValue(FWD_VALUE);
-                BorneUniverselle::prepareMessage(SUCCESS, "On lance le jog fwd !");
+                //BorneUniverselle::prepareMessage(SUCCESS, "On lance le jog fwd !");
             } else {
                 jogSpeed->setValue(STOP_VALLUE);
-                BorneUniverselle::prepareMessage(WARNING, "On est trop près du switch de home. Mouvement interdit !");
+                //BorneUniverselle::prepareMessage(WARNING, "On est trop près du switch de home. Mouvement interdit !");
             }
         } else {
             jogSpeed->setValue(STOP_VALLUE);
