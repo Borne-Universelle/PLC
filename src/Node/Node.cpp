@@ -332,7 +332,7 @@ bool BooleanOutputNode::getValue(){
 void BooleanOutputNode::setValue(bool _value){
     //Serial.printf("BooleanOutputNode::setValue: %s\r\n", getName());
     if (_value != hideValue){
-        Serial.printf("Will set updateNeeded to true for node %s, new value: %s\r\n", getName(), _value ? "true" : "false");
+        Serial.printf("setValue: will update value for node %s, new value: %s, hash: %lu\r\n", getName(), _value ? "true" : "false", (unsigned long)getHash());
         updateNeeded = true;
         hideValue = _value;
        // Serial.printf("Node %s updated\r\n", getName());
@@ -450,6 +450,7 @@ uint16_t Uint16OutputNode::getValue(){
 }
 
 void Uint16OutputNode::setValue(uint16_t _value){
+    Serial.printf("setValue for node: %s, with value: %u\r\n", getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -474,7 +475,7 @@ bool Uint32OutputNode::specificRefresh(){
 }
 
 void Uint32OutputNode::setValue(uint32_t _value){
-    Serial.printf("Uint32OutputNode:: setValue for node: %s: %lu\r\n", getName(), (long unsigned int)_value);
+    Serial.printf("setValue for node: %s: %lu\r\n", getName(), (long unsigned int)_value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -507,7 +508,7 @@ float FloatOutputNode::getValue(){
 }
 
 void FloatOutputNode::setValue(float _value){
-    //Serial.printf("FloatOutputNode:: setValue for node: %s: %.2f\r\n", getName(), _value);
+    Serial.printf("setValue for node: %s, with value: %.2f\r\n", getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -566,7 +567,7 @@ char * TextOutputNode::getValue(){
 }
 
 void TextOutputNode::setValue(const char * _value){
-    //Serial.printf("FloatOutputNode:: setValue for node: %s\r\n", getName());
+    Serial.printf("setValue for node: %s, with value: %s\r\n", getName(), _value);
     if (strcmp(_value, hideValue)){
         updateNeeded = true;
         strcpy(hideValue, _value);
@@ -862,7 +863,7 @@ bool ModbusWriteMultipleCoilslNode::setValue(bool val, uint8_t id){
         if (val != hideValues[id]){
             hideValues[id] = val;
             updateNeeded = true;
-            Serial.printf("For node %s, will set bit %d to %s\r\n", getName(), id, val ? "true": "false");
+            Serial.printf("ModbusWriteMultipleCoilslNode::setValue, for node %s, will set bit %d to %s\r\n", getName(), id, val ? "true": "false");
         }
     } else {
         Serial.printf("ModbusWriteMultipleCoilslNode::setValue: Warning nb values < id !, nbValues: %d\r\n", nbValues);
@@ -876,7 +877,7 @@ bool ModbusWriteMultipleCoilslNode::setValues(bool *vals, uint8_t _nbValues){
         for (uint8_t i = 0; i < _nbValues; i++){
             if (vals[i] != hideValues[i]){
                 hideValues[i] = vals[i];
-                Serial.printf("For node %s, will set bit %d to %s\r\n", getName(), i, vals[i] ? "true": "false");
+                Serial.printf("ModbusWriteMultipleCoilslNode:setValuer,  for node %s, will set bit %d to %s\r\n", getName(), i, vals[i] ? "true": "false");
                 updateNeeded = true;
             }
         }
@@ -1051,6 +1052,7 @@ VirtualTextInputNode::VirtualTextInputNode(char *name, char *parentName, uint16_
 }
 
 void VirtualTextInputNode::setValue(const char *text){
+    Serial.printf("VirtualTextInputNode::setValue for node %s, value: %s\r\n", getName(), text);
     if (strcmp(text, hideValue)){
         updateNeeded = true;
         strcpy(hideValue, text);

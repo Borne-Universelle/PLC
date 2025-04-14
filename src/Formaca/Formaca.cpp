@@ -77,7 +77,6 @@ Formaca::Formaca() : currentState(State::UNDEFINED) { // Optionnel mais rigoureu
     cancelCycle = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CANCEL_CYCLE);
     cylinderCaptor = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CYLINDER_CAPTOR);
     v_servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_SERVO_ON);
-    v_flipFlopScie = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_FLIP_FLOP_SCIE);
     v_immediateStop = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_IMMEDIATE_STOP);
     v_alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_ALARMS_RESET);
 
@@ -567,9 +566,7 @@ void Formaca::interfaceTreatment() {
     if (v_servoOn->getIsChanged()) {
         servoOn->setValue(v_servoOn->getValue());
     }
-    if (v_flipFlopScie->getIsChanged()) {
-        flipFlopScie->setValue(v_flipFlopScie->getValue());
-    }
+ 
     if (v_immediateStop->getIsChanged()) {
         immediateStop->setValue(v_immediateStop->getValue());
         alarmsReset->setValue(v_alarmsReset->getValue());
@@ -675,6 +672,10 @@ void Formaca::jogTreatment() {
     }
 
     if (goHomeButton->getIsChanged() && goHomeButton->getValue()) {
+        if (!homeDone->getValue()) {
+            transition(State::HOMING);
+            return;
+        }
         Serial.printf("Go to home: %lu\r\n", (unsigned long)parameters.home);
         goToPosition(parameters.home);
     }
@@ -695,6 +696,10 @@ void Formaca::jogTreatment() {
 }
 
 void Formaca::eject() {
+    if (!homeDone->getValue()) {
+        BorneUniverselle::prepareMessage(ERROR, "Le home n'a pas été fait !!!");
+        return;
+    }
     BorneUniverselle::prepareMessage(SUCCESS, "Éjection");
     goToPosition(convToPUU(parameters.rightStop));
 }
@@ -762,9 +767,10 @@ void Formaca::initialStateLoadedHandler() {
     widthLength->setValue(parameters.recettes[idRecette].width);
     longLength->setValue(parameters.recettes[idRecette].longlength);
     v_servoOn->setValue(servoOn->getValue());
-    v_flipFlopScie->setValue(flipFlopScie->getValue());
     v_immediateStop->setValue(immediateStop->getValue());
     v_alarmsReset->setValue(alarmsReset->getValue());
+
+    jog->setValue(false);
 
     if (isEmergencyMode()) {
         BorneUniverselle::prepareMessage(ERROR, "Emergency stop !!!");
@@ -1019,8 +1025,8 @@ JsonDocument Formaca::getDropDownDescriptorHandler() {
     //docToSend["default"] = "";
     //docToSend["tooltip"] = "";
     
-    Serial.println("Will send the following JSON to handler:");
-    serializeJsonPretty(docToSend, Serial);
+    //Serial.println("Will send the following JSON to handler:");
+    //serializeJsonPretty(docToSend, Serial);
     return docToSend;
 }
 

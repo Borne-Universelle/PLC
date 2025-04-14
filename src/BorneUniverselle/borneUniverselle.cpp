@@ -1157,8 +1157,8 @@ bool BorneUniverselle::processMessage(WEB_SOCKET_MESSAGE *webSocketMessage) {
             //Serial.println(F("BorneUniverselle::processMessage: receive a NOTIFY_STATES_CHANGED"));
             handleNodesChange(socketDoc);
     } else if (!socketDoc[GET_VALUE].isNull()){
-            uint32_t hash = socketDoc[GET_VALUE];
-            Serial.printf("%lu::BorneUniverselle::processMessage: receive a get value for node: %lu\r\n", millis(), (unsigned long)hash);
+            //uint32_t hash = socketDoc[GET_VALUE];
+            //Serial.printf("%lu::BorneUniverselle::processMessage: receive a get value for node: %lu\r\n", millis(), (unsigned long)hash);
             if (!handleGetValue(socketDoc[GET_VALUE])){
                 return false;
             }
@@ -1270,6 +1270,8 @@ bool BorneUniverselle::handleGetValue(uint32_t hash){
         return false; // on veux garder le message
     }
 
+    Serial.printf("handleGetValue: receive a getValue for node: %s, hash: %lu\r\n", node->getName(), (unsigned long)hash);
+
     JsonDocument notifyDoc;
     JsonArray array = notifyDoc[NOTIFY_STATES_CHANGED].to<JsonArray>();
     JsonObject nodeObject = array.add<JsonObject>();
@@ -1305,7 +1307,7 @@ bool BorneUniverselle::handleNodesChange(JsonDocument& socketDoc){
     // Rappel on ne peux pas modifier une entrée, c'est le monde physique qui modifie une entrée !!!!
     uint32_t start = millis();
   
-    Serial.printf("%lu:: handleNodesChange: Web socket nodes change received. ", millis());
+    //Serial.printf("%lu:: handleNodesChange: Web socket nodes change received. ", millis());
     //serializeJsonPretty(socketDoc, Serial);
     
     char mess[128];
@@ -1385,7 +1387,7 @@ bool BorneUniverselle::handleNodesChange(JsonDocument& socketDoc){
         yield();
     }
 
-    Serial.println(F("End Web socket nodes change received\r\n"));
+    // Serial.println(F("End Web socket nodes change received\r\n"));
 
     if (millis() - start > 100){
         Serial.printf("Handle message time: %lu\r\n", millis() - start);

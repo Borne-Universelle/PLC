@@ -118,7 +118,7 @@
 
 // Kincony virtual outputs defines
 #define V_SERVO_ON                  1581937258
-#define V_FLIP_FLOP_SCIE            1291836804
+
 #define V_IMMEDIATE_STOP            4098079457
 #define V_ALARMS_RESET              1771340376
 
@@ -263,7 +263,6 @@ private:
     BooleanOutputNode *flipFlopScie;
     BooleanOutputNode *doHome;
     BooleanOutputNode *v_servoOn;
-    BooleanOutputNode *v_flipFlopScie;
     BooleanOutputNode *v_immediateStop;
     BooleanOutputNode *v_alarmsReset;
 

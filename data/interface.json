@@ -238,7 +238,7 @@
             "sections": [
                 {
                     "SectionName": "Paramètres machine",
-                    "orientation": "vertical",
+                    "orientation": "horizontal",
                     "NodesList": [
                         {
                             "name": "Choix Recette",
@@ -285,9 +285,8 @@
                 },
                 {
                     "SectionName": "Vitesses et compteurs",
-                    "orientation": "vertical",
-                    "NodesList": [
-                        
+                    "orientation": "horizontal",
+                    "NodesList": [  
                         {
                             "name": "Vitesse Cycle",
                             "component": "tx-numeric",
@@ -325,14 +324,19 @@
                     ]
                 },
                 {
-                    "SectionName": "Test",
+                    "SectionName": "Tests",
                     "orientation": "horizontal",
                     "NodesList": [
+                        {
+                            "name": "Jog Mode",
+                            "component": "tx-bool",
+                            "hash": 627952477
+                        },  
                         {
                             "name": "Scier",
                             "component": "tx-button-hold",
                             "color": "danger",
-                            "hash": 1291836804
+                            "hash": 2853133322
                         },
                         {
                             "name": "Éjecter",
@@ -341,10 +345,18 @@
                             "hash": 3772375986
                         },
                         {
+                            "name": "Aller a la position home",
+                            "component": "tx-button-hold",
+                            "hash": 3099259876
+                        },
+                        
+                        {
                             "name": "Servo on off",
                             "component": "tx-bool",
                             "hash": 1581937258
                         },
+
+
                         {
                             "name": "Stop immediat",
                             "component": "tx-bool",
