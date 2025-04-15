@@ -10155,14 +10155,40 @@ class TxQr extends ConnectedElement {
     }
 
     async loadJsQR() {
-        if (window.jsQR) {
-            return window.jsQR;
-        } else if (jsQR_min.exports && jsQR_min.exports.default) {
-            return jsQR_min.exports.default;
-        } else {
-            throw new Error('jsQR library not found');
-        }
-    }
+      // 1. Check if already loaded within this instance
+      if (this.jsQR) {
+          return this.jsQR;
+      }
+
+      // 2. Check if it's somehow globally available (less likely now)
+      if (window.jsQR) {
+          Logger.log(ComponentType.TX_QR, 'Using global window.jsQR');
+          this.jsQR = window.jsQR;
+          return this.jsQR;
+      }
+
+      try {
+          // 3. Call the loader function provided in index.js
+          Logger.log(ComponentType.TX_QR, 'Calling requireJsQR_min()');
+          const jsQRModule = requireJsQR_min(); // <-- CALL THE LOADER
+
+          // 4. Get the actual function (often the default export)
+          this.jsQR = jsQRModule.default || jsQRModule; // <-- Use the RETURNED module
+
+          if (!this.jsQR || typeof this.jsQR !== 'function') {
+               throw new Error('Loaded jsQR module is not a function.');
+          }
+
+          Logger.log(ComponentType.TX_QR, 'jsQR library loaded successfully via requireJsQR_min.');
+          return this.jsQR;
+
+      } catch (error) {
+          Logger.error(ComponentType.TX_QR, 'Error loading jsQR library:', error);
+          this.showError(`Failed to load QR Scanner library: ${error.message}`);
+          throw error; // Re-throw or handle as needed
+      }
+  }
+
   
     showValidation(data) {
         const validationContainer = this.querySelector('.validation-container');
@@ -10388,100 +10414,121 @@ class TxQr extends ConnectedElement {
     }
 
     scanQRCode() {
-        if (!this.scanning || !this.jsQR) {
-            console.log('Scanning stopped or jsQR not loaded');
-            return;
-        }
-    
-        const video = this.querySelector('#qr-video');
-        const canvas = this.querySelector('#qr-canvas');
-        const overlay = this.querySelector('.scan-overlay');
-        
-        if (video.readyState !== 4 || !video.videoWidth || !video.videoHeight) {
-            requestAnimationFrame(() => this.scanQRCode());
-            return;
-        }
-    
-        // Calculate the scaling factor between video and display size
-        const scale = video.offsetWidth / video.videoWidth;
-        
-        // Set canvas to video dimensions for processing
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Set overlay to displayed video size for correct visual positioning
-        overlay.width = video.offsetWidth;
-        overlay.height = video.offsetHeight;
-        
-        const ctx = canvas.getContext('2d');
-        const overlayCtx = overlay.getContext('2d');
-    
-        try {
-            // Draw current frame from video to canvas for processing
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Attempt to find QR code in the image
-            const code = jsQR_min.exports.default(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
-            });
-    
-            // Clear previous overlay drawings
-            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-    
-            if (code) {
-                console.log("QR Code found!", code.data);
-                
-                // Draw green border around detected QR code
-                overlayCtx.strokeStyle = '#00FF00';
-                overlayCtx.lineWidth = 4;
-                overlayCtx.beginPath();
-                overlayCtx.moveTo(code.location.topLeftCorner.x * scale, code.location.topLeftCorner.y * scale);
-                overlayCtx.lineTo(code.location.topRightCorner.x * scale, code.location.topRightCorner.y * scale);
-                overlayCtx.lineTo(code.location.bottomRightCorner.x * scale, code.location.bottomRightCorner.y * scale);
-                overlayCtx.lineTo(code.location.bottomLeftCorner.x * scale, code.location.bottomLeftCorner.y * scale);
-                overlayCtx.lineTo(code.location.topLeftCorner.x * scale, code.location.topLeftCorner.y * scale);
-                overlayCtx.stroke();
-    
-                try {
-                    // Try to parse the QR code data as JSON
-                    const qrData = JSON.parse(code.data);
-                    console.log('Parsed QR data:', qrData);
-                    
-                    // Show validation UI instead of immediately sending data
-                    this.showValidation(qrData);
-                    
-                    // Stop scanning while showing validation
-                    this.scanning = false;
-                    
-                } catch (e) {
-                    console.warn('Invalid JSON in QR code:', e);
-                    overlayCtx.strokeStyle = '#FF0000';
-                    overlayCtx.stroke();
-                    this.showError('Invalid QR Code format. Expected JSON data.');
-                }
-            } else {
-                // No QR code found, draw red scanning guide
-                overlayCtx.strokeStyle = '#FF0000';
-                overlayCtx.lineWidth = 2;
-                overlayCtx.strokeRect(
-                    overlay.width * 0.2,
-                    overlay.height * 0.2,
-                    overlay.width * 0.6,
-                    overlay.height * 0.6
-                );
-            }
-        } catch (error) {
-            console.error('Scanning error:', error);
-        }
-    
-        // Continue scanning if not paused
-        if (this.scanning) {
-            requestAnimationFrame(() => this.scanQRCode());
-        } else {
-            console.log('Scanning paused for validation');
-        }
-    }
+      // Check if scanning is active and the jsQR library is loaded and initialized
+      if (!this.scanning || !this.jsQR) {
+          Logger.log(ComponentType.TX_QR, 'Scanning stopped or jsQR library not loaded/initialized.');
+          // If scanning is supposed to be active but jsQR isn't loaded, maybe log an error or stop trying.
+          // If scanning is simply stopped (e.g., for validation), this is normal.
+          return;
+      }
+
+      // Get necessary DOM elements within the component's scope
+      const video = this.querySelector('#qr-video');
+      const canvas = this.querySelector('#qr-canvas'); // Hidden canvas for processing
+      const overlay = this.querySelector('.scan-overlay'); // Visible canvas for drawing feedback
+
+      // Ensure video element exists and is ready with dimensions
+      if (!video || video.readyState !== video.HAVE_ENOUGH_DATA || !video.videoWidth || !video.videoHeight) {
+          // Video not ready yet, request the next frame and try again
+          requestAnimationFrame(() => this.scanQRCode());
+          return;
+      }
+
+      // Calculate the scaling factor between the video's intrinsic size and its displayed size
+      // This is needed to draw the overlay correctly on the displayed video feed
+      const scale = video.offsetWidth / video.videoWidth;
+
+      // Set the processing canvas dimensions to match the video's actual resolution
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Set the overlay canvas dimensions to match the video's displayed size
+      overlay.width = video.offsetWidth;
+      overlay.height = video.offsetHeight;
+
+      // Get drawing contexts for both canvases
+      const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Hint for performance
+      const overlayCtx = overlay.getContext('2d');
+
+      try {
+          // Draw the current video frame onto the hidden processing canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // Get the pixel data from the processing canvas
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+          // --- CORRECTED LINE ---
+          // Attempt to find a QR code in the image data using the loaded jsQR function
+          const code = this.jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "dontInvert", // Or other jsQR options if needed
+          });
+          // --- END CORRECTION ---
+
+          // Clear any previous drawings from the overlay canvas
+          overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+
+          if (code) {
+              // A QR code was successfully found
+              Logger.log(ComponentType.TX_QR, "QR Code found!", code.data);
+
+              // Draw a green border around the detected QR code on the overlay
+              overlayCtx.strokeStyle = '#00FF00'; // Green color for success
+              overlayCtx.lineWidth = 4;
+              overlayCtx.beginPath();
+              // Map the detected corner points to the overlay canvas size using the scale factor
+              overlayCtx.moveTo(code.location.topLeftCorner.x * scale, code.location.topLeftCorner.y * scale);
+              overlayCtx.lineTo(code.location.topRightCorner.x * scale, code.location.topRightCorner.y * scale);
+              overlayCtx.lineTo(code.location.bottomRightCorner.x * scale, code.location.bottomRightCorner.y * scale);
+              overlayCtx.lineTo(code.location.bottomLeftCorner.x * scale, code.location.bottomLeftCorner.y * scale);
+              overlayCtx.closePath(); // Close the path to complete the rectangle
+              overlayCtx.stroke();
+
+              try {
+                  // Attempt to parse the QR code data as JSON
+                  const qrData = JSON.parse(code.data);
+                  Logger.log(ComponentType.TX_QR, 'Parsed QR data:', qrData);
+
+                  // Show the validation UI with the parsed data
+                  this.showValidation(qrData);
+
+                  // showValidation should set this.scanning = false, stopping the loop
+
+              } catch (e) {
+                  // The QR code content was not valid JSON
+                  Logger.warn(ComponentType.TX_QR, 'Invalid JSON in QR code:', e);
+                  // Optionally draw a red border to indicate the parsing error
+                  overlayCtx.strokeStyle = '#FF0000'; // Red color for error
+                  overlayCtx.stroke(); // Re-stroke the border in red
+                  this.showError('Invalid QR Code format. Expected JSON data.');
+                  // Continue scanning in case it was a temporary read error or a different QR code
+              }
+          } else {
+              // No QR code was found in this frame
+              // Draw the red scanning guide rectangle on the overlay
+              overlayCtx.strokeStyle = '#FF0000'; // Red color for the guide
+              overlayCtx.lineWidth = 2;
+              overlayCtx.strokeRect(
+                  overlay.width * 0.2,  // x position (20% from left)
+                  overlay.height * 0.2, // y position (20% from top)
+                  overlay.width * 0.6,  // width (60% of total width)
+                  overlay.height * 0.6  // height (60% of total height)
+              );
+          }
+      } catch (error) {
+          // Catch any unexpected errors during canvas operations or jsQR execution
+          Logger.error(ComponentType.TX_QR, 'Error during QR code scanning frame:', error);
+          // Optionally display an error message to the user via showError
+          // this.showError(`Scanning error: ${error.message}`);
+      }
+
+      // Request the next animation frame to continue the scanning loop if active
+      if (this.scanning) {
+          requestAnimationFrame(() => this.scanQRCode());
+      } else {
+          Logger.log(ComponentType.TX_QR, 'Scanning paused.');
+      }
+  }
+
 
     closeCamera() {
         if (this.videoStream) {
