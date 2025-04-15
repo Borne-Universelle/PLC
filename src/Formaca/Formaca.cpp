@@ -658,7 +658,7 @@ void Formaca::interfaceTreatment() {
     }
     if (overAllLenght->getIsChanged()) {
         //BorneUniverselle::prepareMessage(SUCCESS, "La longueur brute a été mise à jour");
-        if (homeDone->getValue()) {
+        if (homeDone->getValue() && !isAtPArkPosition()) {
             BorneUniverselle::prepareMessage(WARNING, "Il est nécessaire d'aller à la position parc");
         }
        
