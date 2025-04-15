@@ -48,6 +48,11 @@
                             "component": "tx-button-hold",
                             "color": "normal",
                             "hash": 431233
+                        },
+                        {
+                            "name": "QR codde",
+                            "component": "tx-qr",
+                            "hash": 280445852
                         }
                     ]
                 },
