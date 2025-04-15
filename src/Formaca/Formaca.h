@@ -322,4 +322,5 @@ private:
     // State machine
     bool isFirstCycle = true; // Indique si c'est le premier cycle (rebut)
     State sawingOrigin = State::UNDEFINED;
+    State resumeState = State::UNDEFINED;
 };
