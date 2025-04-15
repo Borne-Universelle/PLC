@@ -275,6 +275,18 @@
     {
       "name": "Inputs",
       "hardware": "virtual",
+      "type": "tx-bool",
+      "children": [
+        {
+          "id": 1,
+          "name": "v_start",
+          "hash": 645363011
+        }
+      ]
+    },
+    {
+      "name": "Inputs",
+      "hardware": "virtual",
       "type": "tx-uint32",
       "children": [
         {
@@ -307,15 +319,16 @@
           "name": "Nb Cycles clear",
           "hash": 362298148
         },
-        {
-          "id": 10,
-          "name": "v_start",
-          "hash": 824782083
-        },
+        
         {
           "id": 11,
           "name": "Cancel cycle",
           "hash": 2539529911
+        }, 
+        {
+          "id": 12,
+          "name": "inertie scie",
+          "hash": 2796960810
         }
       ]
     },
@@ -362,7 +375,7 @@
       ]
     },
     {
-      "name": "DropDown Inputs",
+      "name": "Textes inputs",
       "hardware": "virtual",
       "type": "tx-text",
       "children": [
@@ -372,6 +385,11 @@
           "items": [
           ],
           "hash": 2565368844
+        }, 
+        {
+          "id": 2,
+          "name": "QR code",
+          "hash": 0
         }
       ]
     },

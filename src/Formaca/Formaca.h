@@ -52,7 +52,7 @@
 
 #define NB_CYCLES_VOULUS            1168588921
 #define NB_CYCLES_EFFECTUES         3018797200
-#define CHOIX_RECETTE               2565368844
+#define CHOIX_RECETTE               1825990215
 #define STATUS_DRIVE                4137233651
 #define ABSOLUTE_COORDONATE_SYSTEM_STATUS 4098304980
 #define ALARMS                      4126332617
@@ -82,7 +82,7 @@
 #define RIGHT_STOP                  3132370279
 #define WIDTH_LENGTH                1041711882
 #define LENGTH                      2736300668
-#define V_START                     824782083
+#define V_START                     645363011
 #define CANCEL_CYCLE                2539529911
 
 // Software defines
@@ -322,4 +322,5 @@ private:
     // State machine
     bool isFirstCycle = true; // Indique si c'est le premier cycle (rebut)
     State sawingOrigin = State::UNDEFINED;
+    State resumeState = State::UNDEFINED;
 };

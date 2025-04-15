@@ -346,17 +346,7 @@ void setup(){
    ;
   }
   delay(100);
-  /*
-  //disableHardwareWatchdog(); // Tenter de désactiver TG1WDT
-  Serial.println("TG1WDT désactivé (tentative)");
-// Configurer le Task Watchdog (TWDT) pour 10 minutes
-esp_task_wdt_config_t wdt_config = {
-  .timeout_ms = 600000,  // 600 secondes (10 minutes) en millisecondes
-  .idle_core_mask = 0,   // Ne pas surveiller les cœurs inactifs (0 = tous)
-  .trigger_panic = true  // Déclencher un panic/reset si timeout
-};
-esp_task_wdt_init(&wdt_config); // Passer la structure comme argument
-  */
+  
  /*
   esp_log_level_set("*", ESP_LOG_DEBUG);        // set all components to ERROR level
   esp_log_level_set("wifi", ESP_LOG_DEBUG);      // enable WARN logs from WiFi stack
@@ -456,6 +446,9 @@ void loop() {
   
   } else {
     Serial.println("PLC is broken !");
+    while(1){
+      delay(1000);
+    }
   }
   
 

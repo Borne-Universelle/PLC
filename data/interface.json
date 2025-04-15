@@ -11,7 +11,7 @@
                             "name": "Start Cycle",
                             "component": "tx-button-hold",
                             "color": "success",
-                            "hash": 824782083
+                            "hash": 645363011
                         },
                         {
                             "name": "Stop cycle",
@@ -48,6 +48,11 @@
                             "component": "tx-button-hold",
                             "color": "normal",
                             "hash": 431233
+                        },
+                        {
+                            "name": "QR codde",
+                            "component": "tx-qr",
+                            "hash": 280445852
                         }
                     ]
                 },
@@ -243,7 +248,7 @@
                         {
                             "name": "Choix Recette",
                             "component": "tx-dropdown",
-                            "hash": 2565368844
+                            "hash": 1825990215
                         },
                         {
                             "name": "Longueur brute",
@@ -280,6 +285,11 @@
                             "component": "tx-numeric",
                             "unit": "pouces",
                             "hash": 3132370279
+                        },
+                        {
+                            "name": "Inertie scie",
+                            "component": "tx-numeric",
+                            "hash": 2796960810
                         }
                     ]
                 },

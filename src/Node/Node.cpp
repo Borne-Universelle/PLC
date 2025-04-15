@@ -450,7 +450,7 @@ uint16_t Uint16OutputNode::getValue(){
 }
 
 void Uint16OutputNode::setValue(uint16_t _value){
-    Serial.printf("setValue for node: %s, with value: %u\r\n", getName(), _value);
+    Serial.printf("%lu::setValue for node: %s, with value: %u\r\n", (unsigned long)millis(), getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -475,7 +475,7 @@ bool Uint32OutputNode::specificRefresh(){
 }
 
 void Uint32OutputNode::setValue(uint32_t _value){
-    Serial.printf("setValue for node: %s: %lu\r\n", getName(), (long unsigned int)_value);
+    Serial.printf("%lu: %s: %lu\r\n", (long unsigned int)millis(), getName(), (long unsigned int)_value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -508,7 +508,7 @@ float FloatOutputNode::getValue(){
 }
 
 void FloatOutputNode::setValue(float _value){
-    Serial.printf("setValue for node: %s, with value: %.2f\r\n", getName(), _value);
+    Serial.printf("%lu::setValue for node: %s, with value: %.2f\r\n", (unsigned long)millis(), getName(), _value);
     if (_value != hideValue){
         updateNeeded = true;
         hideValue = _value;
@@ -567,7 +567,7 @@ char * TextOutputNode::getValue(){
 }
 
 void TextOutputNode::setValue(const char * _value){
-    Serial.printf("setValue for node: %s, with value: %s\r\n", getName(), _value);
+    Serial.printf("%lu::setValue for node: %s, with value: %s\r\n", (unsigned long)millis(), getName(), _value);
     if (strcmp(_value, hideValue)){
         updateNeeded = true;
         strcpy(hideValue, _value);
@@ -1052,11 +1052,11 @@ VirtualTextInputNode::VirtualTextInputNode(char *name, char *parentName, uint16_
 }
 
 void VirtualTextInputNode::setValue(const char *text){
-    Serial.printf("VirtualTextInputNode::setValue for node %s, value: %s\r\n", getName(), text);
+    Serial.printf("%lu::VirtualTextInputNode::setValue for node %s, value: %s\r\n", (unsigned long)millis, getName(), text);
     if (strcmp(text, hideValue)){
         updateNeeded = true;
         strcpy(hideValue, text);
-        Serial.printf("VirtualTextInputNode::setValue for node %s\r\n", getName());
+        //Serial.printf("%lu::VirtualTextInputNode::setValue for node %s\r\n", (unsigned long)millis(), getName());
     }
 }
 

@@ -86,12 +86,17 @@ bool PLC_InterfaceMenu::parseSection(JsonObject section) {
         if (!node[HASH_NAME].isNull()){
             menuNode.hash = node[HASH_NAME].as<uint32_t>();
         } else {
+            if (!node[NODE_NAME].isNull()){
+                Serial.printf("For section %s, node %s doesn't have hash\r\n", sectionName, node[NODE_NAME].as<const char*>());
+                return false;
+            }
+
             Serial.printf("For section %s, one of nodes hasn't key hash\r\n", sectionName);
             return false;
         }
 
         if (!node[NODE_NAME].isNull()){
-            menuNode.name = node["name"].as<const char*>();
+            menuNode.name = node[NODE_NAME].as<const char*>();
         } else {
             Serial.printf("For section %s, hash %lu, the key %s doesn't exist\r\n", sectionName, (long unsigned int)menuNode.hash, NODE_NAME);
             return false;
