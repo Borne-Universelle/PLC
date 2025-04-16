@@ -189,7 +189,7 @@ void BorneUniverselle::setPlcBrokenImpl(const char *context) {
         }
      
         snprintf(text, len, "Plc is broken, context: %s", context);
-        prepareMessage(ERROR, text);
+        prepareMessage(FATAL, text);
         isLastMessageFatal = true;
         Serial.println(text);
           
@@ -784,6 +784,8 @@ void BorneUniverselle::prepareMessageImpl(uint8_t type, const char * text){
 
             case SUCCESS:   Serial.printf("%lu:: SUCCESS: %s\r\n", millis(), safeMessage);
                             break;
+
+            case FATAL:     Serial.printf("%lu:: FATAL: %s\r\n", millis(), safeMessage);
 
             default:        type = ERROR; // Default to ERROR if type is unknown,
                             break;

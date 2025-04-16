@@ -185,7 +185,12 @@ public:
     JsonDocument getDropDownDescriptorHandler();
 
 private:
+    static constexpr uint32_t ALARMS_RESET_PULSE_MS = 50;
+    static constexpr uint32_t PARK_POSITION_TOLERANCE_PUU = 50;
+    static constexpr uint32_t TRIGGER_PENDING_DELAY_MS = 50;
     void handleInterrupts();
+    bool isValidForEmergency();
+    void enterEmergency(uint32_t now, const char *message);
     void checkEmergencyConditions(uint32_t now);
     void updateOutputs();
     void transition(State newState);

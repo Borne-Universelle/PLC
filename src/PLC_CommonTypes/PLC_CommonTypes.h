@@ -5,3 +5,4 @@
 #define WARNING                     1
 #define INFO                        2
 #define SUCCESS                     3
+#define FATAL                       4

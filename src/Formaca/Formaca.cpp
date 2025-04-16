@@ -203,76 +203,49 @@ void Formaca::handleInterrupts() {
     }
 }
 
-void Formaca::checkEmergencyConditions(uint32_t now) {
-    // Serial.printf("%lu:: checkEmergencyConditions called, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
-    // cas avec le bouton stop cycle sur la tablette
-    if (cancelCycle->getIsChanged() && cancelCycle->getValue() && currentState != State::IDLE && currentState != State::JOGGING) {
-        uint32_t hash = cancelCycle->getHash();
-        Serial.printf("%lu:: Cancel cycle pressed, button state: %s, hash: %lu, currentState: %s, resumeState: %s, ms: %lu\r\n", (unsigned long)now, cancelCycle->getValue() ? "true":"false", hash, stateToString(currentState), stateToString(resumeState), millis());
+bool Formaca::isValidForEmergency() {
+    return currentState != State::IDLE && currentState != State::JOGGING;
+}
+
+void Formaca::enterEmergency(uint32_t now, const char* message) {
+    if (isValidForEmergency()) {
         resumeState = currentState;
-        Serial.printf("%lu:: Set resumeState to %s for cancelCycle\r\n", 
-                      (unsigned long)now, stateToString(resumeState));
-        setEmergencyMode(true);
-        transition(State::EMERGENCY);
-        BorneUniverselle::prepareMessage(ERROR, "Appui sur le bouton Cancel Cycle");
-        Serial.printf("%lu:: After cancelCycle transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
-        return;
     }
+    setEmergencyMode(true);
+    transition(State::EMERGENCY);
+    BorneUniverselle::prepareMessage(ERROR, message);
+}
 
-    // cas avec le boutonp hysique e_stop 
-    if (!eStopA->getIsChanged() && !eStopA->getValue() && currentState != State::IDLE && currentState != State::JOGGING) {
-        Serial.printf("%lu:: eStopA or immediateStop triggered, currentState: %s, resumeState: %s, eStopA: %d, immediateStop: %d\r\n", 
-                      (unsigned long)now, stateToString(currentState), stateToString(resumeState), 
-                      eStopA->getValue(), immediateStop->getValue());
-        if (currentState != State::IDLE && currentState != State::JOGGING) {
-            resumeState = currentState;
-            Serial.printf("%lu:: Set resumeState to %s for eStopA/immediateStop\r\n", 
-                          (unsigned long)now, stateToString(resumeState));
-        }
-        setEmergencyMode(true);
-        transition(State::EMERGENCY);
-        Serial.printf("%lu:: After eStopA/immediateStop transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
-        return;
-    }
-
-    // Perte de la pression d'air
-    if (capteur_pression_air->getIsChanged() && !capteur_pression_air->getValue() && homeDone->getValue()) {
-        BorneUniverselle::prepareMessage(ERROR, "Attention on a perdu la pression d'air !!!");
-        Serial.printf("%lu:: Air pressure lost, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
-        if (currentState != State::IDLE && currentState != State::JOGGING) {
-            resumeState = currentState;
-            Serial.printf("%lu:: Set resumeState to %s for air pressure\r\n", 
-                          (unsigned long)now, stateToString(resumeState));
-        }
-        setEmergencyMode(true);
-        transition(State::EMERGENCY);
-        Serial.printf("%lu:: After air pressure transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
-        return;
-    }
-
-    // Bouton stop immédiat (page configuration)
-    if (v_immediateStop->getIsChanged() && v_immediateStop->getValue() && homeDone->getValue()) {
-        Serial.printf("%lu:: v_immediateStop changed, value: %d, currentState: %s, resumeState: %s\r\n", 
-                      (unsigned long)now, v_immediateStop->getValue(), stateToString(currentState), stateToString(resumeState));
-        setEmergencyMode(true);
-    }
-
-    // Gérer la réinitialisation de alarmsReset après 50 ms
+void Formaca::checkEmergencyConditions(uint32_t now) {
+    // Gérer l'impulsion de alarmsReset
     if (alarmsResetPending && (now - alarmsResetStartTime >= 50)) {
         alarmsReset->setValue(false);
         alarmsResetPending = false;
-        Serial.printf("%lu:: AlarmsReset pulsed for 50ms, reset to false\r\n", now);
+    }
+
+    if (cancelCycle->getIsChanged() && cancelCycle->getValue() && isValidForEmergency()) {
+        enterEmergency(now, "Appui sur le bouton Cancel Cycle");
+        return;
+    }
+
+    if (!eStopA->getIsChanged() && !eStopA->getValue() && isValidForEmergency()) {
+        enterEmergency(now, "Bouton E-Stop physique activé");
+        return;
+    }
+
+    if (capteur_pression_air->getIsChanged() && !capteur_pression_air->getValue() && homeDone->getValue()) {
+        enterEmergency(now, "Attention on a perdu la pression d'air !!!");
+        return;
+    }
+
+    if (v_immediateStop->getIsChanged() && v_immediateStop->getValue() && homeDone->getValue()) {
+        setEmergencyMode(true);
     }
 
     alarmsReset->setValue(v_alarmsReset->getValue());
-    // Reset de l'alarmes (bouton page principale) 
     if (v_alarmsReset->getIsChanged() && v_alarmsReset->getValue()) {
-        Serial.printf("%lu:: Alarms reset pressed, currentState: %s, resumeState: %s\r\n",  (unsigned long)now, stateToString(currentState), stateToString(resumeState));
-        BorneUniverselle::prepareMessage(SUCCESS, "Alarms reset pressed");            
         setEmergencyMode(false);
-        
         transition(State::IDLE);
-        Serial.printf("%lu:: After alarms reset transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
     }
 }
 
@@ -825,13 +798,9 @@ void Formaca::goToParkPosition() {
 }
 
 bool Formaca::isAtPArkPosition() {
-    //Serial.printf("isAtPArkPosition: écart: %lu\r\n", (unsigned long)position->getValue()- parkPosition);
-    //Serial.printf("isAtPArkPosition: écart: %lu\r\n", parkPosition - (unsigned long)position->getValue());
-
-    if (position->getValue() > parkPosition - 50 && position->getValue() < parkPosition + 50) {
-        return true;
-    }
-    return false;
+    uint32_t pos = position->getValue();
+    return pos > parkPosition - PARK_POSITION_TOLERANCE_PUU && 
+           pos < parkPosition + PARK_POSITION_TOLERANCE_PUU;
 }
 
 void Formaca::saw(bool status) {
