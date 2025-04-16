@@ -456,6 +456,9 @@ void loop() {
   
   } else {
     Serial.println("PLC is broken !");
+    while(1){
+     delay(1000);
+    }
   }
   
 

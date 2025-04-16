@@ -15,16 +15,16 @@ Formaca::Formaca() : currentState(State::UNDEFINED) { // Optionnel mais rigoureu
     servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOON);
     alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ALARMSRESET);
     flipFlopScie = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, FLIP_FLOP_SCIE);
-    jog = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG);
-    fwd = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, FWD);
-    rwd = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, RWD);
-    jogFullTorque = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG_FULL_TORQUE);
-    goToPark = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_TO_PARK);
-    gotoRef = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_TO_REF);
-    calibrate = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CALIBRATE);
-    goHomeButton = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_HOME_BUTTON);
-    scier = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SCIER);
-    ejectButton = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, EJECT);
+    jog = (VirtualBooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG);
+    fwd = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, FWD);
+    rwd = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, RWD);
+    jogFullTorque = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, JOG_FULL_TORQUE);
+    goToPark = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_TO_PARK);
+    gotoRef = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_TO_REF);
+    calibrate = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CALIBRATE);
+    goHomeButton = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, GO_HOME_BUTTON);
+    scier = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SCIER);
+    ejectButton = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, EJECT);
     servoReady = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOREADY);
     servoActivated = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, SERVOACTIVATED);
     zeroSpeed = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, ZEROSPEED);
@@ -77,8 +77,8 @@ Formaca::Formaca() : currentState(State::UNDEFINED) { // Optionnel mais rigoureu
     cancelCycle = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CANCEL_CYCLE);
     cylinderCaptor = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, CYLINDER_CAPTOR);
     v_servoOn = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_SERVO_ON);
-    v_immediateStop = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_IMMEDIATE_STOP);
-    v_alarmsReset = (BooleanOutputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_ALARMS_RESET);
+    v_immediateStop = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_IMMEDIATE_STOP);
+    v_alarmsReset = (BooleanInputNode *)BorneUniverselle::findNode(CONSTR_FORMACA, V_ALARMS_RESET);
 
     if (BorneUniverselle::isPlcBroken()) {
         Serial.flush();
@@ -204,21 +204,21 @@ void Formaca::handleInterrupts() {
 }
 
 void Formaca::checkEmergencyConditions(uint32_t now) {
-    Serial.printf("%lu:: checkEmergencyConditions called, currentState: %s, resumeState: %s\r\n", 
-                  (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+    // Serial.printf("%lu:: checkEmergencyConditions called, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
     // cas avec le bouton stop cycle sur la tablette
     if (cancelCycle->getIsChanged() && cancelCycle->getValue() && currentState != State::IDLE && currentState != State::JOGGING) {
-        Serial.printf("%lu:: Cancel cycle pressed, currentState: %s, resumeState: %s, ms: %lu\r\n", 
-                      (unsigned long)now, stateToString(currentState), stateToString(resumeState), millis());
+        uint32_t hash = cancelCycle->getHash();
+        Serial.printf("%lu:: Cancel cycle pressed, button state: %s, hash: %lu, currentState: %s, resumeState: %s, ms: %lu\r\n", (unsigned long)now, cancelCycle->getValue() ? "true":"false", hash, stateToString(currentState), stateToString(resumeState), millis());
         resumeState = currentState;
         Serial.printf("%lu:: Set resumeState to %s for cancelCycle\r\n", 
                       (unsigned long)now, stateToString(resumeState));
         setEmergencyMode(true);
         transition(State::EMERGENCY);
         BorneUniverselle::prepareMessage(ERROR, "Appui sur le bouton Cancel Cycle");
-        Serial.printf("%lu:: After cancelCycle transition, currentState: %s, resumeState: %s\r\n", 
-                      (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        Serial.printf("%lu:: After cancelCycle transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        return;
     }
+
     // cas avec le boutonp hysique e_stop 
     if (!eStopA->getIsChanged() && !eStopA->getValue() && currentState != State::IDLE && currentState != State::JOGGING) {
         Serial.printf("%lu:: eStopA or immediateStop triggered, currentState: %s, resumeState: %s, eStopA: %d, immediateStop: %d\r\n", 
@@ -231,33 +231,48 @@ void Formaca::checkEmergencyConditions(uint32_t now) {
         }
         setEmergencyMode(true);
         transition(State::EMERGENCY);
-        Serial.printf("%lu:: After eStopA/immediateStop transition, currentState: %s, resumeState: %s\r\n", 
-                      (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        Serial.printf("%lu:: After eStopA/immediateStop transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        return;
     }
 
+    // Perte de la pression d'air
     if (capteur_pression_air->getIsChanged() && !capteur_pression_air->getValue() && homeDone->getValue()) {
-        Serial.printf("%lu:: Air pressure lost, currentState: %s, resumeState: %s\r\n", 
-                      (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        BorneUniverselle::prepareMessage(ERROR, "Attention on a perdu la pression d'air !!!");
+        Serial.printf("%lu:: Air pressure lost, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
         if (currentState != State::IDLE && currentState != State::JOGGING) {
             resumeState = currentState;
             Serial.printf("%lu:: Set resumeState to %s for air pressure\r\n", 
                           (unsigned long)now, stateToString(resumeState));
         }
-        immediateStop->setValue(true);
+        setEmergencyMode(true);
         transition(State::EMERGENCY);
-        BorneUniverselle::prepareMessage(ERROR, "Attention on a perdu la pression d'air !!!");
-        Serial.printf("%lu:: After air pressure transition, currentState: %s, resumeState: %s\r\n", 
-                      (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        Serial.printf("%lu:: After air pressure transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        return;
     }
 
-    if (v_immediateStop->getIsChanged()) {
+    // Bouton stop immédiat (page configuration)
+    if (v_immediateStop->getIsChanged() && v_immediateStop->getValue() && homeDone->getValue()) {
         Serial.printf("%lu:: v_immediateStop changed, value: %d, currentState: %s, resumeState: %s\r\n", 
                       (unsigned long)now, v_immediateStop->getValue(), stateToString(currentState), stateToString(resumeState));
-        immediateStop->setValue(v_immediateStop->getValue());
-        alarmsReset->setValue(v_alarmsReset->getValue());
-        if (!v_immediateStop->getValue()) {
-            BorneUniverselle::prepareMessage(WARNING, "Immediate stop reset");
-        }
+        setEmergencyMode(true);
+    }
+
+    // Gérer la réinitialisation de alarmsReset après 50 ms
+    if (alarmsResetPending && (now - alarmsResetStartTime >= 50)) {
+        alarmsReset->setValue(false);
+        alarmsResetPending = false;
+        Serial.printf("%lu:: AlarmsReset pulsed for 50ms, reset to false\r\n", now);
+    }
+
+    alarmsReset->setValue(v_alarmsReset->getValue());
+    // Reset de l'alarmes (bouton page principale) 
+    if (v_alarmsReset->getIsChanged() && v_alarmsReset->getValue()) {
+        Serial.printf("%lu:: Alarms reset pressed, currentState: %s, resumeState: %s\r\n",  (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+        BorneUniverselle::prepareMessage(SUCCESS, "Alarms reset pressed");            
+        setEmergencyMode(false);
+        
+        transition(State::IDLE);
+        Serial.printf("%lu:: After alarms reset transition, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
     }
 }
 
@@ -274,22 +289,22 @@ bool Formaca::logiqueExecutor() {
         Serial.printf("%lu:: PLC broken, exiting\r\n", (unsigned long)now);
         return false;
     }
-    Serial.printf("%lu:: Entering logiqueExecutor, currentState: %s, resumeState: %s\r\n", 
-                  (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+    //Serial.printf("%lu:: Entering logiqueExecutor, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
     
     handleInterrupts();
     checkEmergencyConditions(now);
-    Serial.printf("%lu:: After checkEmergencyConditions, currentState: %s, resumeState: %s\r\n", 
-                  (unsigned long)now, stateToString(currentState), stateToString(resumeState));
+    //Serial.printf("%lu:: After checkEmergencyConditions, currentState: %s, resumeState: %s\r\n", (unsigned long)now, stateToString(currentState), stateToString(resumeState));
     
     updateOutputs();
 
     switch (currentState) {
         case State::UNDEFINED:
+            printCurrentState();
             transition(State::INITIALIZING);
             return true; // Sortir après transition
 
         case State::INITIALIZING:
+            printCurrentState();
             driveInitialisation();
             if (initialised) {
                 transition(State::IDLE);
@@ -297,9 +312,8 @@ bool Formaca::logiqueExecutor() {
             }
             break;
 
-        case State::IDLE:
-            Serial.printf("%lu:: Processing IDLE, resumeState: %s\r\n", 
-                          (unsigned long)now, stateToString(resumeState));
+            case State::IDLE:
+            printCurrentState();
             if (!initialised) {
                 transition(State::INITIALIZING);
                 return true;
@@ -307,10 +321,13 @@ bool Formaca::logiqueExecutor() {
                 transition(State::HOMING);
                 return true;
             } else if (getIsStartCycle() && homeDone->getValue()) {
-                // Vérifier si un arrêt immédiat est actif
                 if (immediateStop->getValue()) {
                     BorneUniverselle::prepareMessage(ERROR, "Arrêt immédiat actif, impossible de reprendre");
-                    // resumeState = State::UNDEFINED;
+                    return true;
+                }
+                // Attendre la fin de l'impulsion de alarmsReset avant de reprendre
+                if (alarmsResetPending) {
+                    Serial.printf("%lu:: IDLE: Waiting for alarmsReset pulse to complete\r\n", now);
                     return true;
                 }
                 // Reprendre un cycle interrompu si applicable
@@ -318,21 +335,18 @@ bool Formaca::logiqueExecutor() {
                     Serial.printf("IDLE: Resume cycle after emergency stop, resumeState: %s\r\n", stateToString(resumeState));
                     State targetState = resumeState;
                     if (resumeState == State::SAWING || resumeState == State::SAWING_WAIT) {
-                        // Reprendre à l'état parent
                         targetState = (sawingOrigin == State::UNDEFINED) ? State::WASTE_CUTTING : sawingOrigin;
                     } else if (resumeState == State::TRIGGER_PENDING) {
-                        // Reprendre l'état parent
                         targetState = (previousState == State::UNDEFINED || previousState == State::IDLE) ? State::PARKING : previousState;
                     }
-                    Serial.printf("%lu:: IDLE: Resuming cycle at %s after emergency\r\n", (unsigned long)now, stateToString(targetState));
+                    Serial.printf("%lu:: IDLE: Resuming cycle at %s after emergency\r\n", now, stateToString(targetState));
                     BorneUniverselle::prepareMessage(SUCCESS, "Reprise du cycle à l'état précédent");
                     transition(targetState);
-                    resumeState = State::UNDEFINED; // Réinitialiser après reprise
+                    resumeState = State::UNDEFINED;
                     return true;
                 } else {
                     Serial.printf("IDLE:: resumeState: %s\r\n", stateToString(resumeState));
                 }
-                // Comportement par défaut pour un nouveau cycle
                 if (!isAtPArkPosition()) {
                     transition(State::PARKING);
                     return true;
@@ -347,7 +361,9 @@ bool Formaca::logiqueExecutor() {
             interfaceTreatment();
         break;
 
+
         case State::EMERGENCY:
+            printCurrentState();
             if (immediateStop->getIsChanged() && !immediateStop->getValue()) {
                 setEmergencyMode(false);
                 transition(State::IDLE);
@@ -362,6 +378,7 @@ bool Formaca::logiqueExecutor() {
         break;
 
         case State::HOMING:
+            printCurrentState();
             Serial.printf("%lu:: ETAT HOMING, phase: %d\r\n", (unsigned long)now, homingPhase);
             switch (homingPhase) {
                 case 0:
@@ -403,6 +420,7 @@ bool Formaca::logiqueExecutor() {
             break;
 
             case State::PARKING:
+                printCurrentState();
                 if (previousState == State::TRIGGER_PENDING) {
                     Serial.printf("%lu:: PARKING: Returned from TRIGGER_PENDING, waiting for position\r\n", (unsigned long)now);
                     // Ne pas réinitialiser stateStartTime, continuer l'attente
@@ -425,6 +443,7 @@ bool Formaca::logiqueExecutor() {
             break;
             
         case State::WASTE_CUTTING:
+            printCurrentState();
             if (previousState == State::SAWING_WAIT) {
                 Serial.printf("%lu:: WASTE_CUTTING: First cycle completed, moving to NORMAL_CUTTING\r\n", (unsigned long)now);
                 isFirstCycle = false;
@@ -450,6 +469,7 @@ bool Formaca::logiqueExecutor() {
         break;
 
         case State::NORMAL_CUTTING:
+            printCurrentState();
             if (previousState == State::SAWING_WAIT) {
                 Serial.printf("%lu:: NORMAL_CUTTING: Returned from SAWING_WAIT, resetting for next cycle\r\n", (unsigned long)now);
                 stateStartTime = 0;
@@ -497,6 +517,7 @@ bool Formaca::logiqueExecutor() {
         break;
 
         case State::SAWING:
+            printCurrentState();
             if (stateStartTime == 0) {
                 saw(true); // Enclenche la scie (active flipFlopScie)
                 stateStartTime = now;
@@ -511,6 +532,7 @@ bool Formaca::logiqueExecutor() {
         break;
 
         case State::SAWING_WAIT:
+            printCurrentState();
             if (now - stateStartTime > (unsigned long)BLADE_TIME) {
                 if (!cylinderCaptor->getValue() && cylinderProtectionActivated) {
                     immediateStop->setValue(true);
@@ -550,10 +572,11 @@ bool Formaca::logiqueExecutor() {
                 }
                 return true;
             }
-            Serial.printf("%lu:: SAWING_WAIT: Waiting for blade time, time=%lu\r\n", (unsigned long)now, (unsigned long)(now - stateStartTime));
+            //Serial.printf("%lu:: SAWING_WAIT: Waiting for blade time, time=%lu\r\n", (unsigned long)now, (unsigned long)(now - stateStartTime));
         break;
 
         case State::EJECTING:
+            printCurrentState();
             if (stateStartTime == 0) {
                 eject();
                 transition(State::TRIGGER_PENDING);
@@ -567,6 +590,7 @@ bool Formaca::logiqueExecutor() {
             break;
 
         case State::JOGGING:
+            printCurrentState();
             jogTreatment();
             if (!jog->getValue()) {
                 transition(State::IDLE);
@@ -575,7 +599,8 @@ bool Formaca::logiqueExecutor() {
             break;
 
         case State::TRIGGER_PENDING:
-            Serial.println("ETAT TRIGGER_PENDING");
+            // Le but de cet etat est d'attendre 50 ms entre le moment ou on dit a la drive ou aller et le déclenchement
+            printCurrentState();
             if (stateStartTime == 0) {
                 Serial.printf("%lu:: TRIGGER_PENDING: Starting delay, previousState: %s\r\n", (unsigned long)now, stateToString(previousState));
                 stateStartTime = now;
@@ -603,22 +628,21 @@ bool Formaca::logiqueExecutor() {
 } // logicielExecutor
 
 void Formaca::setEmergencyMode(bool status) {
-    Serial.printf("%lu:: setEmergencyMode called, status: %d, currentState: %s, resumeState: %s\r\n", 
-                  (unsigned long)millis(), status, stateToString(currentState), stateToString(resumeState));
     if (status) {
         immediateStop->setValue(true);
-        v_immediateStop->setValue(true);
         if (!isEmergency) {
             BorneUniverselle::prepareMessage(ERROR, "Emergency stop !!!");
         }
     } else {
+        immediateStop->setValue(false);
+        alarmsReset->setValue(true);
+        alarmsResetStartTime = millis();
+        alarmsResetPending = true;
         if (isEmergency) {
             BorneUniverselle::prepareMessage(SUCCESS, "Emergency stop reset");
         }
     }
     isEmergency = status;
-    Serial.printf("%lu:: After setEmergencyMode, isEmergency: %d, resumeState: %s\r\n", 
-                  (unsigned long)millis(), isEmergency, stateToString(resumeState));
 }
 
 
@@ -647,15 +671,6 @@ void Formaca::interfaceTreatment() {
         servoOn->setValue(v_servoOn->getValue());
     }
  
-    if (v_immediateStop->getIsChanged()) {
-        immediateStop->setValue(v_immediateStop->getValue());
-        alarmsReset->setValue(v_alarmsReset->getValue());
-    }
-
-    if (v_alarmsReset->getIsChanged()) {
-        alarmsReset->setValue(v_alarmsReset->getValue());
-        immediateStop->setValue(v_immediateStop->getValue());
-    }
     if (overAllLenght->getIsChanged()) {
         //BorneUniverselle::prepareMessage(SUCCESS, "La longueur brute a été mise à jour");
         if (homeDone->getValue() && !isAtPArkPosition()) {
@@ -667,6 +682,7 @@ void Formaca::interfaceTreatment() {
         parkPosition = parameters.reference - convToPUU(overAllLenght->getValue() + parkOffset->getValue());
         Serial.printf("Nouvelle position de parc: %lu pulses, soit %.2f inch\r\n", (long unsigned int)parkPosition, convToInch(parkPosition));
     }
+
     if (wasteLength->getIsChanged()) {
         if (wasteLength->getValue() > parameters.overAllLenght) {
             BorneUniverselle::prepareMessage(WARNING, "La longueur du rebut ne peut pas être plus grande que la longueur brute");
@@ -809,7 +825,10 @@ void Formaca::goToParkPosition() {
 }
 
 bool Formaca::isAtPArkPosition() {
-    if (position->getValue() > parkPosition - 10 && position->getValue() < parkPosition + 10) {
+    //Serial.printf("isAtPArkPosition: écart: %lu\r\n", (unsigned long)position->getValue()- parkPosition);
+    //Serial.printf("isAtPArkPosition: écart: %lu\r\n", parkPosition - (unsigned long)position->getValue());
+
+    if (position->getValue() > parkPosition - 50 && position->getValue() < parkPosition + 50) {
         return true;
     }
     return false;
@@ -861,8 +880,6 @@ void Formaca::initialStateLoadedHandler() {
     widthLength->setValue(parameters.recettes[idRecette].width);
     longLength->setValue(parameters.recettes[idRecette].longlength);
     v_servoOn->setValue(servoOn->getValue());
-    v_immediateStop->setValue(immediateStop->getValue());
-    v_alarmsReset->setValue(alarmsReset->getValue());
 
     jog->setValue(false);
 
@@ -915,7 +932,6 @@ void Formaca::displayAlarmsAndStatus() {
         targetSpeedRated->setValue(status->getValue() & 0b0000000000001000);
         targetPositionReached->setValue(status->getValue() & 0b0000000000010000);
         Serial.printf("Target position reached: %s\r\n", (status->getValue() & 0b0000000000010000) ? "true" : "false");
-        servoAlarm->setValue(status->getValue() & 0b0000000001000000);
         Serial.printf("Servo alarm: %s\r\n", (status->getValue() & 0b0000000001000000) ? "true" : "false");
         homeDone->setValue(status->getValue() & 0b0000000100000000);
         Serial.printf("Home done: %s\r\n", (status->getValue() & 0b0000000100000000) ? "true" : "false");
@@ -932,9 +948,16 @@ void Formaca::displayAlarmsAndStatus() {
         } else {
             char text[128];
             sprintf(text, "Nouvelle valeur du status d'alarme: %u", alarms->getValue());
+            servoAlarm->setValue(true);
             BorneUniverselle::prepareMessage(WARNING, text);
         }
-        alarmsCache = alarms->getValue();
+        //alarmsCache = alarms->getValue();
+    }
+
+    if (alarms->getValue() != 0 || status->getValue() & 0b0000000001000000){
+        servoAlarm->setValue(true);
+    } else {
+        servoAlarm->setValue(false);
     }
 }
 
@@ -1150,6 +1173,7 @@ void Formaca::transition(State newState) {
                           (unsigned long)millis(), stateToString(newState));
             stateStartTime = 0;
         }
+        stateAlreadyPrinted = false; // Réinitialiser le drapeau d'impression de l'état
     }
 }
 
@@ -1171,3 +1195,11 @@ const char* Formaca::stateToString(State state) {
         default:                       return "UNKNOWN"; // Sécurité pour les cas imprévus
     }
 }
+
+void Formaca::printCurrentState(){
+    if (!stateAlreadyPrinted){
+        Serial.printf("ETAT: %s\r\n", stateToString(currentState));
+        stateAlreadyPrinted = true;
+    }
+}
+   

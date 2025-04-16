@@ -247,11 +247,12 @@ BooleanInputNode:: BooleanInputNode(char *name, char *parentName, uint16_t id, u
 
 bool BooleanInputNode::specificRefresh(){
     showMessage( "specificRefresh for BooleanInputNode");
-    bool val;
+    bool val = hideValue;
     bool succes = getNewValue(val);
 
     if (!succes){
         updateNeeded = false;
+        Serial.printf("BooleanInputNode::specificRefresh: getNewValue failed for node: %s\r\n", getName());
         return false;
     }
     //Serial.printf("Input node: %s is %s, inverted: %s\r\n", name, val ? "true" : "false", inputInverted ? "true" : "false");
@@ -360,7 +361,7 @@ uint16_t Uint16InputNode::getValue(){
 bool Uint16InputNode::specificRefresh(){
     showMessage("specificRefresh for Uint16InputNode");
 
-    uint16_t val;
+    uint16_t val = hideValue;
     bool success = getNewValue(val);
 
     if (!success){
@@ -386,7 +387,7 @@ uint32_t Uint32InputNode::getValue(){
 
 bool Uint32InputNode::specificRefresh(){
     showMessage("specificRefresh for Uint32InputNode");
-    uint32_t val;
+    uint32_t val = hideValue;
     bool succes = getNewValue(val);
     if (!succes){
         updateNeeded = false;
@@ -411,7 +412,7 @@ float FloatInputNode::getValue(){
 
 bool FloatInputNode::specificRefresh(){
     showMessage("specificRefresh for FloatInputNode");
-    float val;
+    float val = hideValue;
     bool succes = getNewValue(val);
 
     if (!succes){
@@ -527,6 +528,7 @@ char * TextInputNode::getValue(){
 bool TextInputNode::specificRefresh(){
     showMessage("specificRefresh for TextInputNode");
     char *val = (char *)malloc(MAX_TEXT_SIZE);
+    strcpy(val, hideValue);
     bool succes = getNewValue(val);
     //Serial.printf("Refresh: getNewValue: %s\r\n", val);
     if (!succes){
@@ -903,6 +905,10 @@ bool ModbusReadMultipleInputsRegistersNode::specificRefresh(){
     sprintf(text, "ModbusReadMultipleInputsRegistersNode::specificRefresh for node: name: %s, address: %d, register %d", name, address, offset);
     showMessage(text);
     bool *values = new bool[nbValues];
+    for (uint8_t i = 0; i < nbValues; i++){
+        values[i] = bits[i].getValue();
+    }
+    
     bool succes = getNewValues(values);
     if (!succes){
         updateNeeded = false;
@@ -1008,10 +1014,10 @@ VirtualBooleanInputNode::VirtualBooleanInputNode(char *name, char *parentName, u
 
 void VirtualBooleanInputNode::setValue(bool _value){
     if (hideValue != _value){
+        Serial.printf("VirtualBooleanInputNode::setValue for node %s, value: %s\r\n", getName(), _value ? "true" : "false");
         updateNeeded = true;
         hideValue = _value;
     }
- 
 }
 
 VirtualUint32InputNode::VirtualUint32InputNode(char *name, char *parentName, uint16_t id, uint32_t hash, uint16_t webRefreshInterval):Uint32InputNode(name, parentName, id, hash, 0, webRefreshInterval){

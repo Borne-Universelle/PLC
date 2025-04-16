@@ -82,8 +82,8 @@
 #define RIGHT_STOP                  3132370279
 #define WIDTH_LENGTH                1041711882
 #define LENGTH                      2736300668
-#define V_START                     824782083
-#define CANCEL_CYCLE                2539529911
+#define V_START                     246216594
+#define CANCEL_CYCLE                2701507160
 
 // Software defines
 #define NOMINAL_TORQUE              100
@@ -210,6 +210,8 @@ private:
     const char* stateToString(State state);
     void saw(bool status);
 
+    void printCurrentState();
+
     // Variables d'état FSM
     State currentState = State::INITIALIZING;
     State previousState = State::UNDEFINED;
@@ -222,7 +224,7 @@ private:
     uint8_t idRecette = 0;
     bool initialised = false;
     bool isEmergency = false;
-    uint16_t alarmsCache = 0;
+    //uint16_t alarmsCache = 0;
     uint32_t startInit = 0;
     uint32_t homePos = 0;
     uint32_t parkPosition = 0;
@@ -237,16 +239,17 @@ private:
     BooleanOutputNode *buzzer, *absolutePositionLost;
     BooleanOutputNode *servoOn;
     BooleanOutputNode *alarmsReset;
-    BooleanOutputNode *fwd;
-    BooleanOutputNode *rwd;
-    BooleanOutputNode *jog;
-    BooleanOutputNode *jogFullTorque;
-    BooleanOutputNode *goToPark;
-    BooleanOutputNode *gotoRef;
-    BooleanOutputNode *calibrate;
-    BooleanOutputNode *goHomeButton;
-    BooleanOutputNode *scier;
-    BooleanOutputNode *ejectButton;
+    BooleanInputNode    *fwd;
+    BooleanInputNode    *rwd;
+    VirtualBooleanInputNode    *jog;
+    BooleanInputNode    *jogFullTorque;
+    BooleanInputNode    *goToPark;
+    BooleanInputNode    *gotoRef;
+    BooleanInputNode    *calibrate;
+    BooleanInputNode    *goHomeButton;
+    BooleanInputNode    *scier;
+    BooleanInputNode    *ejectButton;
+    BooleanOutputNode    *doHome;
     BooleanOutputNode *servoReady;
     BooleanOutputNode *servoActivated;
     BooleanOutputNode *zeroSpeed;
@@ -261,10 +264,9 @@ private:
     BooleanOutputNode *modbusError;
     BooleanOutputNode *driveInitialised;
     BooleanOutputNode *flipFlopScie;
-    BooleanOutputNode *doHome;
     BooleanOutputNode *v_servoOn;
-    BooleanOutputNode *v_immediateStop;
-    BooleanOutputNode *v_alarmsReset;
+    BooleanInputNode    *v_immediateStop;
+    BooleanInputNode    *v_alarmsReset;
 
     PF8574BooleanOutputNode *immediateStop;
 
@@ -273,7 +275,7 @@ private:
     BooleanInputNode *startCycle;
     BooleanInputNode *nbCyclesClear;
     BooleanInputNode *vStart;
-    BooleanInputNode *cancelCycle;
+    BooleanInputNode *cancelCycle; // Bouton stop cycle
     BooleanInputNode *cylinderCaptor;
 
     VirtualUint32OutputNode *v_jogSpeed;
@@ -323,4 +325,7 @@ private:
     bool isFirstCycle = true; // Indique si c'est le premier cycle (rebut)
     State sawingOrigin = State::UNDEFINED;
     State resumeState = State::UNDEFINED;
+    bool stateAlreadyPrinted = false;
+    uint32_t alarmsResetStartTime;
+    bool alarmsResetPending = false;
 };

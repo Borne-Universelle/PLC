@@ -47,7 +47,8 @@
         "ota_url": "truc"
       }
     }
-  ],
+  ],  
+
   "children": [
     {
       "name": "Direct outputs",
@@ -124,7 +125,7 @@
     {
       "name": "Jog",
       "hardware": "virtual",
-      "type": "tx-bool",
+      "type": "rx-bool",
       "children": [
         {
           "id": 1,
@@ -306,16 +307,23 @@
           "id": 9,
           "name": "Nb Cycles clear",
           "hash": 362298148
-        },
+        }
+      ]
+    },
+    {
+      "name": "Virtual bool inputs",
+      "hardware": "virtual",
+      "type": "rx-bool",
+      "children": [
         {
-          "id": 10,
+          "id": 1,
           "name": "v_start",
-          "hash": 824782083
+          "hash": 246216594
         },
         {
-          "id": 11,
-          "name": "Cancel cycle",
-          "hash": 2539529911
+          "id": 2,
+          "name": "v_Cancel cycle",
+          "hash": 2701507160
         }
       ]
     },

@@ -1327,19 +1327,19 @@ bool BorneUniverselle::handleNodesChange(JsonDocument& socketDoc){
         if (node->classType() == CLASS_VIRTUAL_BOOLEAN_INPUT_NODE){
             VirtualBooleanInputNode *b = (VirtualBooleanInputNode*) node;
             b->setValue(state[VALUE]);
-            Serial.printf("Node: %s new value: %s\r\n", node->getName(), b->getValue() ? "true" : "false");     
+            Serial.printf("Node: %s new value: %s, class: CLASS_VIRTUAL_BOOLEAN_INPUT_NODE\r\n", node->getName(), b->getValue() ? "true" : "false");     
         } else if (node->classType() == CLASS_VIRTUAL_BOOLEAN_OUTPUT_NODE){
             VirtualBooleanOutputNode *b = (VirtualBooleanOutputNode *) node;
             b->setValue(state[VALUE]);
-            Serial.printf("Node: %s new value: %s\r\n", node->getName(), b->getValue() ? "true" : "false");     
+            Serial.printf("Node: %s new value: %s, class: CLASS_VIRTUAL_BOOLEAN_OUTPUT_NODE\r\n", node->getName(), b->getValue() ? "true" : "false");     
         } else if (node->classType() == CLASS_HW_BOOLEAN_OUTPUT_NODE){
             HardwareBooleanOutputNode *h = (HardwareBooleanOutputNode *) node;
             h->setValue(state[VALUE]);
-            Serial.printf("Node: %s new value: %s\r\n", node->getName(), h->getValue() ? "true" : "false");   
+            Serial.printf("Node: %s new value: %s, class: CLASS_VIRTUAL_BOOLEAN_OUTPUT_NODE \r\n", node->getName(), h->getValue() ? "true" : "false");   
         } else if (node->classType() == CLASS_PFC8574_BOOLEAN_OUTPUT_NODE){
             PF8574BooleanOutputNode *p = (PF8574BooleanOutputNode *) node;
             p->setValue(state[VALUE]);
-            Serial.printf("Node: %s, new value: %s\r\n", node->getName(), p->getValue() ? "true" : "false"); 
+            Serial.printf("Node: %s, new value: %s, class CLASS_PFC8574_BOOLEAN_OUTPUT_NODE\r\n", node->getName(), p->getValue() ? "true" : "false"); 
         } else if (node->classType() == CLASS_MODBUS_WRITE_COIL_NODE){
             ModbusWriteCoilNode *m = (ModbusWriteCoilNode *)node;
             m->setValue(state[VALUE]);

@@ -1,0 +1,968 @@
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x17 (SPI_FAST_FLASH_BOOT)
+configsip: 153911750, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4660
+load:0x40078000,len:15568
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3152
+entry 0x400805a0
+E (540) esp_core_dump_flash: No co�fx dump partition found!
+E (540) esp_core_dump_flash: No core dump partition found!
+
+
+
+Starting Formaca....
+Will start BorneUniverselle library...
+[TaskInfo] Number of tasks: 7 at 0 s
+Start at 125 ms, tasks: 7, heap: 236116, stack free: 26496
+Borne Universelle 2.2.0
+E (130) esp_littlefs: partition "spiffs" could not be found
+E (131) esp_littlefs: Failed to initialize LittleFS
+[   140][E][LittleFS.cpp:79] begin(): Mounting LittleFS failed! Error: 261
+PLC_Persistence error: Failed to mount LittleFS at initialization
+
+Failed to mount LittleFS at initialization
+157:: Try to read json from file: /reboot_log.json
+Reboot history
+*************
+209::getRebootLog
+219:: Try to read json from file: /reboot_log.json
+[
+  {
+    "reason": "Power-on"
+  },
+  {
+    "reason": "Software reset"
+  }
+]
+End of reboot history
+
+BorneUniverselle constructor
+Fichier de diagnostic non trouvé
+PSRAM is not available !
+261:: Try to read json from file: /config.json
+Will parse config
+Project name: Formaca
+Created backup: /config.v1.json (version 1)
+Created backup of config.json before applying changes
+Project version: 2.00
+Item with dhcp
+New nb network: 1
+Item with dhcp
+New nb network: 2
+Item with dhcp
+New nb network: 3
+Fixed address
+SSID: Formaca Tigger stop successfuly added, connexion name: Routeur Formaca ip: 10.10.10.11, dns: 10.10.10.10, gateway: 10.10.10.10, mask: 255.255.255.0 New nb network: 4
+ota_url: truc
+Section name: Direct outputs
+hardware: Kincony_KC868_A8S
+type: tx-bool
+673:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+I2C bus is initialised
+Bus I2C initialized
+Try to initialise Modbus
+RS485 speed: 57600, rx pin: 32, tx pin: 33
+RS485 bus is initialised
+Modbus RTU timeout: 101
+MyModbus timeout: 101 ms
+Modbus initialised
+Modbus initialized
+Will set pin 2 as output
+Node Direct outputs/Buzzer created with succes (ESP32 pin 2) with type HardwareBooleanOutputNode and hash: 1711197005
+Section name: Inputs Kincony
+hardware: Kincony_KC868_A8S
+type: PF8574_rx-bool
+782:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/EStopA is 0
+Node Inputs Kincony/EStopA created with succes with type PF8574BooleanInputNode and hash: 721063196, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/capteur pression air is 0
+Node Inputs Kincony/capteur pression air created with succes with type PF8574BooleanInputNode and hash: 998762341, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/capteur cylindres is 0
+Node Inputs Kincony/capteur cylindres created with succes with type PF8574BooleanInputNode and hash: 134240750, refresh interval: 0, web refresh interval: 0
+PF8574BooleanInputNode::RefreshInterval for node Inputs Kincony/StartCycle is 0
+Node Inputs Kincony/StartCycle created with succes with type PF8574BooleanInputNode and hash: 2986050054, refresh interval: 0, web refresh interval: 0
+Section name: Outputs Kincony
+hardware: Kincony_KC868_A8S
+type: PF8574_tx-bool
+930:: Try to read json from file: /hardware/Kincony_KC868_A8S.json
+I2C bus is initialised
+Bus I2C initialized
+Modbus initialized
+Node Outputs Kincony/servoOn created with succes with type PF8574BooleanOutputNode and hash: 2864105056
+Node Outputs Kincony/Do home created with succes with type PF8574BooleanOutputNode and hash: 2206102162
+Node Outputs Kincony/Flip flop scie created with succes with type PF8574BooleanOutputNode and hash: 756474627
+Node Outputs Kincony/immediatStop created with succes with type PF8574BooleanOutputNode and hash: 3505331062
+Node Outputs Kincony/alarmsReset created with succes with type PF8574BooleanOutputNode and hash: 2122812135
+Section name: Jog
+hardware: virtual
+type: rx-bool
+Node Jog/jog created (VirtualBooleanInputNode) with succes, hash: 627952477
+Node Jog/fwd created (VirtualBooleanInputNode) with succes, hash: 936928435
+Node Jog/rwd created (VirtualBooleanInputNode) with succes, hash: 2405696470
+Node Jog/Full torque created (VirtualBooleanInputNode) with succes, hash: 313736047
+Node Jog/Scier created (VirtualBooleanInputNode) with succes, hash: 2853133322
+Node Jog/Go home created (VirtualBooleanInputNode) with succes, hash: 3099259876
+Node Jog/Go Pos Park created (VirtualBooleanInputNode) with succes, hash: 431233
+Node Jog/Go to reference created (VirtualBooleanInputNode) with succes, hash: 1483048151
+Node Jog/Ejecter created (VirtualBooleanInputNode) with succes, hash: 3772375986
+Node Jog/Calibrate !!! created (VirtualBooleanInputNode) with succes, hash: 3874886927
+Node Jog/v_servoOn created (VirtualBooleanInputNode) with succes, hash: 1581937258
+Node Jog/v_immediateStop created (VirtualBooleanInputNode) with succes, hash: 4098079457
+Node Jog/v_alarmsReset created (VirtualBooleanInputNode) with succes, hash: 1771340376
+Section name: Drive Status
+hardware: virtual
+type: tx-bool
+Node Drive Status/servoReady created (VirtualBooleanOutputNode) with succes, hash: 1948505786
+Node Drive Status/servoActivated created (VirtualBooleanOutputNode) with succes, hash: 3387538036
+Node Drive Status/zeroSpeed created (VirtualBooleanOutputNode) with succes, hash: 343892977
+Node Drive Status/targetSpeedRated created (VirtualBooleanOutputNode) with succes, hash: 1762420137
+Node Drive Status/AtTarget created (VirtualBooleanOutputNode) with succes, hash: 3030039596
+Node Drive Status/servoAlarm created (VirtualBooleanOutputNode) with succes, hash: 3569748327
+Node Drive Status/absolutPositionLost created (VirtualBooleanOutputNode) with succes, hash: 773850583
+Node Drive Status/batteryAlarm created (VirtualBooleanOutputNode) with succes, hash: 1101239736
+Node Drive Status/multipleTurnsOverflow created (VirtualBooleanOutputNode) with succes, hash: 2620738621
+Node Drive Status/puuOverflow created (VirtualBooleanOutputNode) with succes, hash: 570368243
+Node Drive Status/absoluteCoordonateNotSet created (VirtualBooleanOutputNode) with succes, hash: 4234803574
+Node Drive Status/homeDone created (VirtualBooleanOutputNode) with succes, hash: 2166030126
+Node Drive Status/modbusError created (VirtualBooleanOutputNode) with succes, hash: 1552688811
+Node Drive Status/driveInitialised created (VirtualBooleanOutputNode) with succes, hash: 3779480165
+Section name: Inputs
+hardware: virtual
+type: tx-uint32
+Node Inputs/vjog speed created (VirtualUint32OutputNode) with succes, hash: 2984797290
+Node Inputs/vcycle speed created (VirtualUint32OutputNode) with succes, hash: 1951357668
+Node Inputs/Torque Ctrl created (VirtualUint32OutputNode) with succes, hash: 3526906192
+Node Inputs/Nb cycles voulus created (VirtualUint32OutputNode) with succes, hash: 1168588921
+Node Inputs/Nb cycles effectués created (VirtualUint32OutputNode) with succes, hash: 3018797200
+Node Inputs/Nb Cycles clear created (VirtualUint32OutputNode) with succes, hash: 362298148
+Section name: Virtual bool inputs
+hardware: virtual
+type: rx-bool
+Node Virtual bool inputs/v_start created (VirtualBooleanInputNode) with succes, hash: 246216594
+Node Virtual bool inputs/v_Cancel cycle created (VirtualBooleanInputNode) with succes, hash: 2701507160
+Section name: Floats Inputs
+hardware: virtual
+type: tx-float
+Node Floats Inputs/Longueur brute created (VirtualFloatOutputNode) with succes, hash: 3749283751
+Node Floats Inputs/Longueur created (VirtualFloatOutputNode) with succes, hash: 2736300668
+Node Floats Inputs/Largeur created (VirtualFloatOutputNode) with succes, hash: 1041711882
+Node Floats Inputs/Offset chargement created (VirtualFloatOutputNode) with succes, hash: 1541073354
+Node Floats Inputs/Longueur du rebut created (VirtualFloatOutputNode) with succes, hash: 3335850172
+Node Floats Inputs/butée droite created (VirtualFloatOutputNode) with succes, hash: 3132370279
+Node Floats Inputs/Position actuelle en inch created (VirtualFloatOutputNode) with succes, hash: 666618897
+Section name: DropDown Inputs
+hardware: virtual
+type: tx-text
+Node DropDown Inputs/Choix Recette created (VirtualTextOutputNode) with succes, hash: 2565368844
+Section name: Servo read holding register
+hardware: SureServo
+type: ModbusReadHoldingRegister
+1437:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo read holding register/status created with succes with type ModbusReadHoldingRegister, hash: 4137233651, address: 127, offset: 92, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/absolute coordonate system status created with succes with type ModbusReadHoldingRegister, hash: 4098304980, address: 127, offset: 100, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/alarms created with succes with type ModbusReadHoldingRegister, hash: 4126332617, address: 127, offset: 2, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/trigger read created with succes with type ModbusReadHoldingRegister, hash: 4059768218, address: 127, offset: 1294, refresh interval: 0, web refresh interval 0
+Node Servo read holding register/jog speed read created with succes with type ModbusReadHoldingRegister, hash: 4031699079, address: 127, offset: 1034, refresh interval: 0, web refresh interval 0
+Section name: Servo write holding register
+hardware: SureServo
+type: ModbusWriteHoldingRegister
+1600:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo write holding register/aux_function created with succes with type ModbusWriteHoldingRegister, hash: 2308213873, address: 127, offset: 572
+Node Servo write holding register/trigger created with succes with type ModbusWriteHoldingRegister, hash: 748480285, address: 127, offset: 1294
+Node Servo write holding register/jog speed created with succes with type ModbusWriteHoldingRegister, hash: 3187488644, address: 127, offset: 1034
+Node Servo write holding register/Max torque created with succes with type ModbusWriteHoldingRegister, hash: 3740987040, address: 127, offset: 370
+Section name: Num Status
+hardware: SureServo
+type: ModbusReadDobbleHoldingRegister
+1731:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Num Status/Position created with succes with type ModbusReadDoubleHoldingRegisters, hash: 4045003206, address: 127, offset: 22, refresh interval: 1000, web refresh interval 0
+Node Num Status/target A Read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2843041799, address: 127, offset: 1542, refresh interval: 0, web refresh interval 0
+Node Num Status/target B Read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 2152625540, address: 127, offset: 1546, refresh interval: 0, web refresh interval 0
+Node Num Status/PR speed read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 1103145540, address: 127, offset: 1540, refresh interval: 0, web refresh interval 0
+Node Num Status/Target C read created with succes with type ModbusReadDoubleHoldingRegisters, hash: 3626159173, address: 127, offset: 1550, refresh interval: 0, web refresh interval 0
+Section name: Servo write dobble holding registers
+hardware: SureServo
+type: ModbusWriteDobbleHoldingRegister
+1885:: Try to read json from file: /hardware/SureServo.json
+i2cInit:: key I2C is missing
+Modbus initialized
+Node Servo write dobble holding registers/target A created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2532989225, address: 127, offset: 1542
+Node Servo write dobble holding registers/target B created with succes with type ModbusWriteDoubleHoldingRegister, hash: 3432736329, address: 127, offset: 1546
+Node Servo write dobble holding registers/PR1 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 1282109782, address: 127, offset: 1540
+Node Servo write dobble holding registers/PR2 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2019104905, address: 127, offset: 1544
+Node Servo write dobble holding registers/PR3 speed created with succes with type ModbusWriteDoubleHoldingRegister, hash: 4171829142, address: 127, offset: 1548
+Node Servo write dobble holding registers/PR3 data created with succes with type ModbusWriteDoubleHoldingRegister, hash: 2731028726, address: 127, offset: 1550
+PLC_InterfaceMenu initialized
+Will parse the interface file
+2050:: Try to read json from file: /interface.json
+JSON parsing successful - parsing nodes
+Found 3 pages
+Page: Page principale
+Will parse section: Opération
+Found 7 nodes in section Opération
+Will parse section: Jog
+Found 5 nodes in section Jog
+Page: Monitoring
+Will parse section: Commandes de calibration
+Found 2 nodes in section Commandes de calibration
+Will parse section: États du servo
+Found 6 nodes in section États du servo
+Will parse section: Alarmes
+Found 7 nodes in section Alarmes
+Will parse section: États du système
+Found 4 nodes in section États du système
+Page: Configuration
+Will parse section: Paramètres machine
+Found 7 nodes in section Paramètres machine
+Will parse section: Vitesses et compteurs
+Found 6 nodes in section Vitesses et compteurs
+Will parse section: Tests
+Found 6 nodes in section Tests
+Interface file parsed with success
+Loop on nodes to set node name from the interface file
+MenuNode: Start Cycle in section Opération, hash: 246216594
+Node name set: Opération/Start Cycle
+MenuNode: Stop cycle in section Opération, hash: 2701507160
+Node name set: Opération/Stop cycle
+MenuNode: Reset défauts in section Opération, hash: 1771340376
+Node name set: Opération/Reset défauts
+MenuNode: Alarme Servo in section Opération, hash: 3569748327
+Node name set: Opération/Alarme Servo
+MenuNode: Nb cycles effectués in section Opération, hash: 3018797200
+Node name set: Opération/Nb cycles effectués
+MenuNode: Reset compteur cycles in section Opération, hash: 362298148
+Node name set: Opération/Reset compteur cycles
+MenuNode: Position Park in section Opération, hash: 431233
+Node name set: Opération/Position Park
+MenuNode: Jog Mode in section Jog, hash: 627952477
+Node name set: Jog/Jog Mode
+MenuNode: Jog + in section Jog, hash: 2405696470
+Node name set: Jog/Jog +
+MenuNode: Jog - in section Jog, hash: 936928435
+Node name set: Jog/Jog -
+MenuNode: Position actuelle in section Jog, hash: 666618897
+Node name set: Jog/Position actuelle
+MenuNode: Longueur brute in section Jog, hash: 3749283751
+Node name set: Jog/Longueur brute
+MenuNode: Calibrer in section Commandes de calibration, hash: 3874886927
+Node name set: Commandes de calibration/Calibrer
+MenuNode: Aller à la référence in section Commandes de calibration, hash: 1483048151
+Node name set: Commandes de calibration/Aller à la référence
+MenuNode: Servo Ready in section États du servo, hash: 1948505786
+Node name set: États du servo/Servo Ready
+MenuNode: Servo Activé in section États du servo, hash: 3387538036
+Node name set: États du servo/Servo Activé
+MenuNode: Vitesse Zéro in section États du servo, hash: 343892977
+Node name set: États du servo/Vitesse Zéro
+MenuNode: Vitesse Cible Atteinte in section États du servo, hash: 1762420137
+Node name set: États du servo/Vitesse Cible Atteinte
+MenuNode: Position Cible Atteinte in section États du servo, hash: 3030039596
+Node name set: États du servo/Position Cible Atteinte
+MenuNode: Home effectué in section États du servo, hash: 2166030126
+Node name set: États du servo/Home effectué
+MenuNode: Alarme Servo in section Alarmes, hash: 3569748327
+Node name set: Alarmes/Alarme Servo
+MenuNode: Position Absolue Perdue in section Alarmes, hash: 773850583
+Node name set: Alarmes/Position Absolue Perdue
+MenuNode: Alarme Batterie in section Alarmes, hash: 1101239736
+Node name set: Alarmes/Alarme Batterie
+MenuNode: Overflow Tours Multiples in section Alarmes, hash: 2620738621
+Node name set: Alarmes/Overflow Tours Multiples
+MenuNode: Overflow PUU in section Alarmes, hash: 570368243
+Node name set: Alarmes/Overflow PUU
+MenuNode: Coordonnées Absolues Non Définies in section Alarmes, hash: 4234803574
+Node name set: Alarmes/Coordonnées Absolues Non Définies
+MenuNode: Erreur Modbus in section Alarmes, hash: 1552688811
+Node name set: Alarmes/Erreur Modbus
+MenuNode: Pression d'air in section États du système, hash: 998762341
+Node name set: États du système/Pression d'air
+MenuNode: Capteur cylindres in section États du système, hash: 134240750
+Node name set: États du système/Capteur cylindres
+MenuNode: E-Stop in section États du système, hash: 721063196
+Node name set: États du système/E-Stop
+MenuNode: Drive Initialisé in section États du système, hash: 3779480165
+Node name set: États du système/Drive Initialisé
+MenuNode: Choix Recette in section Paramètres machine, hash: 2565368844
+Node name set: Paramètres machine/Choix Recette
+MenuNode: Longueur brute in section Paramètres machine, hash: 3749283751
+Node name set: Paramètres machine/Longueur brute
+MenuNode: Longueur in section Paramètres machine, hash: 2736300668
+Node name set: Paramètres machine/Longueur
+MenuNode: Largeur in section Paramètres machine, hash: 1041711882
+Node name set: Paramètres machine/Largeur
+MenuNode: Longueur de rebut in section Paramètres machine, hash: 3335850172
+Node name set: Paramètres machine/Longueur de rebut
+MenuNode: Offset chargement in section Paramètres machine, hash: 1541073354
+Node name set: Paramètres machine/Offset chargement
+MenuNode: Butée droite in section Paramètres machine, hash: 3132370279
+Node name set: Paramètres machine/Butée droite
+MenuNode: Vitesse Cycle in section Vitesses et compteurs, hash: 1951357668
+Node name set: Vitesses et compteurs/Vitesse Cycle
+MenuNode: Vitesse Jog in section Vitesses et compteurs, hash: 3187488644
+Node name set: Vitesses et compteurs/Vitesse Jog
+MenuNode: Contrôle Couple in section Vitesses et compteurs, hash: 3526906192
+Node name set: Vitesses et compteurs/Contrôle Couple
+MenuNode: Nb cycles voulus in section Vitesses et compteurs, hash: 1168588921
+Node name set: Vitesses et compteurs/Nb cycles voulus
+MenuNode: Nb cycles effectués in section Vitesses et compteurs, hash: 3018797200
+Node name set: Vitesses et compteurs/Nb cycles effectués
+MenuNode: Full torque in section Vitesses et compteurs, hash: 313736047
+Node name set: Vitesses et compteurs/Full torque
+MenuNode: Jog Mode in section Tests, hash: 627952477
+Node name set: Tests/Jog Mode
+MenuNode: Scier in section Tests, hash: 2853133322
+Node name set: Tests/Scier
+MenuNode: Éjecter in section Tests, hash: 3772375986
+Node name set: Tests/Éjecter
+MenuNode: Aller a la position home in section Tests, hash: 3099259876
+Node name set: Tests/Aller a la position home
+MenuNode: Servo on off in section Tests, hash: 1581937258
+Node name set: Tests/Servo on off
+MenuNode: Stop immediat in section Tests, hash: 4098079457
+Node name set: Tests/Stop immediat
+List of files in the root directory:
+Formaca.json
+Formaca.v1.json
+config.json
+config.v1.json
+index.html
+index.js
+interface.json
+reboot_log.json
+reboot_log.v1.json
+renderers.json
+End of BorneUniversel constuctor, nb nodes: 73
+[TaskInfo] Number of tasks: 7 at 3 s
+3022:: Transition from UNDEFINED to INITIALIZING (previousState: UNDEFINED, resumeState: UNDEFINED)
+3023:: Resetting stateStartTime for non-excepted state INITIALIZING
+Constructeur class Formaca
+3034:: Try to read json from file: /Formaca.json
+Selected recette from config: 11 7/8
+Recette name: 11 7/8
+Machine name received: Formaca scie, machine name ref: Formaca scie
+Persistance parameters
+----------------------
+Home position: 700
+Référence: 3101409
+Longeur brute: 96.00
+Offset parque: 0.50
+Longeur du rebut: 6.00
+Butée droite: 97.00
+Nb recettes: 1
+Recettes
+--------
+    Name: 11 7/8
+    Long lenght: 11.88
+    Angle: 45.00
+    Width: 3.50
+
+Selected recette: 11 7/8
+Selected recette found: 11 7/8
+setValue for node: Paramètres machine/Choix Recette, with value: 11 7/8
+setValue for node: Paramètres machine/Choix Recette, with value: 11 7/8
+Fin du constructeur Formaca
+Will get next wifi network
+Current wifi: Mexique, item: 0
+[  3126][E][STA.cpp:530] disconnect(): STA not started! You must call begin first.
+Try to connect to: Mexique, SSID: PosadaLaHacienda, PWD: Chispas2020
+Wifi is with DHCP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Help
+-----------
+Version du firmware: Version 2.2, date de compilation: Apr 16 2025 15:06:08
+ATTENTION LE MODULE N'EST PAS CONNECTE AU WIFI !!!!!!!!!!!!!!!!!!!!!!!!!!
+Tapez sur 'A' ou 'a' pour effacer les réseaux wifi
+Tapez sur 'B' pour forcer la copie du JSON par défaut dans la config
+Tapez sur 'C' pour imprimer le fichier de config
+Tapez sur 'D' pour envoyer un message de test
+Tapez sur 'E' pour notifier le client web
+Tapez sur 'F' pour imprimer le fichier de persistance
+Tapez sur 'G' pour afficher la mémoire de manière cyclique
+Tapez sur 'Y' pour faire un reset
+Tapez sur 'Z' pour afficher modifier les logs
+Tapez sur '?' pour afficher l'aide
+Input node: États du système/E-Stop is up now
+3359:: node: États du système/E-Stop, new value: true
+Input node: États du système/Pression d'air is up now
+3365:: node: États du système/Pression d'air, new value: true
+3401:: node: Num Status/PR speed read, new value: 786434
+3438:: node: Num Status/target B Read, new value: 45891
+3472:: node: Num Status/target A Read, new value: 45891
+3541:: node: Servo read holding register/jog speed read, new value: 20
+3565:: node: Num Status/Position, new value: 45917
+3589:: node: Servo read holding register/trigger read, new value: 10001
+3680:: node: Servo read holding register/status, new value: 261
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 261
+setValue: will update value for node États du servo/Servo Ready, new value: true, hash: 1948505786
+Servo ready: true
+setValue: will update value for node États du servo/Vitesse Zéro, new value: true, hash: 343892977
+Target position reached: false
+Servo alarm: false
+setValue: will update value for node États du servo/Home effectué, new value: true, hash: 2166030126
+Home done: true
+ETAT: INITIALIZING
+3799::driveInitialisation: phase: 0
+setValue for node: Servo write holding register/aux_function, with value: 5
+3800::New lowest free heap: 163020 bytes
+3810::New lowest max bloc: 110580 bytes
+3810::New lowest free PSRAM: 0 bytes
+3915:: Uint16OutputNode::node: Servo write holding register/aux_function, new value: 5
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 261
+Servo ready: true
+Target position reached: false
+Servo alarm: false
+Home done: true
+4140::driveInitialisation: phase: 1
+setValue: will update value for node Outputs Kincony/servoOn, new value: true, hash: 2864105056
+4151::New lowest free heap: 163012 bytes
+Memory loss: 8 bytes in 341 ms (23.46 bytes/sec average)
+4367:: node: Servo read holding register/trigger read, new value: 20001
+4458:: node: Servo read holding register/status, new value: 407
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+setValue: will update value for node États du servo/Servo Activé, new value: true, hash: 3387538036
+setValue: will update value for node États du servo/Position Cible Atteinte, new value: true, hash: 3030039596
+Target position reached: true
+Servo alarm: false
+Home done: true
+4493::driveInitialisation: phase: 2
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+4843::driveInitialisation: phase: 3
+Servo drive initialisé, lecture des valeurs et préparation de l'interface
+--------------------------------------------------------------
+Jog speed lu: 20
+setValue for node: Inputs/vjog speed: 20
+setValue for node: Vitesses et compteurs/Vitesse Jog, with value: 20
+setValue for node: Vitesses et compteurs/Vitesse Cycle: 12
+New user speed: 12. Will set register with value 0x000c0002
+setValue for node: Servo write dobble holding registers/PR1 speed: 786434
+setValue for node: Servo write dobble holding registers/PR2 speed: 786434
+setValue for node: Servo write dobble holding registers/PR3 speed: 786434
+4895:: SUCCESS: Cycle speed updated
+PR1 speed lue du drive et isolée: 12
+setValue for node: Vitesses et compteurs/Contrôle Couple: 100
+setValue for node: Servo write holding register/Max torque, with value: 100
+setValue: will update value for node États du système/Drive Initialisé, new value: true, hash: 3779480165
+4926:: SUCCESS: Servo drive initialisé
+--------------------------------------------------------------
+4936:: Transition from INITIALIZING to IDLE (previousState: UNDEFINED, resumeState: UNDEFINED)
+4946:: Resetting stateStartTime for non-excepted state IDLE
+5016:: Uint32OutputNode::node: Servo write dobble holding registers/PR1 speed, new value: 786434
+5025:: Uint32OutputNode::node: Vitesses et compteurs/Vitesse Cycle, new value: 12
+5050:: Uint32OutputNode::node: Servo write dobble holding registers/PR2 speed, new value: 786434
+5110:: Uint32OutputNode::node: Inputs/vjog speed, new value: 20
+5140:: Uint16OutputNode::node: Vitesses et compteurs/Vitesse Jog, new value: 20
+5145:: Uint32OutputNode::node: Vitesses et compteurs/Contrôle Couple, new value: 100
+5203:: Uint16OutputNode::node: Servo write holding register/Max torque, new value: 100
+5379:: Uint32OutputNode::node: Servo write dobble holding registers/PR3 speed, new value: 786434
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+ETAT: IDLE
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Wifi disconnected
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: Alexis, item: 1
+Home done: true
+5745::New lowest free heap: 162540 bytes
+Memory loss: 472 bytes in 1594 ms (301.13 bytes/sec average)
+Try to connect to: Alexis, SSID: TELUSAFF7, PWD: h6vJ96UKmUr7
+Wifi is with DHCP
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+Wifi disconnected
+Disconnected from WiFi
+Will get next wifi network
+Current wifi: EDMG_Thierry, item: 2
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+8335::New lowest free heap: 162384 bytes
+Try to connect to: EDMG_Thierry, SSID: Ella, PWD: Oceanne1
+Wifi is with DHCP
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+9981::New lowest free heap: 162300 bytes
+Memory loss: 280 bytes in 1646 ms (461.73 bytes/sec average)
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+10908:: Connected to AP successfully, SSID: Ella, level: -65 [dB]
+Home done: true
+10918::New lowest free heap: 161624 bytes
+Memory loss: 676 bytes in 947 ms (1516.37 bytes/sec average)
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+12552::New lowest free heap: 161484 bytes
+Memory loss: 140 bytes in 1624 ms (970.44 bytes/sec average)
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+WiFi connected, IP address: 192.168.1.71, level: -64 [dB]
+MDNS responder started with name Formaca
+Web server started !
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+13479::New lowest free heap: 137100 bytes
+Memory loss: 24384 bytes in 927 ms (28004.31 bytes/sec average)
+13489::New lowest max bloc: 94196 bytes
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+setValue for node: Jog/Position actuelle, with value: 1.45
+Status changed: 407
+Servo ready: true
+Target position reached: true
+Servo alarm: false
+Home done: true
+14147::New lowest free heap: 136572 bytes
+Memory loss: 528 bytes in 668 ms (39652.70 bytes/sec average)
+onWsEvent::Connect !!!
+BorneUniverselle::processMessage: receive get all states request
+14477:: Node notify: Opération/Position Park new value: false
+14477:: Node notify: États du système/Capteur cylindres new value: false
+14488:: Node notify: Opération/Start Cycle new value: false
+14498:: Node notify: Vitesses et compteurs/Full torque new value: false
+14498:: Node notify: États du servo/Vitesse Zéro new value: true
+14509:: Node notify (uint32 output): Opération/Reset compteur cycles new value: 0
+14509:: Node notify: Alarmes/Overflow PUU new value: false
+14519:: Node notify: Tests/Jog Mode new value: false
+14519:: Node notify (float output): Jog/Position actuelle new value: 1.450
+14531:: Node notify: États du système/E-Stop new value: true
+14531:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 0
+14542:: Node notify: Outputs Kincony/Flip flop scie new value: false
+14552:: Node notify: Alarmes/Position Absolue Perdue new value: false
+14552:: Node notify: Jog/Jog - new value: false
+14562:: Node notify: États du système/Pression d'air new value: true
+14563:: Node notify (float output): Paramètres machine/Largeur new value: 0.000
+14573:: Node notify: Alarmes/Alarme Batterie new value: false
+14573:: Node notify: Num Status/PR speed read (Uint32InputNode) new value: 786434
+14584:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles voulus new value: 0
+14594:: Node notify (uint32 output): Servo write dobble holding registers/PR1 speed new value: 786434
+14605:: Node notify: Commandes de calibration/Aller à la référence new value: false
+14605:: Node notify (float output): Paramètres machine/Offset chargement new value: 0.000
+14615:: Node notify: Alarmes/Erreur Modbus new value: false
+14626:: Node notify: Tests/Servo on off new value: false
+14626:: Node notify: Direct outputs/Buzzer new value: false
+14636:: Node notify: États du servo/Vitesse Cible Atteinte new value: false
+14636:: Node notify: Opération/Reset défauts new value: false
+14647:: Node notify: États du servo/Servo Ready new value: true
+14647:: Node notify (uint32 output): Vitesses et compteurs/Vitesse Cycle new value: 12
+14658:: Node notify (uint32 output): Servo write dobble holding registers/PR2 speed new value: 786434
+14668:: Node notify: Outputs Kincony/alarmsReset new value: false
+14668:: Node notify: Num Status/target B Read (Uint32InputNode) new value: 45891
+14679:: Node notify: États du servo/Home effectué new value: true
+14689:: Node notify: Outputs Kincony/Do home new value: false
+14689:: Node notify (Uint16OutputNode): Servo write holding register/aux_function new value: 5
+14700:: Node notify: Jog/Jog + new value: false
+14700:: Node notify (uint32 output): Servo write dobble holding registers/target A new value: 0
+14710:: Node notify: Paramètres machine/Choix Recette new value: 11 7/8
+Formaca::getDropDownDescriptorHandler
+14721:: Try to read json from file: /Formaca.json
+Selected recette: 11 7/8
+Selected recette found: 11 7/8
+Custom descriptor contains a key 'value', will superside it with nodeObject value
+No descriptor key found in nodeObject, will add custom descriptor
+14774:: Node notify: Alarmes/Overflow Tours Multiples new value: false
+14784:: Node notify: Opération/Stop cycle new value: false
+14784:: Node notify (uint32 output): Servo write dobble holding registers/PR3 data new value: 0
+14795:: Node notify (float output): Paramètres machine/Longueur new value: 0.000
+14806:: Node notify: Num Status/target A Read (Uint32InputNode) new value: 45891
+14806:: Node notify: Tests/Scier new value: false
+14816:: Node notify: Outputs Kincony/servoOn new value: true
+14816:: Node notify (uint32 output): Inputs/vjog speed new value: 20
+14827:: Node notify: Inputs Kincony/StartCycle new value: false
+14827:: Node notify (uint32 output): Vitesses et compteurs/Nb cycles effectués new value: 0
+14837:: Node notify: États du servo/Position Cible Atteinte new value: true
+14848:: Node notify: Tests/Aller a la position home new value: false
+14848:: Node notify (float output): Paramètres machine/Butée droite new value: 0.000
+14858:: Node notify (Uint16OutputNode): Vitesses et compteurs/Vitesse Jog new value: 20
+14869:: Node notify (float output): Paramètres machine/Longueur de rebut new value: 0.000
+14869:: Node notify: États du servo/Servo Activé new value: true
+14880:: Node notify (uint32 output): Servo write dobble holding registers/target B new value: 0
+14890:: Node notify: Outputs Kincony/immediatStop new value: false
+14890:: Node notify (uint32 output): Vitesses et compteurs/Contrôle Couple new value: 100
+14901:: Node notify: Alarmes/Alarme Servo new value: false
+14911:: Node notify: Num Status/Target C read (Uint32InputNode) new value: 0
+14911:: Node notify (Uint16OutputNode): Servo write holding register/Max torque new value: 100
+14922:: Node notify (float output): Paramètres machine/Longueur brute new value: 0.000
+14932:: Node notify: Tests/Éjecter new value: false
+14932:: Node notify: États du système/Drive Initialisé new value: true
+14943:: Node notify: Commandes de calibration/Calibrer new value: false
+14943:: Node notify (Uint16InputNode): Servo read holding register/jog speed read new value: 20
+14953:: Node notify: Num Status/Position (Uint32InputNode) new value: 45917
+14964:: Node notify (Uint16InputNode): Servo read holding register/trigger read new value: 20001
+14974:: Node notify: Tests/Stop immediat new value: false
+14974:: Node notify (Uint16InputNode): Servo read holding register/absolute coordonate system status new value: 0
+14998:: Node notify (Uint16InputNode): Servo read holding register/alarms new value: 0
+14998:: Node notify (Uint16InputNode): Servo read holding register/status new value: 407
+15009:: Node notify (uint32 output): Servo write dobble holding registers/PR3 speed new value: 786434
+15019:: Node notify: Alarmes/Coordonnées Absolues Non Définies new value: false
+
+
+15024:: End notifyWebClient all states: duration: 548
+handleWebSocketMessage:: message processing duration: 551, message: {"allStatesRequest":true}
+15046::New lowest free heap: 134932 bytes
+Memory loss: 4164 bytes in 899 ms (34095.66 bytes/sec average)
+15047::New lowest max bloc: 90100 bytes
+BorneUniverselle::processMessage: initial state loaded
+NEW CLIENT CONNECTED AND LOADED!!!!!!!!!!!!!!!!!!!!!!
+Preparing recette: 11 7/8
+DropDown::setItems, received document
+
+Render::sendJson, json send to the client
+Nouveau choix de recette: 11 7/8, id: 0
+setValue for node: Paramètres machine/Largeur, with value: 3.50
+setValue for node: Paramètres machine/Longueur, with value: 11.88
+Longueur perdue à cause de la demi-épaisseur de la lame: 0.0884 [inch], angle: 45.00
+Longueur du rebus: 0.09
+setValue for node: Paramètres machine/Choix Recette, with value: 11 7/8
+Will set parameters to the web client
+setValue for node: Paramètres machine/Longueur brute, with value: 96.00
+setValue for node: Paramètres machine/Offset chargement, with value: 0.50
+setValue for node: Paramètres machine/Longueur de rebut, with value: 6.00
+setValue for node: Paramètres machine/Butée droite, with value: 97.00
+setValue for node: Paramètres machine/Largeur, with value: 3.50
+setValue for node: Paramètres machine/Longueur, with value: 11.88
+setValue: will update value for node Tests/Servo on off, new value: true, hash: 1581937258
+isAtPArkPosition: écart: 45917
+isAtPArkPosition: écart: 4294921379
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+Nouvelle position de parc: 45891 pulses, soit 1.45 inch
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+Will save json document at path: /Formaca.json. Estimated size of JSON document: 228 bytes
+Created backup: /Formaca.v1.json (version 1)
+16664:: Node notify (float output): Paramètres machine/Largeur new value: 3.500
+16667:: Node notify (float output): Paramètres machine/Offset chargement new value: 0.500
+16679:: Node notify: Tests/Servo on off new value: false
+16679:: Node notify (float output): Paramètres machine/Longueur new value: 11.875
+16690:: Node notify (float output): Paramètres machine/Butée droite new value: 97.000
+16690:: Node notify (float output): Paramètres machine/Longueur de rebut new value: 6.000
+16701:: Node notify (float output): Paramètres machine/Longueur brute new value: 96.000
+
+Lopp time: 1659
+16717::New lowest free heap: 131084 bytes
+Memory loss: 1324 bytes in 1671 ms (19135.85 bytes/sec average)
+16718::New lowest max bloc: 86004 bytes
+VirtualBooleanInputNode::setValue for node Opération/Start Cycle, value: true
+Node: Opération/Start Cycle new value: true, class: CLASS_VIRTUAL_BOOLEAN_INPUT_NODE
+IDLE:: resumeState: UNDEFINED
+isAtPArkPosition: écart: 26
+isAtPArkPosition: écart: 4294967270
+24919:: Transition from IDLE to PARKING (previousState: INITIALIZING, resumeState: UNDEFINED)
+24930:: Resetting stateStartTime for initial PARKING entry
+24930:: Node notify: Opération/Start Cycle new value: true
+
+BorneUniverselle::processMessage: initial state loaded
+NEW CLIENT CONNECTED AND LOADED!!!!!!!!!!!!!!!!!!!!!!
+Preparing recette: 11 7/8
+DropDown::setItems, received document
+
+Render::sendJson, json send to the client
+Nouveau choix de recette: 11 7/8, id: 0
+setValue for node: Paramètres machine/Largeur, with value: 3.50
+setValue for node: Paramètres machine/Longueur, with value: 11.88
+Longueur perdue à cause de la demi-épaisseur de la lame: 0.0884 [inch], angle: 45.00
+Longueur du rebus: 6.09
+setValue for node: Paramètres machine/Choix Recette, with value: 11 7/8
+Will set parameters to the web client
+setValue for node: Paramètres machine/Longueur brute, with value: 96.00
+setValue for node: Paramètres machine/Offset chargement, with value: 0.50
+setValue for node: Paramètres machine/Longueur de rebut, with value: 6.00
+setValue for node: Paramètres machine/Butée droite, with value: 97.00
+setValue for node: Paramètres machine/Largeur, with value: 3.50
+setValue for node: Paramètres machine/Longueur, with value: 11.88
+VirtualBooleanInputNode::setValue for node Opération/Start Cycle, value: false
+Node: Opération/Start Cycle new value: false, class: CLASS_VIRTUAL_BOOLEAN_INPUT_NODE
+ETAT: PARKING
+ETAT PARKING: Will call goToParkPosition()
+25354:: Going to position: 45891 (inch: 1.449339) with current pr: 1
+setValue for node: Servo write dobble holding registers/target A: 45891
+Go to park position: 45891 puu soit 1.45 inch
+25375:: Transition from PARKING to TRIGGER_PENDING (previousState: PARKING, resumeState: UNDEFINED)
+25376:: Node notify: Opération/Start Cycle new value: false
+25387:: Node notify (uint32 output): Servo write dobble holding registers/target A new value: 45891
+
+25510:: Uint32OutputNode::node: Servo write dobble holding registers/target A, new value: 45891
+ETAT: TRIGGER_PENDING
+setValue for node: Servo write holding register/trigger, with value: 1
+25768:: Trigger sent (pr: 1), returning to PARKING
+25779:: Transition from TRIGGER_PENDING to PARKING (previousState: PARKING, resumeState: UNDEFINED)
+25779:: Resetting stateStartTime for initial PARKING entry
+25791:: Node notify (Uint16OutputNode): Servo write holding register/trigger new value: 1
+
+25804::New lowest free heap: 130264 bytes
+Memory loss: 904 bytes in 9087 ms (3618.36 bytes/sec average)
+25844:: Uint16OutputNode::node: Servo write holding register/trigger, new value: 1
+ETAT: PARKING
+26135:: PARKING: Returned from TRIGGER_PENDING, waiting for position
+26136:: Transition from PARKING to IDLE (previousState: TRIGGER_PENDING, resumeState: UNDEFINED)
+26147:: Resetting stateStartTime for non-excepted state IDLE
+ETAT: IDLE
+26972:: node: Num Status/Position, new value: 45891
+setValue for node: Jog/Position actuelle, with value: 1.45
+27091:: Node notify (float output): Jog/Position actuelle new value: 1.449
+27094:: Node notify: Num Status/Position (Uint32InputNode) new value: 45891
+

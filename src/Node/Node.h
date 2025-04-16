@@ -571,8 +571,9 @@ class VirtualBooleanInputNode: public BooleanInputNode{
 
     private:
         bool getNewValue(bool& value){
-            return hideValue;
-        }; 
+            
+            return true;
+        };
 };
 
 class VirtualUint32InputNode: public Uint32InputNode{

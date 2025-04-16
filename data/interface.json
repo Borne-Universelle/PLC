@@ -11,13 +11,13 @@
                             "name": "Start Cycle",
                             "component": "tx-button-hold",
                             "color": "success",
-                            "hash": 824782083
+                            "hash": 246216594
                         },
                         {
                             "name": "Stop cycle",
                             "component": "tx-button-hold",
                             "color": "danger",
-                            "hash": 2539529911
+                            "hash": 2701507160
                         },
                         {
                             "name": "Reset défauts",
